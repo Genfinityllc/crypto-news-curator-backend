@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { fetchRealCryptoNews } = require('../services/newsService');
 const logger = require('../utils/logger');
 
 // Get all news articles with filtering and pagination
@@ -51,43 +52,49 @@ router.get('/', async (req, res) => {
 
     if (error || !supabase) {
       if (error) logger.error('Error fetching articles from Supabase:', error);
-      if (!supabase) logger.warn('Supabase not configured - returning sample data');
+      if (!supabase) logger.warn('Supabase not configured - fetching real RSS news data');
       
-      // Return sample data if Supabase not available
-      const sampleData = [
-        {
-          id: '1',
-          title: 'Bitcoin Reaches New Heights',
-          content: 'Bitcoin continues its upward trajectory as institutional adoption grows.',
-          source: 'CryptoNews',
-          published_at: new Date().toISOString(),
-          category: 'market',
-          network: 'Bitcoin',
-          is_breaking: true,
-          view_count: 150,
-          tags: ['bitcoin', 'market', 'institutional']
-        },
-        {
-          id: '2', 
-          title: 'Ethereum 2.0 Shows Promise',
-          content: 'The latest Ethereum upgrade demonstrates significant improvements.',
-          source: 'BlockchainToday',
-          published_at: new Date(Date.now() - 3600000).toISOString(),
-          category: 'technology',
-          network: 'Ethereum',
-          is_breaking: false,
-          view_count: 89,
-          tags: ['ethereum', 'upgrade', 'technology']
-        }
-      ];
+      // Fetch real news from RSS feeds
+      const realNewsData = await fetchRealCryptoNews();
+      
+      // Apply filters to real data
+      let filteredData = [...realNewsData];
+      
+      if (network && network !== 'all') {
+        filteredData = filteredData.filter(article => 
+          article.network.toLowerCase() === network.toLowerCase()
+        );
+      }
+
+      if (category && category !== 'all') {
+        filteredData = filteredData.filter(article => 
+          article.category === category
+        );
+      }
+
+      if (breaking === 'true') {
+        filteredData = filteredData.filter(article => article.is_breaking === true);
+      }
+
+      if (search) {
+        filteredData = filteredData.filter(article => 
+          article.title.toLowerCase().includes(search.toLowerCase()) ||
+          article.content.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+
+      // Apply pagination
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + parseInt(limit);
+      const paginatedData = filteredData.slice(startIndex, endIndex);
 
       return res.json({
         success: true,
-        data: sampleData,
-        total: sampleData.length,
+        data: paginatedData,
+        total: filteredData.length,
         page: parseInt(page),
-        totalPages: 1,
-        message: 'Sample articles returned (database table not yet created)'
+        totalPages: Math.ceil(filteredData.length / limit),
+        message: 'Real crypto news articles from RSS feeds'
       });
     }
 
@@ -120,29 +127,19 @@ router.get('/breaking', async (req, res) => {
       .order('published_at', { ascending: false })
       .limit(10);
 
-    if (error) {
-      logger.error('Error fetching breaking news:', error);
+    if (error || !supabase) {
+      if (error) logger.error('Error fetching breaking news:', error);
+      if (!supabase) logger.warn('Supabase not configured - fetching real breaking news');
       
-      // Return sample breaking news
-      const sampleBreaking = [
-        {
-          id: '1',
-          title: 'BREAKING: Bitcoin Hits All-Time High',
-          content: 'Bitcoin reaches unprecedented levels amid institutional buying.',
-          source: 'CryptoAlert',
-          published_at: new Date().toISOString(),
-          category: 'breaking',
-          network: 'Bitcoin',
-          is_breaking: true,
-          tags: ['bitcoin', 'ath', 'breaking']
-        }
-      ];
+      // Fetch real breaking news from RSS feeds
+      const realNewsData = await fetchRealCryptoNews();
+      const breakingNews = realNewsData.filter(article => article.is_breaking === true);
 
       return res.json({
         success: true,
-        data: sampleBreaking,
-        total: sampleBreaking.length,
-        message: 'Sample breaking news returned'
+        data: breakingNews.slice(0, 10), // Top 10 breaking news
+        total: breakingNews.length,
+        message: 'Real breaking news from RSS feeds'
       });
     }
 

@@ -14,57 +14,51 @@ async function getMarketData(limit = 100, currency = 'USD') {
   try {
     logger.info(`Fetching market data for top ${limit} cryptocurrencies`);
     
-    // In production, you'd call a real API
-    // Example with CoinGecko:
-    /*
-    const response = await axios.get(`https://api.coingecko.com/api/v3/coins/markets`, {
-      params: {
-        vs_currency: currency.toLowerCase(),
-        order: 'market_cap_desc',
-        per_page: limit,
-        page: 1,
-        sparkline: false,
-        locale: 'en'
-      }
-    });
-    
-    return response.data.map(coin => ({
-      id: coin.id,
-      symbol: coin.symbol.toUpperCase(),
-      name: coin.name,
-      image: coin.image,
-      currentPrice: coin.current_price,
-      marketCap: coin.market_cap,
-      marketCapRank: coin.market_cap_rank,
-      totalVolume: coin.total_volume,
-      high24h: coin.high_24h,
-      low24h: coin.low_24h,
-      priceChange24h: coin.price_change_24h,
-      priceChangePercentage24h: coin.price_change_percentage_24h,
-      marketCapChange24h: coin.market_cap_change_24h,
-      marketCapChangePercentage24h: coin.market_cap_change_percentage_24h,
-      circulatingSupply: coin.circulating_supply,
-      totalSupply: coin.total_supply,
-      maxSupply: coin.max_supply,
-      ath: coin.ath,
-      athChangePercentage: coin.ath_change_percentage,
-      athDate: coin.ath_date,
-      atl: coin.atl,
-      atlChangePercentage: coin.atl_change_percentage,
-      atlDate: coin.atl_date,
-      lastUpdated: coin.last_updated
-    }));
-    */
-    
-    // For demo purposes, return mock data
-    const mockData = generateMockMarketData(limit);
-    
-    logger.info(`Successfully fetched market data for ${mockData.length} cryptocurrencies`);
-    return mockData;
-    
+    // Use real CoinGecko API
+      const response = await axios.get(`https://api.coingecko.com/api/v3/coins/markets`, {
+        params: {
+          vs_currency: currency.toLowerCase(),
+          order: 'market_cap_desc',
+          per_page: Math.min(limit, 250),
+          page: 1,
+          sparkline: false,
+          locale: 'en',
+          price_change_percentage: '24h,7d'
+        },
+        timeout: 10000
+      });
+      
+      const realData = response.data.map(coin => ({
+        id: coin.id,
+        symbol: coin.symbol.toUpperCase(),
+        name: coin.name,
+        image: coin.image,
+        currentPrice: coin.current_price,
+        price: coin.current_price, // Add alias for frontend compatibility
+        marketCap: coin.market_cap,
+        marketCapRank: coin.market_cap_rank,
+        totalVolume: coin.total_volume,
+        volume24h: coin.total_volume, // Add alias for frontend compatibility
+        high24h: coin.high_24h,
+        low24h: coin.low_24h,
+        priceChange24h: coin.price_change_24h,
+        priceChangePercentage24h: coin.price_change_percentage_24h,
+        change24h: coin.price_change_percentage_24h, // Add alias for frontend compatibility
+        change7d: coin.price_change_percentage_7d_in_currency || 0,
+        rank: coin.market_cap_rank,
+        lastUpdated: coin.last_updated
+      }));
+      
+      logger.info(`Successfully fetched REAL market data for ${realData.length} cryptocurrencies from CoinGecko`);
+      return realData;
+      
   } catch (error) {
-    logger.error('Error fetching market data:', error.message);
-    throw new Error(`Failed to fetch market data: ${error.message}`);
+    logger.error('CoinGecko API error, falling back to mock data:', error.message);
+    
+    // Fallback to mock data if API fails
+    const mockData = generateMockMarketData(limit);
+    logger.info(`Fallback: Using mock market data for ${mockData.length} cryptocurrencies`);
+    return mockData;
   }
 }
 

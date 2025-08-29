@@ -7,7 +7,9 @@
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
       "Bash(gh:*)",
-      "Bash(claude mcp add supabase:*)"
+      "Bash(claude mcp add supabase:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
