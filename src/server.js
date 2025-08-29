@@ -28,15 +28,23 @@ const logger = require('./utils/logger');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Database initialization
-initializeDatabase()
-  .then(() => {
-    logger.info('Database initialized successfully');
-  })
-  .catch((error) => {
-    logger.error('Database initialization error:', error);
-    process.exit(1);
-  });
+// Set NODE_ENV to production if not set
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'production';
+}
+
+// Database initialization (skip for Railway deployment to avoid SQLite issues)
+if (process.env.NODE_ENV === 'development') {
+  initializeDatabase()
+    .then(() => {
+      logger.info('Database initialized successfully');
+    })
+    .catch((error) => {
+      logger.error('Database initialization error:', error);
+    });
+} else {
+  logger.info('Skipping database initialization in production');
+}
 
 // Rate limiting
 const limiter = rateLimit({
