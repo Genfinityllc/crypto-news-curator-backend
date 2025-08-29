@@ -10,7 +10,7 @@ const rateLimit = require('express-rate-limit');
 dotenv.config();
 
 // Import routes
-const newsRoutes = require('./routes/news');
+const newsRoutes = require('./routes/simple-news');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const cryptoRoutes = require('./routes/crypto');

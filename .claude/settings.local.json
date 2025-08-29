@@ -5,7 +5,8 @@
       "Bash(sudo chown:*)",
       "Bash(./start.sh:*)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(gh:*)"
     ],
     "deny": [],
     "ask": []

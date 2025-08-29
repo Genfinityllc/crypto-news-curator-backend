@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const News = require('../models/News');
+const { Article } = require('../models/sequelize');
 const { authMiddleware } = require('../middleware/auth');
 const { scrapeNewsSources, performWebSearch, scrapePressReleases } = require('../services/newsService');
 const { rewriteArticle, optimizeForSEO } = require('../services/aiService');
@@ -20,11 +20,11 @@ router.get('/', async (req, res) => {
       breaking = false
     } = req.query;
 
-    const query = { isActive: true };
+    const where = {};
     
     // Filter by network
     if (network && network !== 'all') {
-      query.network = network;
+      where.network = network;
     }
     
     // Filter by category
