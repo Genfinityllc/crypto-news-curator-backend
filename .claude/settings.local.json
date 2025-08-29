@@ -6,7 +6,8 @@
       "Bash(./start.sh:*)",
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(claude mcp add supabase:*)"
     ],
     "deny": [],
     "ask": []

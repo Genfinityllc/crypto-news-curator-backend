@@ -3,20 +3,22 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const { initializeDatabase } = require('./config/database');
+const { testSupabaseConnection } = require('./config/supabase');
 const rateLimit = require('express-rate-limit');
 
 // Load environment variables
 dotenv.config();
 
 // Import routes
-const newsRoutes = require('./routes/simple-news');
+const newsRoutes = require('./routes/supabase-news');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const cryptoRoutes = require('./routes/crypto');
 
 // Import services
 const { initializeCronJobs } = require('./services/cronService');
+
+// Skip Sequelize models to avoid association errors
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -33,18 +35,19 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'production';
 }
 
-// Database initialization (skip for Railway deployment to avoid SQLite issues)
-if (process.env.NODE_ENV === 'development') {
-  initializeDatabase()
-    .then(() => {
-      logger.info('Database initialized successfully');
-    })
-    .catch((error) => {
-      logger.error('Database initialization error:', error);
-    });
-} else {
-  logger.info('Skipping database initialization in production');
-}
+// Test Supabase connection
+testSupabaseConnection()
+  .then((connected) => {
+    if (connected) {
+      logger.info('Supabase connection successful');
+    } else {
+      logger.warn('Supabase connection failed, using sample data');
+    }
+  })
+  .catch((error) => {
+    logger.error('Supabase connection error:', error);
+    logger.info('Continuing with sample data fallback');
+  });
 
 // Rate limiting
 const limiter = rateLimit({
