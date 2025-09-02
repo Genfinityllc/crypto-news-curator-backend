@@ -70,6 +70,54 @@ router.get('/top-networks', async (req, res) => {
   }
 });
 
+// Get top 50 cryptocurrencies by market cap for dropdown
+router.get('/top-cryptos-dropdown', async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    
+    logger.info(`Fetching top ${limit} cryptocurrencies for dropdown`);
+    
+    // Get real market data from CoinGecko
+    const marketData = await getMarketData(parseInt(limit), 'USD');
+    
+    // Format for dropdown
+    const dropdownOptions = marketData.map(coin => ({
+      value: coin.name, // Use name as value for consistency
+      label: `${coin.name} (${coin.symbol})`,
+      symbol: coin.symbol,
+      marketCap: coin.marketCap,
+      price: coin.currentPrice,
+      change24h: coin.priceChangePercentage24h,
+      rank: coin.marketCapRank
+    }));
+    
+    // Add "All Networks" option at the top
+    const allNetworksOption = {
+      value: 'all',
+      label: 'All Networks',
+      symbol: 'ALL',
+      marketCap: 0,
+      price: 0,
+      change24h: 0,
+      rank: 0
+    };
+    
+    const finalOptions = [allNetworksOption, ...dropdownOptions];
+    
+    res.json({
+      success: true,
+      data: finalOptions
+    });
+    
+  } catch (error) {
+    logger.error('Error fetching top cryptos for dropdown:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching top cryptocurrencies'
+    });
+  }
+});
+
 // Get network price history
 router.get('/network/:symbol/price-history', async (req, res) => {
   try {

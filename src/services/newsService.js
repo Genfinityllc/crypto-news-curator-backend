@@ -1,8 +1,9 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const Parser = require('rss-parser');
-const News = require('../models/News');
+// News model removed - using Supabase instead
 const logger = require('../utils/logger');
+const { calculateViralScore, rewriteArticle, calculateReadabilityScore } = require('./aiService');
 
 // Initialize RSS parser
 const parser = new Parser({
@@ -323,8 +324,12 @@ async function fetchRealCryptoNews() {
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
       'https://decrypt.co/feed',
-      'https://bitcoinmagazine.com/.rss/full/',
-      'https://cryptoslate.com/feed/'
+      'https://cryptoslate.com/feed/',
+      'https://crypto.news/feed/',
+      'https://cryptopotato.com/feed/',
+      'https://news.bitcoin.com/feed/',
+      'https://bitcoinist.com/feed/',
+      'https://u.today/rss'
     ];
 
     const allArticles = [];
@@ -365,7 +370,8 @@ async function fetchRealCryptoNews() {
                             title.toLowerCase().includes('alert') ||
                             (new Date() - new Date(item.pubDate)) < 2 * 60 * 60 * 1000; // Last 2 hours
 
-          return {
+          // Create base article object
+          const baseArticle = {
             id: item.guid || item.link,
             title: title,
             content: content.substring(0, 300),
@@ -374,14 +380,14 @@ async function fetchRealCryptoNews() {
             source: feed.title || new URL(feedUrl).hostname,
             author: item.creator || item.author || 'Unknown',
             published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-            publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(), // Alias
+            publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
             category: category,
             network: network,
             tags: [network.toLowerCase(), category],
             sentiment: 'neutral',
             impact: 'medium',
             is_breaking: isBreaking,
-            isBreaking: isBreaking, // Alias
+            isBreaking: isBreaking,
             is_verified: true,
             view_count: Math.floor(Math.random() * 500) + 50,
             share_count: Math.floor(Math.random() * 100) + 10,
@@ -389,6 +395,22 @@ async function fetchRealCryptoNews() {
               feedUrl: feedUrl,
               feedTitle: feed.title
             }
+          };
+
+          // Calculate viral score
+          const viralScore = calculateViralScore(baseArticle);
+          
+          // Add enhanced fields
+          return {
+            ...baseArticle,
+            viral_score: viralScore,
+            readability_score: calculateReadabilityScore(content),
+            is_viral: viralScore >= 75,
+            engagement_potential: viralScore >= 85 ? 'high' : viralScore >= 65 ? 'medium' : 'low',
+            seo_optimized: true,
+            google_ads_ready: true,
+            original_content: content,
+            needs_rewrite: viralScore < 70 // Flag articles that could benefit from AI rewriting
           };
         });
 

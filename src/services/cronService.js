@@ -44,6 +44,22 @@ function initializeCronJobs() {
       logger.error('Error scraping news:', error.message);
     }
   });
+
+  // Populate database with real news every 2 minutes
+  cron.schedule('*/2 * * * *', async () => {
+    logger.info('Running scheduled database population...');
+    try {
+      const { fetchRealCryptoNews } = require('./newsService');
+      const { insertArticlesBatch } = require('../config/supabase');
+      
+      const realNews = await fetchRealCryptoNews();
+      const insertedArticles = await insertArticlesBatch(realNews);
+      
+      logger.info(`Database population completed: ${insertedArticles.length} articles inserted`);
+    } catch (error) {
+      logger.error('Error populating database:', error.message);
+    }
+  });
   
   // Update market data every 15 minutes during market hours
   cron.schedule('*/15 9-17 * * 1-5', async () => {
@@ -67,8 +83,8 @@ function initializeCronJobs() {
     }
   });
   
-  // Generate breaking news alerts every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
+  // Generate breaking news alerts every 2 minutes
+  cron.schedule('*/2 * * * *', async () => {
     logger.info('Checking for breaking news...');
     try {
       await checkBreakingNews();
@@ -157,18 +173,8 @@ async function cleanupOldArticles() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     
     // Mark old articles as inactive instead of deleting them
-    const result = await require('../models/News').updateMany(
-      {
-        publishedAt: { $lt: thirtyDaysAgo },
-        isActive: true,
-        'engagement.views': { $lt: 100 } // Keep popular articles
-      },
-      {
-        $set: { isActive: false }
-      }
-    );
-    
-    logger.info(`Marked ${result.modifiedCount} old articles as inactive`);
+    // Note: This would need to be implemented with Supabase
+    logger.info('Cleanup old articles - Supabase implementation needed');
     
   } catch (error) {
     logger.error('Error cleaning up old articles:', error.message);

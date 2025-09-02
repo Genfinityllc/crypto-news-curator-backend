@@ -14,6 +14,16 @@ const newsRoutes = require('./routes/supabase-news');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const cryptoRoutes = require('./routes/crypto');
+const adminRoutes = require('./routes/admin');
+
+// Try to load Firebase routes (graceful fallback if dependencies missing)
+let firebaseAuthRoutes = null;
+try {
+  firebaseAuthRoutes = require('./routes/firebase-auth');
+} catch (error) {
+  console.warn('Firebase dependencies not installed. Firebase auth routes disabled.');
+}
+
 
 // Import services
 const { initializeCronJobs } = require('./services/cronService');
@@ -79,6 +89,18 @@ app.use('/api/news', newsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/crypto', cryptoRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/crypto-market', require('./routes/cryptoMarket'));
+app.use('/api/enhanced-news', require('./routes/enhancedNews'));
+
+// Conditionally add Firebase auth routes if available
+if (firebaseAuthRoutes) {
+  app.use('/api/firebase-auth', firebaseAuthRoutes.router);
+  console.log('✅ Firebase auth routes enabled at /api/firebase-auth');
+} else {
+  console.log('⚠️  Firebase auth routes disabled (missing dependencies)');
+}
+
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -103,18 +125,12 @@ app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  mongoose.connection.close(() => {
-    logger.info('MongoDB connection closed');
-    process.exit(0);
-  });
+  process.exit(0);
 });
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
-  mongoose.connection.close(() => {
-    logger.info('MongoDB connection closed');
-    process.exit(0);
-  });
+  process.exit(0);
 });
 
 module.exports = app;

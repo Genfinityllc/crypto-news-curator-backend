@@ -29,7 +29,8 @@ async function generateCoverImage(article) {
     const title = encodeURIComponent(article.title.substring(0, 100));
     
     logger.info('Cover image generated successfully');
-    return `https://via.placeholder.com/1800x900/${accentColor}/ffffff?text=${title}`;
+    // Card-optimized dimensions: 400x225 (16:9 aspect ratio for cards)
+    return `https://via.placeholder.com/400x225/${accentColor}/ffffff?text=${title}`;
     
   } catch (error) {
     logger.error('Error generating cover image:', error.message);
@@ -66,11 +67,62 @@ async function generateAICoverImage(article, style = 'modern') {
     */
     
     // For demo purposes, return a placeholder
-    return `https://via.placeholder.com/1800x900/1a1a2e/ffffff?text=${encodeURIComponent(article.title)}`;
+    // Card-optimized dimensions: 400x225 (16:9 aspect ratio for cards)
+    return `https://via.placeholder.com/400x225/1a1a2e/ffffff?text=${encodeURIComponent(article.title)}`;
     
   } catch (error) {
     logger.error('Error generating AI cover image:', error.message);
     throw new Error(`Failed to generate AI cover image: ${error.message}`);
+  }
+}
+
+/**
+ * Generate card-optimized cover image
+ */
+async function generateCardCoverImage(article) {
+  try {
+    logger.info(`Generating card-optimized cover image for article: ${article.title}`);
+    
+    const networkColors = {
+      'Hedera HBAR': '00f2ff',
+      'XDC Network': 'ffa500',
+      'Constellation DAG': '9c27b0',
+      'Ethereum': '627eea',
+      'Bitcoin': 'f7931a',
+      'Solana': '9945ff',
+      'Breaking News': 'ef4444',
+      'Press Release': '3b82f6',
+      'Cardano': '0033ad',
+      'XRP': '23292f',
+      'Polkadot': 'e6007a',
+      'Chainlink': '2a5ada',
+      'Polygon': '8247e5',
+      'Avalanche': 'e84142',
+      'Uniswap': 'ff007a'
+    };
+    
+    const accentColor = networkColors[article.network] || '00f2ff';
+    const title = encodeURIComponent(article.title.substring(0, 60)); // Shorter title for cards
+    
+    // Multiple card sizes for different layouts
+    const cardSizes = {
+      small: '300x169',    // Small cards
+      medium: '400x225',   // Standard cards
+      large: '500x281',    // Large cards
+      square: '300x300'    // Square cards
+    };
+    
+    logger.info('Card cover image generated successfully');
+    return {
+      small: `https://via.placeholder.com/${cardSizes.small}/${accentColor}/ffffff?text=${title}`,
+      medium: `https://via.placeholder.com/${cardSizes.medium}/${accentColor}/ffffff?text=${title}`,
+      large: `https://via.placeholder.com/${cardSizes.large}/${accentColor}/ffffff?text=${title}`,
+      square: `https://via.placeholder.com/${cardSizes.square}/${accentColor}/ffffff?text=${title}`
+    };
+    
+  } catch (error) {
+    logger.error('Error generating card cover image:', error.message);
+    throw new Error(`Failed to generate card cover image: ${error.message}`);
   }
 }
 
@@ -145,6 +197,7 @@ async function optimizeImage(imageBuffer, quality = 0.8) {
 module.exports = {
   generateCoverImage,
   generateAICoverImage,
+  generateCardCoverImage,
   generateSocialMediaImages,
   generateImage,
   optimizeImage
