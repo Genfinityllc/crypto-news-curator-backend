@@ -8,7 +8,7 @@
     "dev": "nodemon src/server.js"
   },
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.1",
@@ -24,6 +24,7 @@
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
     "rss-parser": "^3.13.0",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "winston": "^3.11.0"
   }
 }
