@@ -4,6 +4,7 @@ const Parser = require('rss-parser');
 // News model removed - using Supabase instead
 const logger = require('../utils/logger');
 const { calculateViralScore, rewriteArticle, calculateReadabilityScore } = require('./aiService');
+const { generateCardCoverImage, extractArticleImages } = require('./imageService');
 
 // Initialize RSS parser
 const parser = new Parser({
@@ -314,6 +315,65 @@ async function updateNewsScores() {
 }
 
 /**
+ * Enhance articles with card-optimized images
+ */
+async function enhanceArticlesWithImages(articles) {
+  try {
+    logger.info(`Enhancing ${articles.length} articles with card images`);
+    
+    const enhancedArticles = [];
+    
+    for (const article of articles) {
+      try {
+        // Generate card images for the article
+        const cardImages = await generateCardCoverImage(article);
+        
+        // Add image data to article
+        const enhancedArticle = {
+          ...article,
+          card_images: cardImages,
+          cover_image: cardImages.medium, // Default to medium size
+          has_real_image: !cardImages.medium?.includes('placeholder'),
+          image_optimized: true
+        };
+        
+        // Update database with cover image if article has ID
+        if (article.id) {
+          try {
+            const { updateArticleCoverImage } = require('../config/supabase');
+            await updateArticleCoverImage(article.id, cardImages.medium);
+          } catch (updateError) {
+            logger.warn(`Failed to update cover image for article ${article.id}:`, updateError.message);
+          }
+        }
+        
+        enhancedArticles.push(enhancedArticle);
+        
+        // Small delay to avoid overwhelming image processing
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        logger.warn(`Failed to enhance article ${article.id || article.title} with images:`, error.message);
+        // Include article without enhancement
+        enhancedArticles.push({
+          ...article,
+          has_real_image: false,
+          image_optimized: false
+        });
+      }
+    }
+    
+    logger.info(`Successfully enhanced ${enhancedArticles.length} articles with images`);
+    return enhancedArticles;
+    
+  } catch (error) {
+    logger.error('Error enhancing articles with images:', error.message);
+    logger.error('Error details:', error.stack || error);
+    return articles; // Return original articles if enhancement fails
+  }
+}
+
+/**
  * Fetch real news from RSS feeds
  */
 async function fetchRealCryptoNews() {
@@ -372,7 +432,6 @@ async function fetchRealCryptoNews() {
 
           // Create base article object
           const baseArticle = {
-            id: item.guid || item.link,
             title: title,
             content: content.substring(0, 300),
             summary: content.substring(0, 200),
@@ -401,7 +460,7 @@ async function fetchRealCryptoNews() {
           const viralScore = calculateViralScore(baseArticle);
           
           // Add enhanced fields
-          return {
+          const enhancedArticle = {
             ...baseArticle,
             viral_score: viralScore,
             readability_score: calculateReadabilityScore(content),
@@ -412,6 +471,8 @@ async function fetchRealCryptoNews() {
             original_content: content,
             needs_rewrite: viralScore < 70 // Flag articles that could benefit from AI rewriting
           };
+          
+          return enhancedArticle;
         });
 
         allArticles.push(...articles);
@@ -425,8 +486,12 @@ async function fetchRealCryptoNews() {
     // Sort by publication date
     allArticles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     
-    logger.info(`Successfully fetched ${allArticles.length} real crypto news articles`);
-    return allArticles.slice(0, 50); // Return top 50 newest articles
+    // Enhance articles with card-optimized images
+    const topArticles = allArticles.slice(0, 50); // Get top 50 newest articles
+    const enhancedArticles = await enhanceArticlesWithImages(topArticles);
+    
+    logger.info(`Successfully fetched and enhanced ${enhancedArticles.length} real crypto news articles`);
+    return enhancedArticles;
     
   } catch (error) {
     logger.error('Error fetching real crypto news:', error.message);
@@ -455,5 +520,6 @@ module.exports = {
   scrapePressReleases,
   getBreakingNews,
   updateNewsScores,
-  fetchRealCryptoNews
+  fetchRealCryptoNews,
+  enhanceArticlesWithImages
 };

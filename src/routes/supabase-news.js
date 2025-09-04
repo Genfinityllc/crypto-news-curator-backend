@@ -3,7 +3,7 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { scrapeNewsSources, performWebSearch, scrapePressReleases, fetchRealCryptoNews } = require('../services/newsService');
 const { rewriteArticle, optimizeForSEO, generateAISummary } = require('../services/aiService');
-const { generateCoverImage } = require('../services/imageService');
+const { generateCoverImage, generateCardCoverImage } = require('../services/imageService');
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
 const logger = require('../utils/logger');
 
@@ -765,6 +765,206 @@ router.post('/test-ai-summary', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error creating test article'
+    });
+  }
+});
+
+// Generate card-optimized images for an article
+router.post('/generate-card-image/:id?', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { size = 'medium', title, network, url } = req.body;
+    
+    let article;
+    
+    if (id) {
+      // Get article from database
+      const { data: articles } = await getArticles({ limit: 1 });
+      article = articles?.find(a => a.id === id);
+      
+      if (!article) {
+        return res.status(404).json({
+          success: false,
+          message: 'Article not found'
+        });
+      }
+    } else {
+      // Use provided article data
+      article = {
+        title: title || 'Sample Crypto News',
+        network: network || 'Bitcoin',
+        url: url || 'https://example.com'
+      };
+    }
+    
+    logger.info(`Generating card image for article: ${article.title}`);
+    
+    // Generate card images
+    const cardImages = await generateCardCoverImage(article);
+    
+    res.json({
+      success: true,
+      data: {
+        coverImage: cardImages[size] || cardImages.medium,
+        cardImages: cardImages,
+        selectedSize: size,
+        article: {
+          id: article.id,
+          title: article.title,
+          network: article.network
+        }
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error generating card image:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating card image',
+      error: error.message
+    });
+  }
+});
+
+// Batch generate card images for multiple articles
+router.post('/generate-card-images/batch', async (req, res) => {
+  try {
+    const { articleIds, size = 'medium' } = req.body;
+    
+    if (!articleIds || !Array.isArray(articleIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Article IDs array is required'
+      });
+    }
+    
+    logger.info(`Batch generating card images for ${articleIds.length} articles`);
+    
+    const results = [];
+    const { data: allArticles } = await getArticles({ limit: 1000 });
+    
+    for (const articleId of articleIds) {
+      try {
+        const article = allArticles?.find(a => a.id === articleId);
+        
+        if (article) {
+          const cardImages = await generateCardCoverImage(article);
+          results.push({
+            articleId,
+            success: true,
+            coverImage: cardImages[size] || cardImages.medium,
+            cardImages: cardImages
+          });
+        } else {
+          results.push({
+            articleId,
+            success: false,
+            error: 'Article not found'
+          });
+        }
+        
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        logger.error(`Error generating image for article ${articleId}:`, error.message);
+        results.push({
+          articleId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        results,
+        totalProcessed: results.length,
+        successCount: results.filter(r => r.success).length,
+        failureCount: results.filter(r => !r.success).length
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error in batch card image generation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating card images',
+      error: error.message
+    });
+  }
+});
+
+// Enhance all articles missing cover images
+router.post('/enhance-missing-images', async (req, res) => {
+  try {
+    const { limit = 50, batch_size = 10 } = req.body;
+    
+    logger.info('Starting enhancement of articles missing cover images...');
+    
+    // Get articles without cover images
+    const { data: allArticles } = await getArticles({ limit: limit });
+    const articlesNeedingImages = allArticles.filter(article => 
+      !article.cover_image || 
+      article.cover_image === null || 
+      article.cover_image === 'null'
+    );
+    
+    logger.info(`Found ${articlesNeedingImages.length} articles needing cover images`);
+    
+    if (articlesNeedingImages.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No articles need cover images',
+        data: { processed: 0, enhanced: 0 }
+      });
+    }
+    
+    // Process in smaller batches to avoid overwhelming the system
+    const results = [];
+    const batchSize = Math.min(batch_size, articlesNeedingImages.length);
+    
+    for (let i = 0; i < articlesNeedingImages.length; i += batchSize) {
+      const batch = articlesNeedingImages.slice(i, i + batchSize);
+      logger.info(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(articlesNeedingImages.length/batchSize)} (${batch.length} articles)`);
+      
+      try {
+        const enhancedArticles = await enhanceArticlesWithImages(batch);
+        results.push(...enhancedArticles);
+        
+        logger.info(`Enhanced batch of ${enhancedArticles.length} articles`);
+        
+        // Small delay between batches
+        if (i + batchSize < articlesNeedingImages.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+      } catch (batchError) {
+        logger.error(`Error processing batch:`, batchError.message);
+        // Continue with next batch even if this one fails
+      }
+    }
+    
+    const successfulEnhancements = results.filter(article => article.cover_image && article.cover_image !== 'null');
+    
+    res.json({
+      success: true,
+      message: `Successfully enhanced ${successfulEnhancements.length} articles with cover images`,
+      data: {
+        totalProcessed: articlesNeedingImages.length,
+        enhanced: successfulEnhancements.length,
+        failed: articlesNeedingImages.length - successfulEnhancements.length,
+        batchSize: batchSize
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error enhancing articles with missing images:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error enhancing articles with images',
+      error: error.message
     });
   }
 });

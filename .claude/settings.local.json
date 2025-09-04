@@ -25,7 +25,21 @@
       "Bash(lsof:*)",
       "Bash(node:*)",
       "WebFetch(domain:console.firebase.google.com)",
-      "Bash(PORT=3001 npm start)"
+      "Bash(PORT=3001 npm start)",
+      "Bash(npm rebuild:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx:*)",
+      "Bash(npm config get:*)",
+      "Bash(npm config:*)",
+      "Bash(npm doctor)",
+      "Bash(npm:*)",
+      "Bash(open:*)",
+      "Bash(grep:*)",
+      "Bash(osascript:*)",
+      "Bash(claude doctor)",
+      "Bash(claude --version)",
+      "Bash(claude doctor:*)",
+      "Bash(git init:*)"
     ],
     "deny": [],
     "ask": []

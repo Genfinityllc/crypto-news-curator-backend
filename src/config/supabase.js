@@ -346,6 +346,37 @@ async function insertArticlesBatch(articlesData) {
   }
 }
 
+/**
+ * Update article cover image
+ */
+async function updateArticleCoverImage(articleId, coverImageUrl) {
+  try {
+    const client = getSupabaseClient();
+    if (!client) {
+      logger.warn('Supabase not available, skipping cover image update');
+      return null;
+    }
+    
+    const { data, error } = await client
+      .from('articles')
+      .update({ 
+        cover_image: coverImageUrl,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', articleId)
+      .select();
+      
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    logger.error(`Error updating cover image for article ${articleId}:`, error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   initializeSupabase,
   testSupabaseConnection,
@@ -355,5 +386,6 @@ module.exports = {
   getArticles,
   getBreakingNews,
   getPressReleases,
-  updateArticleEngagement
+  updateArticleEngagement,
+  updateArticleCoverImage
 };
