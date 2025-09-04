@@ -40,7 +40,8 @@
       "Bash(claude --version)",
       "Bash(claude doctor:*)",
       "Bash(git init:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
