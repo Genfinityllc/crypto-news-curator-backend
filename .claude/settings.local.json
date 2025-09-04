@@ -44,7 +44,8 @@
       "Bash(pkill:*)",
       "Bash(PORT=3005 npm start)",
       "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_ohdEdl/**)",
-      "WebFetch(domain:crypto-news-frontend-ruddy.vercel.app)"
+      "WebFetch(domain:crypto-news-frontend-ruddy.vercel.app)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_Xi5XTw/**)"
     ],
     "deny": [],
     "ask": []
