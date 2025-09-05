@@ -9,7 +9,16 @@ const { generateCardCoverImage, extractArticleImages } = require('./imageService
 // Initialize RSS parser
 const parser = new Parser({
   customFields: {
-    item: ['pubDate', 'creator', 'content:encoded']
+    item: [
+      'pubDate', 
+      'creator', 
+      'content:encoded',
+      'enclosure',
+      'media:content',
+      'media:thumbnail',
+      'media:description',
+      'itunes:image'
+    ]
   }
 });
 
@@ -453,7 +462,8 @@ async function fetchRealCryptoNews() {
             metadata: {
               feedUrl: feedUrl,
               feedTitle: feed.title
-            }
+            },
+            rssItem: item // Pass the full RSS item for image extraction
           };
 
           // Calculate viral score

@@ -70,52 +70,461 @@ async function fetchAndResizeImage(url, width = 400, height = 225) {
 }
 
 /**
- * Extract images from article URL
+ * Extract Open Graph and meta tag images from HTML
  */
-async function extractArticleImages(articleUrl) {
-  try {
-    logger.info(`Extracting images from: ${articleUrl}`);
-    
-    const response = await axios.get(articleUrl, {
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+function extractMetaImages($, articleUrl) {
+  const metaImages = [];
+  
+  // Extract og:image
+  const ogImage = $('meta[property="og:image"]').attr('content') || $('meta[name="og:image"]').attr('content');
+  if (ogImage) {
+    const absoluteUrl = ogImage.startsWith('http') ? ogImage : new URL(ogImage, articleUrl).href;
+    metaImages.push({
+      url: absoluteUrl,
+      alt: 'Featured image',
+      source: 'og:image',
+      priority: 10
+    });
+  }
+  
+  // Extract Twitter card image
+  const twitterImage = $('meta[name="twitter:image"]').attr('content') || $('meta[property="twitter:image"]').attr('content');
+  if (twitterImage && twitterImage !== ogImage) {
+    const absoluteUrl = twitterImage.startsWith('http') ? twitterImage : new URL(twitterImage, articleUrl).href;
+    metaImages.push({
+      url: absoluteUrl,
+      alt: 'Twitter card image',
+      source: 'twitter:image',
+      priority: 9
+    });
+  }
+  
+  // Extract article:image (some sites use this)
+  const articleImage = $('meta[property="article:image"]').attr('content');
+  if (articleImage && articleImage !== ogImage && articleImage !== twitterImage) {
+    const absoluteUrl = articleImage.startsWith('http') ? articleImage : new URL(articleImage, articleUrl).href;
+    metaImages.push({
+      url: absoluteUrl,
+      alt: 'Article image',
+      source: 'article:image',
+      priority: 8
+    });
+  }
+  
+  return metaImages;
+}
+
+/**
+ * Extract images from article content HTML with improved selectors
+ */
+function extractContentImages($, articleUrl) {
+  const images = [];
+  
+  // Bitcoinist-specific high-priority selectors first
+  const bitcoinistSelectors = [
+    // Main featured image (highest priority)
+    '.wp-post-image.background-img',
+    // Large attachment images
+    '.attachment-large:not(.lazyload)',
+    '.size-large:not(.lazyload)',
+    // Content images with good sizes
+    '.entry-content .size-large',
+    '.entry-content .wp-image-*[class*="size-large"]'
+  ];
+  
+  // Process Bitcoinist-specific selectors first with high priority
+  for (const selector of bitcoinistSelectors) {
+    $(selector).each((i, element) => {
+      const $img = $(element);
+      let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
+      
+      if (!src || src.length < 10) return;
+      
+      const alt = $img.attr('alt') || '';
+      const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+      
+      if (isValidNewsImage(absoluteUrl, alt, $img)) {
+        const width = parseInt($img.attr('width')) || 0;
+        const height = parseInt($img.attr('height')) || 0;
+        const className = $img.attr('class') || '';
+        const parentClass = $img.parent().attr('class') || '';
+        
+        let priority = calculateImagePriority(className, parentClass, alt, width, height);
+        // Boost priority for Bitcoinist main images
+        if (className.includes('background-img')) priority += 5;
+        
+        images.push({
+          url: absoluteUrl,
+          alt: alt,
+          width: width,
+          height: height,
+          source: 'bitcoinist-featured',
+          className: className,
+          priority: priority
+        });
       }
     });
-    
-    const $ = cheerio.load(response.data);
+  }
+  
+  // Common news site image selectors (in order of priority)
+  const imageSelectors = [
+    // Featured/hero images
+    '.featured-image img, .hero-image img, .article-hero img',
+    // Article content images (avoid lazy loaded ones for now)
+    '.article-content img:not(.lazyload), .post-content img:not(.lazyload), .entry-content img:not(.lazyload), .content img:not(.lazyload)',
+    // Story/news specific selectors
+    '.story-image img, .news-image img, .article-image img',
+    // WordPress and CMS common selectors (avoid small lazy loaded)
+    '.wp-post-image:not(.lazyload), .attachment-large, .attachment-medium',
+    // Figure and picture elements
+    'figure img:not(.lazyload), picture img',
+    // Generic article selectors
+    'article img:not(.lazyload), .article img:not(.lazyload), .post img:not(.lazyload)',
+    // Finally, try lazy loaded images if no others found
+    'img[data-src]:not([class*="64x64"]):not([class*="sm_square"]), img[data-original], img[data-lazy-src]'
+  ];
+  
+  for (const selector of imageSelectors) {
+    $(selector).each((i, element) => {
+      const $img = $(element);
+      let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
+      
+      if (!src || src.length < 10) return; // Skip invalid/empty src
+      
+      const alt = $img.attr('alt') || '';
+      const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+      
+      // Skip if we already have this URL
+      if (images.some(img => img.url === absoluteUrl)) return;
+      
+      // Enhanced filtering logic
+      if (isValidNewsImage(absoluteUrl, alt, $img)) {
+        // Get image dimensions and context
+        const width = parseInt($img.attr('width')) || 0;
+        const height = parseInt($img.attr('height')) || 0;
+        const className = $img.attr('class') || '';
+        const parentClass = $img.parent().attr('class') || '';
+        
+        // Calculate priority based on context
+        let priority = calculateImagePriority(className, parentClass, alt, width, height);
+        
+        images.push({
+          url: absoluteUrl,
+          alt: alt,
+          width: width,
+          height: height,
+          source: 'content',
+          className: className,
+          priority: priority
+        });
+      }
+    });
+  }
+  
+  return images;
+}
+
+/**
+ * Determine if an image is valid for news articles
+ */
+function isValidNewsImage(url, alt, $img) {
+  const urlLower = url.toLowerCase();
+  const altLower = alt.toLowerCase();
+  
+  // Skip common non-content images
+  const skipPatterns = [
+    'logo', 'icon', 'avatar', 'profile', 'banner', 'header', 'footer',
+    'sidebar', 'ad', 'advertisement', 'sponsor', 'widget', 'button',
+    'pixel', 'tracking', 'beacon', 'spacer', 'separator'
+  ];
+  
+  for (const pattern of skipPatterns) {
+    if (urlLower.includes(pattern) || altLower.includes(pattern)) {
+      return false;
+    }
+  }
+  
+  // Skip placeholder/empty images (Bitcoinist specific)
+  const placeholderPatterns = [
+    'jeg-empty.png', 'placeholder', 'loading.gif', 'spinner', 'blank.png'
+  ];
+  
+  for (const pattern of placeholderPatterns) {
+    if (urlLower.includes(pattern)) {
+      return false;
+    }
+  }
+  
+  // Skip very small images (likely icons) - more restrictive for Bitcoinist
+  const width = parseInt($img.attr('width')) || 0;
+  const height = parseInt($img.attr('height')) || 0;
+  if ((width > 0 && width < 120) || (height > 0 && height < 120)) {
+    return false;
+  }
+  
+  // Skip common ad/tracker domains
+  const skipDomains = ['googletagmanager.com', 'google-analytics.com', 'facebook.com/tr', 'doubleclick.net'];
+  for (const domain of skipDomains) {
+    if (urlLower.includes(domain)) {
+      return false;
+    }
+  }
+  
+  // Must be a reasonable image format
+  const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
+  const hasValidExtension = validExtensions.some(ext => urlLower.includes(ext)) || 
+                            !urlLower.includes('.'); // URLs without extensions (often CDN)
+  
+  return hasValidExtension;
+}
+
+/**
+ * Calculate image priority based on context clues
+ */
+function calculateImagePriority(className, parentClass, alt, width, height) {
+  let priority = 5; // Base priority
+  
+  const classNames = `${className} ${parentClass}`.toLowerCase();
+  const altLower = alt.toLowerCase();
+  
+  // High priority indicators
+  if (classNames.includes('featured') || classNames.includes('hero') || classNames.includes('main')) priority += 3;
+  if (classNames.includes('article') || classNames.includes('story') || classNames.includes('news')) priority += 2;
+  if (altLower.includes('featured') || altLower.includes('main') || altLower.includes('hero')) priority += 2;
+  
+  // Bitcoinist-specific high priority
+  if (classNames.includes('background-img')) priority += 5;
+  if (classNames.includes('wp-post-image') && !classNames.includes('lazyload')) priority += 3;
+  
+  // Size-based priority (larger images likely more important)
+  if (width > 800 && height > 600) priority += 4;
+  else if (width > 500 && height > 300) priority += 3;
+  else if (width > 300 && height > 200) priority += 2;
+  else if (width > 120 && height > 120) priority += 1;
+  
+  // Penalize very small images (Bitcoinist sidebar thumbnails)
+  if ((width > 0 && width <= 64) || (height > 0 && height <= 64)) priority -= 5;
+  if (classNames.includes('sm_square') || classNames.includes('64x64')) priority -= 3;
+  
+  // WordPress specific
+  if (classNames.includes('attachment-large')) priority += 3;
+  if (classNames.includes('size-large')) priority += 2;
+  
+  // Penalize lazy loading placeholders
+  if (classNames.includes('lazyload') && !classNames.includes('background-img')) priority -= 2;
+  
+  return priority;
+}
+
+/**
+ * Extract images from RSS content:encoded field
+ */
+function extractRSSContentImages(content, articleUrl) {
+  if (!content) return [];
+  
+  try {
+    const $ = cheerio.load(content);
     const images = [];
     
-    // Look for article images
     $('img').each((i, element) => {
-      const src = $(element).attr('src');
-      const alt = $(element).attr('alt') || '';
+      const $img = $(element);
+      let src = $img.attr('src') || $img.attr('data-src');
       
       if (src) {
-        // Make URL absolute
         const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        const alt = $img.attr('alt') || '';
         
-        // Filter out small images, icons, ads
-        const width = parseInt($(element).attr('width')) || 0;
-        const height = parseInt($(element).attr('height')) || 0;
-        
-        if ((width > 200 && height > 150) || (!width && !height)) {
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
           images.push({
             url: absoluteUrl,
             alt: alt,
-            width: width,
-            height: height
+            source: 'rss-content',
+            priority: 6
           });
         }
       }
     });
     
-    return images.slice(0, 5); // Return top 5 candidates
+    return images;
+  } catch (error) {
+    logger.warn('Error parsing RSS content for images:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Extract images from article URL with comprehensive approach
+ */
+async function extractArticleImages(articleUrl, rssContent = null) {
+  try {
+    logger.info(`Extracting images from: ${articleUrl}`);
+    
+    let allImages = [];
+    
+    // First, try to extract from RSS content if available
+    if (rssContent) {
+      const rssImages = extractRSSContentImages(rssContent, articleUrl);
+      allImages.push(...rssImages);
+      logger.info(`Found ${rssImages.length} images in RSS content`);
+    }
+    
+    // Then fetch and parse the full article
+    const response = await axios.get(articleUrl, {
+      timeout: 15000, // Increased timeout
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache'
+      },
+      maxRedirects: 3
+    });
+    
+    const $ = cheerio.load(response.data);
+    
+    // Extract meta tag images (highest priority)
+    const metaImages = extractMetaImages($, articleUrl);
+    allImages.push(...metaImages);
+    logger.info(`Found ${metaImages.length} meta tag images`);
+    
+    // Extract content images
+    const contentImages = extractContentImages($, articleUrl);
+    allImages.push(...contentImages);
+    logger.info(`Found ${contentImages.length} content images`);
+    
+    // Remove duplicates and sort by priority
+    const uniqueImages = [];
+    const seenUrls = new Set();
+    
+    // Sort by priority (highest first)
+    allImages.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    
+    for (const img of allImages) {
+      if (!seenUrls.has(img.url)) {
+        seenUrls.add(img.url);
+        uniqueImages.push(img);
+      }
+    }
+    
+    logger.info(`Extracted ${uniqueImages.length} unique images from ${articleUrl}`);
+    return uniqueImages.slice(0, 8); // Return top 8 candidates
     
   } catch (error) {
     logger.warn(`Failed to extract images from ${articleUrl}:`, error.message);
+    
+    // If we have RSS content, try to extract from that at least
+    if (rssContent) {
+      const rssImages = extractRSSContentImages(rssContent, articleUrl);
+      if (rssImages.length > 0) {
+        logger.info(`Falling back to ${rssImages.length} RSS content images`);
+        return rssImages;
+      }
+    }
+    
     return [];
   }
+}
+
+/**
+ * Extract images from RSS feed item
+ */
+function extractRSSItemImages(rssItem) {
+  const images = [];
+  
+  try {
+    // Extract from enclosures (common in RSS)
+    if (rssItem.enclosure && rssItem.enclosure.url) {
+      const url = rssItem.enclosure.url;
+      if (isImageUrl(url)) {
+        images.push({
+          url: url,
+          alt: 'RSS enclosure image',
+          source: 'rss-enclosure',
+          priority: 8,
+          type: rssItem.enclosure.type
+        });
+      }
+    }
+    
+    // Extract from media:content (Media RSS)
+    if (rssItem['media:content']) {
+      const mediaContent = Array.isArray(rssItem['media:content']) ? rssItem['media:content'] : [rssItem['media:content']];
+      for (const media of mediaContent) {
+        if (media.$ && media.$.url && isImageUrl(media.$.url)) {
+          images.push({
+            url: media.$.url,
+            alt: media.$.description || 'Media content image',
+            source: 'media-content',
+            priority: 8,
+            width: media.$.width ? parseInt(media.$.width) : 0,
+            height: media.$.height ? parseInt(media.$.height) : 0
+          });
+        }
+      }
+    }
+    
+    // Extract from media:thumbnail
+    if (rssItem['media:thumbnail']) {
+      const mediaThumbnail = Array.isArray(rssItem['media:thumbnail']) ? rssItem['media:thumbnail'] : [rssItem['media:thumbnail']];
+      for (const thumb of mediaThumbnail) {
+        if (thumb.$ && thumb.$.url) {
+          images.push({
+            url: thumb.$.url,
+            alt: 'Media thumbnail',
+            source: 'media-thumbnail',
+            priority: 7,
+            width: thumb.$.width ? parseInt(thumb.$.width) : 0,
+            height: thumb.$.height ? parseInt(thumb.$.height) : 0
+          });
+        }
+      }
+    }
+    
+    // Extract from iTunes image (used by some feeds)
+    if (rssItem['itunes:image'] && rssItem['itunes:image'].href) {
+      images.push({
+        url: rssItem['itunes:image'].href,
+        alt: 'iTunes image',
+        source: 'itunes-image',
+        priority: 6
+      });
+    }
+    
+    logger.info(`Extracted ${images.length} images from RSS item`);
+    return images;
+    
+  } catch (error) {
+    logger.warn('Error extracting RSS item images:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Check if a URL is likely an image
+ */
+function isImageUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  
+  const urlLower = url.toLowerCase();
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
+  
+  // Check for explicit image extensions
+  for (const ext of imageExtensions) {
+    if (urlLower.includes(ext)) return true;
+  }
+  
+  // Check for common image CDN patterns
+  const imageCdnPatterns = [
+    'images.', 'img.', 'cdn.', 'media.', 'static.', 'assets.',
+    'imgur.com', 'cloudinary.com', 'amazonaws.com'
+  ];
+  
+  for (const pattern of imageCdnPatterns) {
+    if (urlLower.includes(pattern)) return true;
+  }
+  
+  return false;
 }
 
 /**
@@ -127,18 +536,37 @@ async function generateCoverImage(article) {
     
     let imageUrl = null;
     
-    // Try to extract real image from article
+    // Try to extract images from multiple sources
+    let allImages = [];
+    
+    // First, try RSS item images if available
+    if (article.rssItem) {
+      const rssImages = extractRSSItemImages(article.rssItem);
+      allImages.push(...rssImages);
+    }
+    
+    // Then try to extract from article URL
     if (article.url && article.url !== '#') {
-      const extractedImages = await extractArticleImages(article.url);
+      const rssContent = article.rssItem ? article.rssItem['content:encoded'] : null;
+      const extractedImages = await extractArticleImages(article.url, rssContent);
+      allImages.push(...extractedImages);
+    }
+    
+    // Sort by priority and try to fetch/resize
+    if (allImages.length > 0) {
+      allImages.sort((a, b) => (b.priority || 0) - (a.priority || 0));
       
-      if (extractedImages.length > 0) {
-        // Try to fetch and resize the best image candidate
-        for (const img of extractedImages) {
+      for (const img of allImages) {
+        try {
           const resizedUrl = await fetchAndResizeImage(img.url, 400, 225);
           if (resizedUrl) {
             imageUrl = resizedUrl;
+            logger.info(`Successfully processed image from ${img.source}: ${img.url}`);
             break;
           }
+        } catch (imgError) {
+          logger.warn(`Failed to process image ${img.url}:`, imgError.message);
+          continue;
         }
       }
     }
@@ -232,12 +660,27 @@ async function generateCardCoverImage(article) {
     const results = {};
     let sourceImage = null;
     
-    // Try to extract real image from article first
+    // Try to extract real images from multiple sources
+    let allImages = [];
+    
+    // First, try RSS item images if available
+    if (article.rssItem) {
+      const rssImages = extractRSSItemImages(article.rssItem);
+      allImages.push(...rssImages);
+    }
+    
+    // Then try to extract from article URL
     if (article.url && article.url !== '#') {
-      const extractedImages = await extractArticleImages(article.url);
-      if (extractedImages.length > 0) {
-        sourceImage = extractedImages[0]; // Use the first (best) image
-      }
+      const rssContent = article.rssItem ? article.rssItem['content:encoded'] : null;
+      const extractedImages = await extractArticleImages(article.url, rssContent);
+      allImages.push(...extractedImages);
+    }
+    
+    // Sort by priority and use the best image
+    if (allImages.length > 0) {
+      allImages.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      sourceImage = allImages[0]; // Use the highest priority image
+      logger.info(`Using image from ${sourceImage.source}: ${sourceImage.url}`);
     }
     
     // Generate images for each card size
@@ -367,5 +810,7 @@ module.exports = {
   generateImage,
   optimizeImage,
   fetchAndResizeImage,
-  extractArticleImages
+  extractArticleImages,
+  extractRSSItemImages,
+  isImageUrl
 };
