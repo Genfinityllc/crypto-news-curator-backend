@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
       category,
       sortBy = 'publishedAt',
       search,
-      breaking = false
+      breaking = false,
+      source = 'database' // New parameter: 'database', 'rss', or 'hybrid'
     } = req.query;
 
     const options = {
@@ -30,6 +31,65 @@ router.get('/', async (req, res) => {
       isBreaking: breaking === 'true'
     };
 
+    // Always fetch fresh RSS news with enhanced images for better user experience
+    if (source === 'rss' || source === 'hybrid' || source === undefined) {
+      logger.info('Fetching real news from RSS feeds with enhanced images...');
+      const realNews = await fetchRealCryptoNews();
+      
+      // Apply filters to RSS news
+      let filteredNews = realNews;
+      
+      if (network && network !== 'all') {
+        filteredNews = filteredNews.filter(article => 
+          article.network && article.network.toLowerCase().includes(network.toLowerCase())
+        );
+      }
+      
+      if (category && category !== 'all') {
+        filteredNews = filteredNews.filter(article => 
+          article.category === category
+        );
+      }
+      
+      if (breaking === 'true') {
+        filteredNews = filteredNews.filter(article => article.is_breaking === true);
+      }
+      
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredNews = filteredNews.filter(article => 
+          article.title.toLowerCase().includes(searchLower) ||
+          article.content.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply sorting
+      if (sortBy === 'viral_score') {
+        filteredNews.sort((a, b) => (b.viral_score || 0) - (a.viral_score || 0));
+      } else {
+        filteredNews.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+      }
+      
+      // Apply pagination
+      const startIndex = (parseInt(page) - 1) * parseInt(limit);
+      const paginatedNews = filteredNews.slice(startIndex, startIndex + parseInt(limit));
+      
+      return res.json({
+        success: true,
+        data: paginatedNews,
+        pagination: {
+          current: parseInt(page),
+          total: Math.ceil(filteredNews.length / limit),
+          hasNext: startIndex + parseInt(limit) < filteredNews.length,
+          hasPrev: parseInt(page) > 1,
+          totalCount: filteredNews.length
+        },
+        message: 'Real-time news from RSS feeds with enhanced images',
+        source: 'rss'
+      });
+    }
+
+    // Fallback to database if explicitly requested
     const { data: articles, count } = await getArticles(options);
 
     // If no articles in database, fetch real news from RSS feeds
@@ -48,7 +108,8 @@ router.get('/', async (req, res) => {
           hasPrev: page > 1,
           totalCount: realNews.length
         },
-        message: 'Real-time news from RSS feeds'
+        message: 'Real-time news from RSS feeds (database fallback)',
+        source: 'rss'
       });
     }
 
@@ -61,7 +122,8 @@ router.get('/', async (req, res) => {
         hasNext: page * limit < count,
         hasPrev: page > 1,
         totalCount: count
-      }
+      },
+      source: 'database'
     });
   } catch (error) {
     logger.error('Error fetching news:', error);
