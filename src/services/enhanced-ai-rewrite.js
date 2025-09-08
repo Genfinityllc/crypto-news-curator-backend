@@ -136,14 +136,27 @@ async function generateFullLengthRewrite(title, content, articleUrl = null) {
   // Build comprehensive, full-length article (2000+ words)
   let rewrittenContent = '';
   
-  // EXECUTIVE SUMMARY (300-400 words)
-  rewrittenContent += `The cryptocurrency landscape is experiencing transformative developments that signal significant shifts in how digital assets integrate with traditional financial markets. These changes represent more than incremental updates—they indicate fundamental transformations that could reshape the entire sector for years to come.\n\n`;
+  // EXECUTIVE SUMMARY - Article-specific content
+  const mainCryptoTerms = cryptoTerms.slice(0, 3);
+  const primarySubject = mainCryptoTerms.length > 0 ? mainCryptoTerms[0] : 'the cryptocurrency market';
   
-  rewrittenContent += `Market participants across all sectors, from individual retail investors to major institutional powerhouses, are closely monitoring these developments. The implications extend far beyond simple price movements, affecting regulatory frameworks, technological innovation, adoption patterns, and the overall trajectory of digital finance.\n\n`;
+  rewrittenContent += `Recent developments in ${primarySubject} have captured significant attention across digital asset markets, presenting new opportunities and challenges for investors, traders, and institutional participants. `;
   
-  rewrittenContent += `The strategic timing of these announcements is particularly noteworthy given the current market environment. The cryptocurrency sector has evolved considerably from its speculative origins, transitioning into legitimate financial infrastructure with real-world applications and institutional backing.\n\n`;
+  if (mainPoints.length > 0) {
+    const firstPoint = mainPoints[0].replace(/<[^>]*>/g, '').trim();
+    rewrittenContent += `${firstPoint.charAt(0).toUpperCase() + firstPoint.slice(1)}. `;
+  }
   
-  rewrittenContent += `Understanding these developments requires examining multiple interconnected layers of complexity. From technical implementation details to broader market implications, regulatory considerations, and global adoption trends, each aspect contributes to a comprehensive picture of where the cryptocurrency market is heading and what stakeholders should anticipate in the coming quarters.\n\n`;
+  rewrittenContent += `This comprehensive analysis examines the key implications, market dynamics, and strategic considerations surrounding these latest industry movements.\n\n`;
+  
+  if (figures.length > 0) {
+    rewrittenContent += `Key metrics from this development include significant figures such as ${figures.slice(0, 2).join(' and ')}, highlighting the scale and potential impact of these changes on market participants and digital asset valuations.\n\n`;
+  }
+  
+  // Add specific context based on extracted crypto terms
+  if (mainCryptoTerms.length > 1) {
+    rewrittenContent += `The analysis covers multiple digital assets including ${mainCryptoTerms.join(', ')}, examining how these developments affect different segments of the cryptocurrency ecosystem and their respective market positions.\n\n`;
+  }
   
   // Add primary image if available
   let selectedImage = null;
@@ -152,22 +165,37 @@ async function generateFullLengthRewrite(title, content, articleUrl = null) {
     rewrittenContent += `![${selectedImage.alt || 'Market Analysis'}](${selectedImage.url})\n*${selectedImage.context || 'Market analysis visual representation'}*\n\n`;
   }
 
-  // DETAILED ANALYSIS SECTION (500-700 words)
-  rewrittenContent += `## Comprehensive Analysis of Market Developments\n\n`;
+  // DETAILED ANALYSIS SECTION - Article-specific content
+  rewrittenContent += `## Detailed Analysis: ${title.replace(/^(Breaking|Major|Market|Crypto|Industry)\s*:?\s*/i, '')}\n\n`;
   
   if (mainPoints.length > 0) {
-    rewrittenContent += `Recent announcements have created substantial ripples throughout the global cryptocurrency community, with industry analysts working around the clock to assess the full implications. Here's a detailed examination of what investors, traders, and institutional participants need to understand:\n\n`;
+    rewrittenContent += `This development presents several critical aspects that warrant detailed examination:\n\n`;
     
-    mainPoints.forEach((point, index) => {
-      const cleanPoint = point.replace(/<[^>]*>/g, '').trim(); // Remove HTML tags
-      rewrittenContent += `### Key Development ${index + 1}: ${cleanPoint.substring(0, 100)}...\n\n`;
+    mainPoints.slice(0, 4).forEach((point, index) => {
+      const cleanPoint = point.replace(/<[^>]*>/g, '').trim();
+      const shortTitle = cleanPoint.length > 60 ? cleanPoint.substring(0, 60) + '...' : cleanPoint;
       
-      rewrittenContent += `This development carries substantial weight in today's evolving market environment. Industry experts and institutional analysts have been conducting comprehensive evaluations of the broader implications, examining how this announcement integrates with larger patterns of institutional adoption, regulatory acceptance, and technological advancement that have been reshaping the cryptocurrency landscape over the past several quarters.\n\n`;
+      rewrittenContent += `### ${index + 1}. ${shortTitle}\n\n`;
+      rewrittenContent += `${cleanPoint} This represents a significant shift in the ${primarySubject} ecosystem, with implications extending beyond immediate market participants to include institutional investors, retail traders, and long-term strategic planning.\n\n`;
       
-      rewrittenContent += `The strategic timing and execution of this announcement deserve particular attention from market participants. Current market conditions have been increasingly favorable for such initiatives, with regulatory bodies worldwide providing greater clarity and institutional investors demonstrating unprecedented levels of interest in digital asset opportunities. This confluence of positive factors creates an environment where significant developments can achieve amplified impact and accelerated adoption.\n\n`;
-      
-      rewrittenContent += `Professional trading operations, hedge funds, and institutional asset managers are analyzing this development through multiple sophisticated lenses. Technical analysis, fundamental evaluation, sentiment assessment, regulatory impact analysis, and competitive positioning all contribute to understanding the potential short-term volatility and long-term strategic implications for market participants across the ecosystem.\n\n`;
+      // Add relevant crypto context for each point
+      if (cryptoTerms.length > index) {
+        rewrittenContent += `For ${cryptoTerms[index]} specifically, this development could influence trading patterns, adoption metrics, and competitive positioning within the broader digital asset landscape.\n\n`;
+      }
     });
+    
+    // Add key information insights
+    if (keyInfo.length > 0) {
+      rewrittenContent += `### Additional Context and Background\n\n`;
+      keyInfo.slice(0, 3).forEach(info => {
+        const cleanInfo = info.replace(/<[^>]*>/g, '').trim();
+        rewrittenContent += `${cleanInfo} `;
+      });
+      rewrittenContent += `These contextual factors provide important background for understanding the full scope and potential market impact of the current developments.\n\n`;
+    }
+  } else {
+    // Fallback when no main points are extracted
+    rewrittenContent += `The current situation in ${primarySubject} reflects broader trends in cryptocurrency adoption and market maturation. Key factors driving these developments include regulatory clarification, institutional acceptance, and technological advancement across the digital asset ecosystem.\n\n`;
   }
   
   // Add comprehensive background context
@@ -175,22 +203,41 @@ async function generateFullLengthRewrite(title, content, articleUrl = null) {
   
   rewrittenContent += `Professional trading operations now employ teams of specialized analysts who apply traditional financial modeling techniques adapted specifically for cryptocurrency applications. This evolution toward more mature investment practices has created a substantially more stable foundation for market growth, even as volatility remains a characteristic feature that provides trading opportunities for skilled participants.\n\n`;
   
-  // FINANCIAL METRICS SECTION (400-500 words)
-  rewrittenContent += `## Financial Metrics and Quantitative Analysis\n\n`;
+  // FINANCIAL METRICS SECTION - Article-specific content
+  rewrittenContent += `## Financial Impact and Market Metrics\n\n`;
   
   if (figures.length > 0) {
-    rewrittenContent += `The quantitative aspects of these developments provide compelling insights into market dynamics and future potential. Key financial metrics and performance indicators include: `;
-    figures.forEach((figure, index) => {
-      rewrittenContent += `${figure}${index < figures.length - 1 ? ', ' : '. '}`;
+    rewrittenContent += `The quantitative aspects of this ${primarySubject} development reveal significant financial implications. Key metrics include `;
+    figures.slice(0, 5).forEach((figure, index) => {
+      rewrittenContent += `${figure}${index < figures.length - 1 ? ', ' : ''}`;
+      if (index === figures.length - 1) rewrittenContent += '. ';
     });
-    rewrittenContent += `These numerical data points offer crucial insight into the scale, scope, and potential market impact of the announced changes and strategic initiatives.\n\n`;
+    rewrittenContent += `These figures demonstrate the substantial scale and potential market impact of the current developments.\n\n`;
     
-    rewrittenContent += `Financial analysts specializing in cryptocurrency markets and digital asset valuation have been working extensively to interpret these figures within the broader context of evolving market trends. The metrics suggest robust institutional confidence, continued momentum in digital asset adoption, and growing integration between traditional financial systems and cryptocurrency infrastructure.\n\n`;
+    // Add specific analysis based on the figures
+    const hasPercentages = figures.some(f => f.includes('%'));
+    const hasDollarAmounts = figures.some(f => f.includes('$'));
+    const hasLargeNumbers = figures.some(f => f.toLowerCase().includes('million') || f.toLowerCase().includes('billion'));
+    
+    if (hasPercentages) {
+      rewrittenContent += `The percentage-based metrics indicate significant movement in key performance indicators, suggesting strong momentum in ${primarySubject} adoption and market positioning. `;
+    }
+    
+    if (hasDollarAmounts) {
+      rewrittenContent += `The monetary figures highlight the substantial financial stakes involved, with implications for market capitalization, trading volumes, and institutional investment flows. `;
+    }
+    
+    if (hasLargeNumbers) {
+      rewrittenContent += `The scale of these numbers underscores the institutional-grade nature of these developments, moving beyond retail-focused initiatives into enterprise and institutional territory. `;
+    }
+    
+    rewrittenContent += `\n\nThese metrics provide concrete evidence of the development's potential to influence broader market dynamics and investor sentiment across the ${primarySubject} ecosystem.\n\n`;
+  } else {
+    // Fallback when no figures are available
+    rewrittenContent += `While specific quantitative metrics may not be immediately apparent, the qualitative impact of these ${primarySubject} developments suggests significant implications for market valuation, trading activity, and institutional interest. The absence of disclosed figures often indicates strategic positioning or preliminary stages of development that could yield substantial metrics in future announcements.\n\n`;
   }
   
-  rewrittenContent += `Market valuation models are continuously being updated and refined to reflect new data points and evolving market dynamics. Traditional financial analysis methods, including discounted cash flow models, comparative market analysis, network value assessments, and adoption curve modeling, are being systematically adapted for cryptocurrency applications with increasing sophistication.\n\n`;
-  
-  rewrittenContent += `Risk management frameworks employed by institutional investors continue to evolve rapidly as they adapt traditional modern portfolio theory to include cryptocurrency allocations. This evolution includes developing new metrics for correlation analysis, volatility measurement, liquidity assessment, and regulatory risk evaluation specific to digital assets and blockchain technologies.\n\n`;
+  rewrittenContent += `Market analysts are applying various valuation methodologies to assess the potential impact on ${primarySubject} and related digital assets. These approaches include comparative analysis with similar developments, adoption curve modeling, and assessment of network effect potential.\n\n`;
   
   // CRYPTOCURRENCY-SPECIFIC IMPACT (400-600 words)
   if (cryptoTerms.length > 0) {
