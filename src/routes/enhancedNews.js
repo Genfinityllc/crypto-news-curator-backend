@@ -202,7 +202,7 @@ router.post('/:id/rewrite', async (req, res) => {
         seoOptimized: rewriteResult.seoOptimized || true,
         googleAdsReady: rewriteResult.googleAdsReady || true,
         coverImage: rewriteResult.coverImage, // null - no large image above cards
-        cardImage: rewriteResult.extractedImages?.[0] || article.cover_image, // small image for inside card
+        cardImage: (rewriteResult.extractedImages && rewriteResult.extractedImages.length > 0) ? rewriteResult.extractedImages[0] : article.cover_image, // small image for inside card
         originalWordCount: article.content.split(' ').length
       },
       updatedArticle,
