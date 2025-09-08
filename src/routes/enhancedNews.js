@@ -168,12 +168,13 @@ router.post('/:id/rewrite', async (req, res) => {
     const rewriteResult = await rewriteArticle(article.title, article.content, article.url);
     
     // Update article with rewritten content (only using existing columns)
+    // Keep existing cover_image for small card images, but return null to remove large images above cards
     const { data: updatedArticle, error: updateError } = await supabase
       .from('articles')
       .update({
         content: rewriteResult.content,
         ai_summary: rewriteResult.content.substring(0, 500) + '...',
-        cover_image: rewriteResult.coverImage || article.cover_image,
+        // Don't update cover_image - keep original for small card display
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -200,7 +201,8 @@ router.post('/:id/rewrite', async (req, res) => {
         isOriginal: rewriteResult.isOriginal || true,
         seoOptimized: rewriteResult.seoOptimized || true,
         googleAdsReady: rewriteResult.googleAdsReady || true,
-        coverImage: rewriteResult.coverImage,
+        coverImage: rewriteResult.coverImage, // null - no large image above cards
+        cardImage: rewriteResult.extractedImages?.[0] || article.cover_image, // small image for inside card
         originalWordCount: article.content.split(' ').length
       },
       updatedArticle,
