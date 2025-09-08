@@ -6,8 +6,8 @@ const { generateAISummary } = require('../services/aiService');
 require('dotenv').config();
 
 // Supabase configuration
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_ANON_KEY?.trim();
 
 let supabase = null;
 
