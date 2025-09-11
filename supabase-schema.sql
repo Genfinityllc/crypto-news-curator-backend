@@ -51,6 +51,10 @@ CREATE TABLE public.articles (
     cover_image TEXT,
     ai_summary TEXT,
     ai_keywords TEXT[],
+    viral_score INTEGER DEFAULT 0,
+    readability_score INTEGER DEFAULT 0,
+    is_viral BOOLEAN DEFAULT FALSE,
+    engagement_potential TEXT DEFAULT 'low',
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -267,4 +271,4 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
 
 -- Success message
-SELECT 'Database schema created successfully! 🎉' as message;
+SELECT 'Database schema created successfully! 🎉' as message;2

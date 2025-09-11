@@ -216,3 +216,4 @@ curl -X POST "http://localhost:3000/api/news/generate-card-cover/[ARTICLE_ID]" \
 
 Your articles will now have perfectly sized images for any card layout! 🎉
 
+

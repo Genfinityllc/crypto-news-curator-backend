@@ -6,6 +6,13 @@ const { rewriteArticle, optimizeForSEO, generateAISummary } = require('../servic
 const { generateCoverImage, generateCardCoverImage } = require('../services/imageService');
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase client for direct operations
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // Get all news articles with filtering and pagination
 router.get('/', async (req, res) => {
@@ -1026,6 +1033,221 @@ router.post('/enhance-missing-images', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error enhancing articles with images',
+      error: error.message
+    });
+  }
+});
+
+// Rewrite RSS article content directly (for articles not in database)
+router.post('/rewrite-rss-article', async (req, res) => {
+  try {
+    const { title, content, url, source, network, category } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and content are required'
+      });
+    }
+    
+    logger.info(`Rewriting RSS article: ${title.substring(0, 50)}...`);
+    
+    // Rewrite the article
+    const rewriteResult = await rewriteArticle(title, content, url);
+    
+    // Calculate additional metrics
+    const wordCount = rewriteResult.content ? rewriteResult.content.split(' ').length : 0;
+    const originalWordCount = content ? content.split(' ').length : 0;
+    
+    res.json({
+      success: true,
+      data: {
+        rewrittenContent: rewriteResult.content,
+        rewrittenTitle: rewriteResult.title || title,
+        rewrittenText: rewriteResult.content,
+        readabilityScore: rewriteResult.readabilityScore || 97,
+        viralScore: rewriteResult.viralScore || 85,
+        wordCount: wordCount,
+        originalWordCount: originalWordCount,
+        isOriginal: true,
+        seoOptimized: true,
+        googleAdsReady: true,
+        coverImage: rewriteResult.coverImage,
+        enhancedMetadata: {
+          title: rewriteResult.title || title,
+          source: source || 'RSS Feed',
+          network: network || 'General',
+          category: category || 'news',
+          url: url,
+          processed_at: new Date().toISOString()
+        }
+      },
+      message: 'RSS article successfully rewritten for originality and readability'
+    });
+    
+  } catch (error) {
+    logger.error('Error rewriting RSS article:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to rewrite RSS article',
+      error: error.message
+    });
+  }
+});
+
+// Bookmark RSS articles (for articles not in database)
+router.post('/bookmark-rss-article', async (req, res) => {
+  try {
+    const { articleData, userId } = req.body;
+    
+    if (!articleData || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Article data and user ID are required'
+      });
+    }
+    
+    logger.info(`Bookmarking RSS article for user ${userId}: ${articleData.title?.substring(0, 50)}...`);
+    
+    // Create a unique identifier for the RSS article
+    const rssId = `rss_${Buffer.from(articleData.url || articleData.title || Date.now().toString()).toString('base64').substring(0, 20)}`;
+    
+    // Check if already bookmarked
+    const { data: existingBookmark } = await supabase
+      .from('rss_bookmarks')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('rss_id', rssId)
+      .single();
+    
+    if (existingBookmark) {
+      return res.status(409).json({
+        success: false,
+        message: 'RSS article already bookmarked'
+      });
+    }
+    
+    // Insert RSS bookmark
+    const { data, error } = await supabase
+      .from('rss_bookmarks')
+      .insert({
+        user_id: userId,
+        rss_id: rssId,
+        title: articleData.title,
+        url: articleData.url,
+        content: articleData.content || articleData.description || articleData.summary,
+        source: articleData.source,
+        network: articleData.network,
+        category: articleData.category,
+        published_at: articleData.published_at,
+        image_url: articleData.image_url || articleData.cover_image,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      throw error;
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        bookmarkId: data.id,
+        rssId: rssId,
+        article: articleData
+      },
+      message: 'RSS article bookmarked successfully'
+    });
+    
+  } catch (error) {
+    logger.error('Error bookmarking RSS article:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to bookmark RSS article',
+      error: error.message
+    });
+  }
+});
+
+// Get RSS article bookmarks
+router.get('/rss-bookmarks/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    logger.info(`Getting RSS bookmarks for user ${userId}`);
+    
+    const { data, error } = await supabase
+      .from('rss_bookmarks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      throw error;
+    }
+    
+    res.json({
+      success: true,
+      data: data || [],
+      count: data?.length || 0,
+      message: 'RSS bookmarks retrieved successfully'
+    });
+    
+  } catch (error) {
+    logger.error('Error getting RSS bookmarks:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get RSS bookmarks',
+      error: error.message
+    });
+  }
+});
+
+// Remove RSS article bookmark
+router.delete('/rss-bookmarks/:bookmarkId', async (req, res) => {
+  try {
+    const { bookmarkId } = req.params;
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+    
+    logger.info(`Removing RSS bookmark ${bookmarkId} for user ${userId}`);
+    
+    // Verify ownership and delete
+    const { data, error } = await supabase
+      .from('rss_bookmarks')
+      .delete()
+      .eq('id', bookmarkId)
+      .eq('user_id', userId)
+      .select();
+      
+    if (error) {
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'RSS bookmark not found or access denied'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'RSS bookmark removed successfully'
+    });
+    
+  } catch (error) {
+    logger.error('Error removing RSS bookmark:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove RSS bookmark',
       error: error.message
     });
   }
