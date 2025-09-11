@@ -429,15 +429,7 @@ async function fetchRealCryptoNews() {
       'https://news.google.com/rss/search?q=Algorand+OR+ALGO&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Constellation+Network+OR+DAG&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=HashPack+wallet&hl=en-US&gl=US&ceid=US:en',
-      'https://www.reddit.com/r/Hedera.rss',
-      'https://www.reddit.com/r/algorand.rss',
-      'https://www.reddit.com/r/xinfin.rss',
-      'https://www.reddit.com/r/bitcoin.rss',
-      'https://www.reddit.com/r/ethereum.rss',
-      'https://www.reddit.com/r/binance.rss',
-      'https://www.reddit.com/r/solana.rss',
-      'https://www.reddit.com/r/cardano.rss',
-      'https://www.reddit.com/r/xrp.rss',
+      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
     ];
 
     const allArticles = [];
