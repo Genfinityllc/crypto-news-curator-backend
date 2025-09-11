@@ -470,6 +470,22 @@ async function fetchRealCryptoNews() {
                             title.toLowerCase().includes('alert') ||
                             (new Date() - new Date(item.pubDate)) < 2 * 60 * 60 * 1000; // Last 2 hours
 
+          // Extract images from RSS item
+          let imageUrl = null;
+          
+          // Try multiple RSS image sources
+          if (item.enclosure && item.enclosure.url && item.enclosure.type && item.enclosure.type.includes('image')) {
+            imageUrl = item.enclosure.url;
+          } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
+            imageUrl = item['media:content'].$.url;
+          } else if (item['media:thumbnail'] && item['media:thumbnail'].$ && item['media:thumbnail'].$.url) {
+            imageUrl = item['media:thumbnail'].$.url;
+          } else if (item.image && item.image.url) {
+            imageUrl = item.image.url;
+          } else if (item['itunes:image'] && item['itunes:image'].href) {
+            imageUrl = item['itunes:image'].href;
+          }
+
           // Create base article object
           const baseArticle = {
             title: title,
@@ -490,6 +506,8 @@ async function fetchRealCryptoNews() {
             is_verified: true,
             view_count: Math.floor(Math.random() * 500) + 50,
             share_count: Math.floor(Math.random() * 100) + 10,
+            image_url: imageUrl, // RSS image URL
+            cover_image: imageUrl, // RSS cover image
             metadata: {
               feedUrl: feedUrl,
               feedTitle: feed.title
