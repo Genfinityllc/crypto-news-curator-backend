@@ -453,7 +453,7 @@ async function fetchRealCryptoNews() {
           const content = item.content || item.summary || item.description || '';
           
           let network = 'General';
-          const networks = ['Bitcoin', 'Ethereum', 'BNB', 'Solana', 'Cardano', 'XRP', 'Dogecoin', 'Polygon', 'Avalanche', 'Chainlink'];
+          const networks = ['Bitcoin', 'Ethereum', 'BNB', 'Solana', 'Cardano', 'XRP', 'Dogecoin', 'Polygon', 'Avalanche', 'Chainlink', 'Hedera', 'HBAR', 'XDC', 'Algorand', 'ALGO', 'Constellation', 'DAG', 'HashPack', 'SWAP'];
           
           for (const net of networks) {
             if (title.toLowerCase().includes(net.toLowerCase()) || content.toLowerCase().includes(net.toLowerCase())) {
