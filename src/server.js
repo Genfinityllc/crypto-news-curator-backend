@@ -90,6 +90,8 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/news', newsRoutes);
+app.use('/api/cached-news', require('./routes/cached-news')); // New ultra-fast cached route
+app.use('/api/fast-news', require('./routes/fast-news')); // Simple ultra-fast cached route
 app.use('/api/auth', authRoutes);
 app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/crypto', cryptoRoutes);

@@ -142,6 +142,29 @@ function initializeCronJobs() {
       logger.error('Error updating trending networks:', error.message);
     }
   });
+
+  // Clear articles cache every 4 days at 3 AM
+  cron.schedule('0 3 */4 * *', async () => {
+    logger.info('Running scheduled 4-day cache clear...');
+    try {
+      const cacheService = require('./cacheService');
+      const cleared = cacheService.clearArticlesCache();
+      logger.info(`4-day cache clear completed successfully. Cleared ${cleared} entries.`);
+    } catch (error) {
+      logger.error('Error clearing articles cache:', error.message);
+    }
+  });
+  
+  // Preload cache on startup for immediate fast responses
+  setTimeout(async () => {
+    logger.info('Preloading cache for fast initial responses...');
+    try {
+      await articlesCacheService.preloadCache();
+      logger.info('Cache preloaded successfully');
+    } catch (error) {
+      logger.error('Error preloading cache:', error.message);
+    }
+  }, 10000); // Wait 10 seconds after server starts
   
   logger.info('All cron jobs initialized successfully');
 }
@@ -401,6 +424,12 @@ function getCronJobStatus() {
         name: 'trending',
         schedule: '0 0 * * *',
         description: 'Update trending networks daily',
+        lastRun: new Date().toISOString()
+      },
+      {
+        name: 'cacheClear',
+        schedule: '0 3 */4 * *',
+        description: 'Clear articles cache every 4 days',
         lastRun: new Date().toISOString()
       }
     ],

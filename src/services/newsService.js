@@ -415,6 +415,7 @@ async function fetchRealCryptoNews() {
     logger.info('Fetching real crypto news from RSS feeds');
     
     const rssFeeds = [
+      // General crypto news sources (primary sources for diversity)
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
       'https://decrypt.co/feed',
@@ -424,12 +425,40 @@ async function fetchRealCryptoNews() {
       'https://news.bitcoin.com/feed/',
       'https://bitcoinist.com/feed/',
       'https://u.today/rss',
+      'https://www.coindesk.com/arc/outboundfeeds/rss/',
+      
+      // Targeted network searches (balanced distribution)
+      'https://news.google.com/rss/search?q=Bitcoin+OR+BTC&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Ethereum+OR+ETH&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Solana+OR+SOL&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Cardano+OR+ADA&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Polygon+OR+MATIC&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Avalanche+OR+AVAX&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Polkadot+OR+DOT&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Cosmos+OR+ATOM&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Near+Protocol+OR+NEAR&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Arbitrum+OR+ARB&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Optimism+OR+OP&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Sui+blockchain&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Aptos+blockchain&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Uniswap+OR+UNI&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Aave+protocol&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Chainlink+OR+LINK&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=XRP+OR+Ripple&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Dogecoin+OR+DOGE&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=BNB+Chain+OR+BSC&hl=en-US&gl=US&ceid=US:en',
+      
+      // Your specific client networks (enhanced for better client news coverage)
       'https://news.google.com/rss/search?q=Hedera+OR+HBAR&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Hedera+Hashgraph&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=XDC+Network+OR+XinFin&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=XDC+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Algorand+OR+ALGO&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Algorand+blockchain&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Constellation+Network+OR+DAG&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Constellation+DAG+crypto&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=HashPack+wallet&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];
@@ -445,13 +474,71 @@ async function fetchRealCryptoNews() {
           const content = item.content || item.summary || item.description || '';
           
           let network = 'General';
-          const networks = ['Bitcoin', 'Ethereum', 'BNB', 'Solana', 'Cardano', 'XRP', 'Dogecoin', 'Polygon', 'Avalanche', 'Chainlink', 'Hedera', 'HBAR', 'XDC', 'Algorand', 'ALGO', 'Constellation', 'DAG', 'HashPack', 'SWAP'];
           
-          for (const net of networks) {
-            if (title.toLowerCase().includes(net.toLowerCase()) || content.toLowerCase().includes(net.toLowerCase())) {
-              network = net;
-              break;
+          // Comprehensive network detection with multiple keywords per network
+          const networkKeywords = {
+            'Bitcoin': ['bitcoin', 'btc', 'bitcoin core', 'bitcoin network'],
+            'Ethereum': ['ethereum', 'eth', 'ether', 'ethereum network', 'eth2', 'ethereum 2.0'],
+            'BNB Chain': ['bnb', 'binance coin', 'bnb chain', 'binance smart chain', 'bsc'],
+            'Solana': ['solana', 'sol', 'solana network'],
+            'Cardano': ['cardano', 'ada', 'cardano network'],
+            'XRP': ['xrp', 'ripple', 'ripple network', 'xrp ledger'],
+            'Dogecoin': ['dogecoin', 'doge', 'dogecoin network'],
+            'Polygon': ['polygon', 'matic', 'polygon network', 'polygon matic'],
+            'Avalanche': ['avalanche', 'avax', 'avalanche network'],
+            'Chainlink': ['chainlink', 'link', 'chainlink network'],
+            'Polkadot': ['polkadot', 'dot', 'polkadot network'],
+            'Cosmos': ['cosmos', 'atom', 'cosmos network', 'cosmos hub'],
+            'Near Protocol': ['near', 'near protocol', 'near network'],
+            'Stellar': ['stellar', 'xlm', 'stellar network', 'stellar lumens'],
+            'Litecoin': ['litecoin', 'ltc', 'litecoin network'],
+            'Aave': ['aave', 'aave protocol', 'aave network'],
+            'Cronos': ['cronos', 'cro', 'cronos network'],
+            'Arbitrum': ['arbitrum', 'arb', 'arbitrum network'],
+            'Optimism': ['optimism', 'op', 'optimism network'],
+            'Injective': ['injective', 'inj', 'injective protocol'],
+            'Celestia': ['celestia', 'tia', 'celestia network'],
+            'Sui': ['sui', 'sui network', 'sui blockchain'],
+            'Aptos': ['aptos', 'apt', 'aptos network'],
+            'Shardeum': ['shardeum', 'shard', 'shardeum network'],
+            'Immutable X': ['immutable x', 'imx', 'immutable'],
+            'The Sandbox': ['sandbox', 'sand', 'the sandbox'],
+            'Decentraland': ['decentraland', 'mana', 'decentraland network'],
+            'MakerDAO': ['makerdao', 'mkr', 'maker', 'dai'],
+            'Uniswap': ['uniswap', 'uni', 'uniswap protocol'],
+            'Curve': ['curve', 'crv', 'curve finance'],
+            'Fantom': ['fantom', 'ftm', 'fantom network'],
+            'Algorand': ['algorand', 'algo', 'algorand network'],
+            'Axie Infinity': ['axie infinity', 'axie', 'axs'],
+            'The Graph': ['the graph', 'graph', 'grt'],
+            'Helium': ['helium', 'hnt', 'helium network'],
+            'Filecoin': ['filecoin', 'fil', 'filecoin network'],
+            'Flow': ['flow', 'flow network', 'flow blockchain'],
+            'Theta Network': ['theta network', 'theta', 'tfuel'],
+            'BitTorrent': ['bittorrent', 'btt', 'bittorrent network'],
+            'Fetch.ai': ['fetch.ai', 'fetch', 'fet'],
+            'Monero': ['monero', 'xmr', 'monero network'],
+            'Zcash': ['zcash', 'zec', 'zcash network'],
+            'VeChain': ['vechain', 'vet', 'vechain network'],
+            'Neo': ['neo', 'neo network', 'neo blockchain'],
+            'Hedera': ['hedera', 'hbar', 'hedera hashgraph', 'hedera network'],
+            'XDC Network': ['xdc network', 'xdc', 'xinfin'],
+            'Constellation': ['constellation', 'dag', 'constellation network'],
+            'Internet Computer': ['internet computer', 'icp', 'dfinity'],
+            'Bitcoin Cash': ['bitcoin cash', 'bch', 'bitcoin cash network']
+          };
+          
+          // Check for network keywords in title and content
+          const searchText = (title + ' ' + content).toLowerCase();
+          
+          for (const [networkName, keywords] of Object.entries(networkKeywords)) {
+            for (const keyword of keywords) {
+              if (searchText.includes(keyword.toLowerCase())) {
+                network = networkName;
+                break;
+              }
             }
+            if (network !== 'General') break;
           }
 
           // Determine category

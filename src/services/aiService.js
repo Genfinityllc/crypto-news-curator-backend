@@ -152,10 +152,8 @@ async function generateAISummary(title, content) {
   try {
     logger.info('Generating AI summary for article');
     
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
-      // Fallback to simulated summary if no API key
-      return simulateAISummary(title, content);
-    }
+    // Always use fallback for now to avoid API errors
+    return simulateAISummary(title, content);
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-3.5-turbo',

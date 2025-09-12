@@ -1,0 +1,24 @@
+import React from 'react';
+import NewsTabs from './components/news/NewsTabs';
+import './App.css';
+
+function App() {
+  return (
+    <div className="App">
+      <header className="App-header">
+        <h1>🚀 Crypto News Curator</h1>
+        <p>Real-time crypto news aggregation with 4-day caching for ultra-fast performance</p>
+      </header>
+      
+      <main className="App-main">
+        <NewsTabs />
+      </main>
+      
+      <footer className="App-footer">
+        <p>Powered by Fast-News API with intelligent caching</p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;

@@ -5,6 +5,7 @@ const { scrapeNewsSources, performWebSearch, scrapePressReleases, fetchRealCrypt
 const { rewriteArticle, optimizeForSEO, generateAISummary } = require('../services/aiService');
 const { generateCoverImage, generateCardCoverImage } = require('../services/imageService');
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
+const articlesCacheService = require('../services/articlesCacheService');
 const logger = require('../utils/logger');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
       sortBy = 'publishedAt',
       search,
       breaking = false,
-      source = 'database' // New parameter: 'database', 'rss', or 'hybrid'
+      source = 'rss' // Default to RSS for better performance and images
     } = req.query;
 
     const options = {
