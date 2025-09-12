@@ -1,7 +1,18 @@
 // Frontend service for crypto news aggregation
 // Updated to use the fast-news endpoint for better performance
 
+import axios from 'axios';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 class NewsService {
   /**
@@ -28,11 +39,8 @@ class NewsService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/fast-news?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
+      const response = await api.get(`/api/fast-news?${params}`);
+      return response.data;
     } catch (error) {
       console.error('Error fetching all news:', error);
       throw error;
@@ -64,11 +72,8 @@ class NewsService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/fast-news?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
+      const response = await api.get(`/api/fast-news?${params}`);
+      return response.data;
     } catch (error) {
       console.error('Error fetching client news:', error);
       throw error;
@@ -100,11 +105,8 @@ class NewsService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/fast-news?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
+      const response = await api.get(`/api/fast-news?${params}`);
+      return response.data;
     } catch (error) {
       console.error('Error fetching breaking news:', error);
       throw error;
@@ -136,11 +138,8 @@ class NewsService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/fast-news?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
+      const response = await api.get(`/api/fast-news?${params}`);
+      return response.data;
     } catch (error) {
       console.error(`Error fetching ${network} news:`, error);
       throw error;
@@ -152,11 +151,8 @@ class NewsService {
    */
   async getCacheStats() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/fast-news/cache/stats`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
+      const response = await api.get('/api/fast-news/cache/stats');
+      return response.data;
     } catch (error) {
       console.error('Error fetching cache stats:', error);
       throw error;
