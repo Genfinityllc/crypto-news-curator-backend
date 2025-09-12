@@ -211,4 +211,46 @@ router.get('/test-breaking', async (req, res) => {
   }
 });
 
+/**
+ * Test client network filtering
+ */
+router.get('/test-clients', async (req, res) => {
+  try {
+    const { getArticles } = require('../config/supabase');
+    
+    // Get all articles and filter for client networks
+    const allArticles = await getArticles({ limit: 200 });
+    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+    
+    const clientArticles = allArticles.data.filter(article => 
+      article.network && clientNetworks.some(client => 
+        article.network.toLowerCase().includes(client.toLowerCase())
+      )
+    );
+    
+    res.json({
+      success: true,
+      totalArticles: allArticles.data.length,
+      clientArticles: clientArticles.length,
+      networkBreakdown: clientArticles.reduce((acc, article) => {
+        acc[article.network] = (acc[article.network] || 0) + 1;
+        return acc;
+      }, {}),
+      sampleTitles: clientArticles.slice(0, 5).map(article => ({
+        title: article.title,
+        network: article.network
+      })),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error testing client networks:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
