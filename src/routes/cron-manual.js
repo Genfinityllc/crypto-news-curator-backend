@@ -166,4 +166,49 @@ router.get('/test-rss/:count?', async (req, res) => {
   }
 });
 
+/**
+ * Test breaking news database query
+ */
+router.get('/test-breaking', async (req, res) => {
+  try {
+    const { getBreakingNews, getArticles } = require('../config/supabase');
+    
+    // Test direct breaking news function
+    const directBreaking = await getBreakingNews();
+    
+    // Test getArticles with breaking filter
+    const filteredBreaking = await getArticles({ 
+      isBreaking: true,
+      limit: 10
+    });
+    
+    res.json({
+      success: true,
+      directBreaking: {
+        count: directBreaking.length,
+        sample: directBreaking.slice(0, 3).map(article => ({
+          title: article.title,
+          is_breaking: article.is_breaking
+        }))
+      },
+      filteredBreaking: {
+        count: filteredBreaking.data ? filteredBreaking.data.length : 0,
+        sample: filteredBreaking.data ? filteredBreaking.data.slice(0, 3).map(article => ({
+          title: article.title,
+          is_breaking: article.is_breaking
+        })) : []
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error testing breaking news:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
