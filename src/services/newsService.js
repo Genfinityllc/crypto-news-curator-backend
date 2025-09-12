@@ -470,7 +470,7 @@ async function fetchRealCryptoNews() {
     logger.info('Fetching real crypto news from RSS feeds');
     
     const rssFeeds = [
-      // General crypto news sources (primary sources for diversity)
+      // Dedicated crypto news sources (primary sources for quality crypto content)
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
       'https://decrypt.co/feed',
@@ -480,28 +480,12 @@ async function fetchRealCryptoNews() {
       'https://news.bitcoin.com/feed/',
       'https://bitcoinist.com/feed/',
       'https://u.today/rss',
-      'https://www.coindesk.com/arc/outboundfeeds/rss/',
-      
-      // Targeted network searches (balanced distribution)
-      'https://news.google.com/rss/search?q=Bitcoin+OR+BTC&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Ethereum+OR+ETH&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Solana+OR+SOL&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Cardano+OR+ADA&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Polygon+OR+MATIC&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Avalanche+OR+AVAX&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Polkadot+OR+DOT&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Cosmos+OR+ATOM&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Near+Protocol+OR+NEAR&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Arbitrum+OR+ARB&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Optimism+OR+OP&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Sui+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Aptos+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Uniswap+OR+UNI&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Aave+protocol&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Chainlink+OR+LINK&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=XRP+OR+Ripple&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Dogecoin+OR+DOGE&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=BNB+Chain+OR+BSC&hl=en-US&gl=US&ceid=US:en',
+      'https://coingape.com/feed/',
+      'https://ambcrypto.com/feed/',
+      'https://cryptonews.com/news/feed/',
+      'https://cryptobriefing.com/feed/',
+      'https://beincrypto.com/feed/',
+      'https://cryptodaily.co.uk/feed/',
       
       // Your specific client networks (enhanced for better client news coverage)
       'https://news.google.com/rss/search?q=Hedera+OR+HBAR&hl=en-US&gl=US&ceid=US:en',
