@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
       limit: 1000, // Get more articles to filter properly
       network: network === 'all' ? null : network,
       category: category === 'all' ? null : category,
-      isBreaking: breaking === 'true' ? true : null
+      isBreaking: (breaking === 'true' || category === 'breaking') ? true : undefined
     });
     
     let filteredNews = articleResult.data || [];
