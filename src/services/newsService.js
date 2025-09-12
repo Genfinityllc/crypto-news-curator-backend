@@ -378,15 +378,29 @@ async function enhanceArticlesWithImages(articles) {
           
           // If we have a clean original URL, use it; otherwise use the current URL
           if (originalImageUrl && !originalImageUrl.includes('images.weserv.nl')) {
-            // Use original RSS image and enhance with weserv.nl optimization
-            const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=400&h=225&fit=cover&output=jpg&q=85`;
-            cardImages = {
-              small: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=300&h=169&fit=cover&output=jpg&q=85`,
-              medium: optimizedImage,
-              large: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=500&h=281&fit=cover&output=jpg&q=85`,
-              square: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=300&h=300&fit=cover&output=jpg&q=85`
-            };
-            coverImage = optimizedImage;
+            // Check if the original URL looks like a valid news image
+            const isValidNewsImage = originalImageUrl.includes('media.') || 
+                                   originalImageUrl.includes('cdn.') || 
+                                   originalImageUrl.includes('static.') ||
+                                   originalImageUrl.includes('.jpg') ||
+                                   originalImageUrl.includes('.png') ||
+                                   originalImageUrl.includes('.webp');
+            
+            if (isValidNewsImage) {
+              // Use original RSS image and enhance with weserv.nl optimization
+              const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=400&h=225&fit=cover&output=jpg&q=85`;
+              cardImages = {
+                small: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+                medium: optimizedImage,
+                large: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+                square: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=300&h=300&fit=cover&output=jpg&q=85`
+              };
+              coverImage = optimizedImage;
+            } else {
+              // Invalid image URL, generate a new one
+              cardImages = await generateCardCoverImage(article);
+              coverImage = cardImages.medium;
+            }
           } else {
             // Image is already processed or we couldn't clean it, use as-is
             coverImage = article.cover_image;
