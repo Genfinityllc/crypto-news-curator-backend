@@ -1,5 +1,6 @@
 import React from 'react';
 import NewsTabs from './components/news/NewsTabs';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './App.css';
 
 function App() {
@@ -18,6 +19,9 @@ function App() {
       <footer className="App-footer">
         <p>Powered by Fast-News API with intelligent caching</p>
       </footer>
+      
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
     </div>
   );
 }
