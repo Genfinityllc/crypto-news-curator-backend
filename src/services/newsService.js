@@ -364,15 +364,29 @@ async function enhanceArticlesWithImages(articles) {
         let coverImage = article.cover_image;
         
         if (article.cover_image) {
-          // Use RSS image and enhance with weserv.nl optimization
-          const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=400&h=225&fit=cover&output=jpg&q=85`;
-          cardImages = {
-            small: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=169&fit=cover&output=jpg&q=85`,
-            medium: optimizedImage,
-            large: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=500&h=281&fit=cover&output=jpg&q=85`,
-            square: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=300&fit=cover&output=jpg&q=85`
-          };
-          coverImage = optimizedImage;
+          // Check if image is already processed by weserv.nl to prevent double encoding
+          let originalImageUrl = article.cover_image;
+          
+          if (article.cover_image.includes('images.weserv.nl')) {
+            // Image is already processed, use as-is
+            coverImage = article.cover_image;
+            cardImages = {
+              small: article.cover_image,
+              medium: article.cover_image,
+              large: article.cover_image,
+              square: article.cover_image
+            };
+          } else {
+            // Use RSS image and enhance with weserv.nl optimization
+            const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=400&h=225&fit=cover&output=jpg&q=85`;
+            cardImages = {
+              small: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+              medium: optimizedImage,
+              large: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+              square: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=300&fit=cover&output=jpg&q=85`
+            };
+            coverImage = optimizedImage;
+          }
         } else {
           // Generate card images for articles without RSS images
           cardImages = await generateCardCoverImage(article);
