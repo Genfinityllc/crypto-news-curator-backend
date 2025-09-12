@@ -171,4 +171,39 @@ router.post('/cache/clear', (req, res) => {
   });
 });
 
+// Get counts for client networks
+router.get('/client-counts', async (req, res) => {
+  try {
+    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+    const counts = {};
+    
+    for (const network of clientNetworks) {
+      try {
+        const articleResult = await getArticles({ 
+          page: 1, 
+          limit: 1000,
+          network: network
+        });
+        counts[network] = articleResult.data ? articleResult.data.length : 0;
+      } catch (error) {
+        logger.error(`Error getting count for ${network}:`, error.message);
+        counts[network] = 0;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: counts,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error getting client counts:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting client counts',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
