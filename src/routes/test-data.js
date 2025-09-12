@@ -168,4 +168,38 @@ router.post('/update-article-images', async (req, res) => {
   }
 });
 
+// Test image scraping for a specific URL
+router.post('/test-image-scraping', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL is required'
+      });
+    }
+    
+    // Import the scraping function
+    const { scrapeArticleImage } = require('../services/newsService');
+    
+    logger.info(`Testing image scraping for: ${url}`);
+    const scrapedImage = await scrapeArticleImage(url);
+    
+    res.json({
+      success: true,
+      url: url,
+      scrapedImage: scrapedImage,
+      message: scrapedImage ? 'Image found' : 'No image found'
+    });
+  } catch (error) {
+    logger.error('Error testing image scraping:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error testing image scraping',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

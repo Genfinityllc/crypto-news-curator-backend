@@ -905,5 +905,6 @@ module.exports = {
   getBreakingNews,
   updateNewsScores,
   fetchRealCryptoNews,
-  enhanceArticlesWithImages
+  enhanceArticlesWithImages,
+  scrapeArticleImage
 };
