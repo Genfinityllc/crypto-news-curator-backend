@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { fetchRealCryptoNews } = require('../services/newsService');
+const { getArticles, getBreakingNews } = require('../config/supabase');
 const simpleCache = require('../services/simpleCacheService');
 const logger = require('../utils/logger');
 
@@ -46,39 +46,37 @@ router.get('/', async (req, res) => {
       }
     }
 
-    logger.info(`Fetching fresh articles for ${network || 'all'} networks`);
+    logger.info(`Fetching articles from database for ${network || 'all'} networks`);
 
-    // Fetch fresh data (same logic as working original route)
-    const realNews = await fetchRealCryptoNews();
+    // Fetch articles from Supabase database
+    const articleResult = await getArticles({ 
+      page: 1, 
+      limit: 1000, // Get more articles to filter properly
+      network: network === 'all' ? null : network,
+      category: category === 'all' ? null : category,
+      isBreaking: breaking === 'true' ? true : null
+    });
     
-    // Apply filters to RSS news
-    let filteredNews = realNews;
+    let filteredNews = articleResult.data || [];
     
-    if (network && network !== 'all') {
-      if (network === 'clients') {
-        // Special filter for client networks - prioritize your specific clients
-        const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
-        filteredNews = filteredNews.filter(article => 
-          article.network && clientNetworks.some(client => 
-            article.network.toLowerCase().includes(client.toLowerCase())
-          )
-        );
-      } else {
-        filteredNews = filteredNews.filter(article => 
-          article.network && article.network.toLowerCase().includes(network.toLowerCase())
-        );
-      }
-    }
-    
-    if (category && category !== 'all') {
+    // Additional client-side filters (if database filtering wasn't sufficient)
+    if (network && network !== 'all' && network !== 'clients') {
       filteredNews = filteredNews.filter(article => 
-        article.category === category
+        article.network && article.network.toLowerCase().includes(network.toLowerCase())
       );
     }
     
-    if (breaking === 'true') {
-      filteredNews = filteredNews.filter(article => article.is_breaking === true);
+    if (network === 'clients') {
+      // Special filter for client networks - prioritize your specific clients
+      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+      filteredNews = filteredNews.filter(article => 
+        article.network && clientNetworks.some(client => 
+          article.network.toLowerCase().includes(client.toLowerCase())
+        )
+      );
     }
+    
+    // Remove redundant filters since they're handled by database query
     
     if (search) {
       const searchLower = search.toLowerCase();
