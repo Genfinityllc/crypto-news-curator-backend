@@ -580,7 +580,8 @@ async function fetchRealCryptoNews() {
             'trading', 'price', 'market', 'exchange', 'wallet', 'mining', 'staking',
             'protocol', 'network', 'ethereum', 'bitcoin', 'altcoin', 'digital currency',
             'smart contract', 'dapp', 'web3', 'yield', 'liquidity', 'governance',
-            'consensus', 'validator', 'node', 'hash', 'ledger', 'decentralized'
+            'consensus', 'validator', 'node', 'hash', 'ledger', 'decentralized',
+            'btc', 'eth', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'hbar'
           ];
           
           for (const [networkName, keywords] of Object.entries(networkKeywords)) {
