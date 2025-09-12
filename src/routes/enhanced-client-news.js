@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 // Enhanced client news aggregation with multiple search strategies
 router.get('/', async (req, res) => {
   try {
-    const { forceRefresh = false, limit = 50 } = req.query;
+    const { forceRefresh = false, limit = 500 } = req.query; // 500 total (100 per client × 5 clients)
     
     logger.info('🎯 Enhanced client news aggregation starting...');
     
@@ -194,7 +194,7 @@ router.get('/', async (req, res) => {
 // Get cached client articles for instant loading
 router.get('/cached', async (req, res) => {
   try {
-    const { limit = 100 } = req.query;
+    const { limit = 500 } = req.query; // 500 total for instant loading (100 per client)
     
     // Get recent client articles from database
     const { data: cachedArticles } = await getArticles({

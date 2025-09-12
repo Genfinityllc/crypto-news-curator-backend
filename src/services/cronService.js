@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { updateNewsScores, scrapeNewsSources, getBreakingNews } = require('./newsService');
 const { getMarketData } = require('./cryptoService');
+const articlePurgeService = require('./articlePurgeService');
 const logger = require('../utils/logger');
 
 // Official network sources for automated scraping
@@ -152,6 +153,17 @@ function initializeCronJobs() {
       logger.info(`4-day cache clear completed successfully. Cleared ${cleared} entries.`);
     } catch (error) {
       logger.error('Error clearing articles cache:', error.message);
+    }
+  });
+
+  // Daily article purge - remove articles older than 4 days and enforce limits
+  cron.schedule('0 1 * * *', async () => {
+    logger.info('🗑️ Running daily article purge...');
+    try {
+      const result = await articlePurgeService.purgeOldArticles();
+      logger.info(`✅ Daily purge completed: ${result.purgedOld} old articles removed`);
+    } catch (error) {
+      logger.error('❌ Error during daily article purge:', error.message);
     }
   });
   

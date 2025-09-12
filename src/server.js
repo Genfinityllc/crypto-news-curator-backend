@@ -99,6 +99,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/crypto-market', require('./routes/cryptoMarket'));
 app.use('/api/enhanced-news', require('./routes/enhancedNews'));
 app.use('/api/enhanced-client-news', require('./routes/enhanced-client-news'));
+app.use('/api/article-management', require('./routes/article-management'));
 
 // Conditionally add Firebase auth routes if available
 if (firebaseAuthRoutes) {
