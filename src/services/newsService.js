@@ -594,8 +594,16 @@ async function fetchRealCryptoNews() {
                 );
                 
                 if (!hasCryptoContext) {
-                  console.log(`⚠️  Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
-                  continue; // Skip this match if no crypto context
+                  // Temporarily allow articles for client networks to populate the database
+                  const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+                  if (clientNetworks.includes(networkName)) {
+                    console.log(`⚠️  Allowing ${networkName} article without crypto context for database population: "${title.substring(0, 50)}..."`);
+                    network = networkName;
+                    break;
+                  } else {
+                    console.log(`⚠️  Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
+                    continue; // Skip this match if no crypto context
+                  }
                 }
                 
                 network = networkName;
