@@ -1,12 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const { insertArticlesBatch } = require('../config/supabase');
+const { insertArticlesBatch, getSupabaseClient } = require('../config/supabase');
 const logger = require('../utils/logger');
 
 // Insert test articles with proper images
 router.post('/insert-test-articles', async (req, res) => {
   try {
     logger.info('Inserting test articles with proper images');
+    
+    // First, clear old test articles from database
+    const client = getSupabaseClient();
+    if (client) {
+      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+      for (const network of clientNetworks) {
+        const { error } = await client
+          .from('articles')
+          .delete()
+          .eq('network', network);
+        if (error) {
+          logger.error(`Error deleting old ${network} articles:`, error.message);
+        }
+      }
+      logger.info('Cleared old test articles from database');
+    }
     
     const testArticles = [
       {
