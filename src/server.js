@@ -101,6 +101,7 @@ app.use('/api/enhanced-news', require('./routes/enhancedNews'));
 app.use('/api/enhanced-client-news', require('./routes/enhanced-client-news'));
 app.use('/api/article-management', require('./routes/article-management'));
 app.use('/api/cron-manual', require('./routes/cron-manual'));
+app.use('/api/test-data', require('./routes/test-data'));
 
 // Conditionally add Firebase auth routes if available
 if (firebaseAuthRoutes) {
