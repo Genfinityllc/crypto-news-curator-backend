@@ -134,7 +134,7 @@ router.get('/search', async (req, res) => {
       category,
       sentiment,
       breaking,
-      limit = 20,
+      limit = 200,
       page = 1
     } = req.query;
     

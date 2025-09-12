@@ -17,7 +17,7 @@ const supabase = createClient(
  */
 router.get('/viral', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 200;
     const minViralScore = parseInt(req.query.min_score) || 75;
     
     logger.info(`Fetching viral news with minimum score ${minViralScore}, limit ${limit}`);
@@ -80,7 +80,7 @@ router.get('/viral', async (req, res) => {
  */
 router.get('/high-readability', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 200;
     const minReadabilityScore = parseInt(req.query.min_score) || 97;
     
     logger.info(`Fetching high-readability news with minimum score ${minReadabilityScore}`);

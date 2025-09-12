@@ -70,7 +70,7 @@ class CacheService {
   generateArticlesKey(options = {}) {
     const {
       page = 1,
-      limit = 20,
+      limit = 200,
       network,
       category,
       sortBy = 'publishedAt',
