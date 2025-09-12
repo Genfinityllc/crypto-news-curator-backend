@@ -475,8 +475,16 @@ async function fetchRealCryptoNews() {
           
           let network = 'General';
           
-          // Comprehensive network detection with multiple keywords per network
+          // Comprehensive network detection with CLIENT NETWORKS PRIORITIZED
           const networkKeywords = {
+            // 🌟 CLIENT NETWORKS - CHECKED FIRST FOR PRIORITY
+            'Hedera': ['hedera', 'hbar', 'hedera hashgraph', 'hedera network', 'hashgraph'],
+            'XDC Network': ['xdc network', 'xdc token', 'xdc', 'xinfin', 'xinfin network'],
+            'Algorand': ['algorand', 'algo', 'algorand network', 'algorand foundation'],
+            'Constellation': ['constellation network', 'constellation labs', 'dag constellation', '$dag'],
+            'HashPack': ['hashpack', 'hash pack', 'pack token', 'hashpack wallet'],
+            
+            // Major Networks
             'Bitcoin': ['bitcoin', 'btc', 'bitcoin core', 'bitcoin network'],
             'Ethereum': ['ethereum', 'eth', 'ether', 'ethereum network', 'eth2', 'ethereum 2.0'],
             'BNB Chain': ['bnb', 'binance coin', 'bnb chain', 'binance smart chain', 'bsc'],
@@ -508,7 +516,6 @@ async function fetchRealCryptoNews() {
             'Uniswap': ['uniswap', 'uni', 'uniswap protocol'],
             'Curve': ['curve', 'crv', 'curve finance'],
             'Fantom': ['fantom', 'ftm', 'fantom network'],
-            'Algorand': ['algorand', 'algo', 'algorand network'],
             'Axie Infinity': ['axie infinity', 'axie', 'axs'],
             'The Graph': ['the graph', 'graph', 'grt'],
             'Helium': ['helium', 'hnt', 'helium network'],
@@ -521,9 +528,6 @@ async function fetchRealCryptoNews() {
             'Zcash': ['zcash', 'zec', 'zcash network'],
             'VeChain': ['vechain', 'vet', 'vechain network'],
             'Neo': ['neo', 'neo network', 'neo blockchain'],
-            'Hedera': ['hedera', 'hbar', 'hedera hashgraph', 'hedera network'],
-            'XDC Network': ['xdc network', 'xdc', 'xinfin'],
-            'Constellation': ['constellation', 'dag', 'constellation network'],
             'Internet Computer': ['internet computer', 'icp', 'dfinity'],
             'Bitcoin Cash': ['bitcoin cash', 'bch', 'bitcoin cash network']
           };
