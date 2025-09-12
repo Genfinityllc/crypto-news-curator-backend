@@ -164,6 +164,19 @@ class NewsService {
       throw error;
     }
   }
+
+  /**
+   * Get counts for individual client networks
+   */
+  static async getClientNetworkCounts() {
+    try {
+      const response = await api.get('/api/fast-news/client-counts');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching client network counts:', error);
+      throw error;
+    }
+  }
 }
 
 export default NewsService;

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import NewsService from '../../services/newsService';
 import NewsCard from './NewsCard';
 import LoadingSpinner from '../common/LoadingSpinner';
+import ClientNetworkButtons from './ClientNetworkButtons';
+import './ClientNetworkButtons.css';
 
 const NewsTabs = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -75,6 +77,12 @@ const NewsTabs = () => {
     fetchNews(activeTab, newPage);
   };
 
+  const handleNetworkSelect = (network) => {
+    // For now, just log the selection - you can implement filtering logic here
+    console.log('Selected network:', network);
+    // You could add network filtering logic here
+  };
+
   const getTabLabel = (tab) => {
     switch (tab) {
       case 'clients':
@@ -137,6 +145,11 @@ const NewsTabs = () => {
           </div>
         )}
       </div>
+
+      {/* Client Network Buttons - Show only when on Client News tab */}
+      {activeTab === 'clients' && (
+        <ClientNetworkButtons onNetworkSelect={handleNetworkSelect} />
+      )}
 
       {/* Loading State */}
       {loading && <LoadingSpinner />}
