@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
     const articleResult = await getArticles({ 
       page: 1, 
       limit: 1000, // Get more articles to filter properly
-      network: network === 'all' ? null : network,
+      network: (network === 'all' || network === 'clients') ? null : network, // Don't filter by network for 'clients'
       category: category === 'all' ? null : category,
       isBreaking: (breaking === 'true' || category === 'breaking') ? true : undefined
     });
