@@ -364,11 +364,31 @@ async function enhanceArticlesWithImages(articles) {
         let coverImage = article.cover_image;
         
         if (article.cover_image) {
-          // Check if image is already processed by weserv.nl to prevent double encoding
+          // Clean up malformed URLs by extracting the original image URL
           let originalImageUrl = article.cover_image;
           
-          if (article.cover_image.includes('images.weserv.nl')) {
-            // Image is already processed, use as-is
+          // Handle multiple levels of encoding by decoding recursively
+          while (originalImageUrl.includes('%3A%2F%2F') || originalImageUrl.includes('%252F')) {
+            try {
+              originalImageUrl = decodeURIComponent(originalImageUrl);
+            } catch (e) {
+              break; // Stop if decoding fails
+            }
+          }
+          
+          // If we have a clean original URL, use it; otherwise use the current URL
+          if (originalImageUrl && !originalImageUrl.includes('images.weserv.nl')) {
+            // Use original RSS image and enhance with weserv.nl optimization
+            const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=400&h=225&fit=cover&output=jpg&q=85`;
+            cardImages = {
+              small: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+              medium: optimizedImage,
+              large: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+              square: `https://images.weserv.nl/?url=${encodeURIComponent(originalImageUrl)}&w=300&h=300&fit=cover&output=jpg&q=85`
+            };
+            coverImage = optimizedImage;
+          } else {
+            // Image is already processed or we couldn't clean it, use as-is
             coverImage = article.cover_image;
             cardImages = {
               small: article.cover_image,
@@ -376,16 +396,6 @@ async function enhanceArticlesWithImages(articles) {
               large: article.cover_image,
               square: article.cover_image
             };
-          } else {
-            // Use RSS image and enhance with weserv.nl optimization
-            const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=400&h=225&fit=cover&output=jpg&q=85`;
-            cardImages = {
-              small: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=169&fit=cover&output=jpg&q=85`,
-              medium: optimizedImage,
-              large: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=500&h=281&fit=cover&output=jpg&q=85`,
-              square: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=300&fit=cover&output=jpg&q=85`
-            };
-            coverImage = optimizedImage;
           }
         } else {
           // Generate card images for articles without RSS images
