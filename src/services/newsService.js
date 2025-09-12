@@ -549,7 +549,7 @@ async function fetchRealCryptoNews() {
             'Dogecoin': ['dogecoin', 'doge', 'dogecoin network'],
             'Polygon': ['polygon', 'matic', 'polygon network', 'polygon matic'],
             'Avalanche': ['avalanche', 'avax', 'avalanche network'],
-            'Chainlink': ['chainlink', 'link', 'chainlink network'],
+            'Chainlink': ['chainlink', 'chainlink network', 'chainlink oracle'],
             'Polkadot': ['polkadot', 'dot', 'polkadot network'],
             'Cosmos': ['cosmos', 'atom', 'cosmos network', 'cosmos hub'],
             'Near Protocol': ['near', 'near protocol', 'near network'],
@@ -602,23 +602,18 @@ async function fetchRealCryptoNews() {
           for (const [networkName, keywords] of Object.entries(networkKeywords)) {
             for (const keyword of keywords) {
               if (searchText.includes(keyword.toLowerCase())) {
-                // For ambiguous network names, verify crypto context
-                const ambiguousNetworks = ['Avalanche', 'Cosmos', 'Stellar', 'Flow', 'Neo', 'Helium'];
+                // ALWAYS verify crypto context for ALL network matches to prevent false positives
+                const hasCryptoContext = cryptoContextKeywords.some(cryptoKeyword => 
+                  searchText.includes(cryptoKeyword)
+                );
                 
-                if (ambiguousNetworks.includes(networkName)) {
-                  // Check if article contains crypto-related context
-                  const hasCryptoContext = cryptoContextKeywords.some(cryptoKeyword => 
-                    searchText.includes(cryptoKeyword)
-                  );
-                  
-                  if (!hasCryptoContext) {
-                    console.log(`⚠️  Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
-                    continue; // Skip this match if no crypto context
-                  }
+                if (!hasCryptoContext) {
+                  console.log(`⚠️  Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
+                  continue; // Skip this match if no crypto context
                 }
                 
                 network = networkName;
-                console.log(`✅ Network detected: ${network} (keyword: "${keyword}")`);
+                console.log(`✅ Network detected: ${network} (keyword: "${keyword}") - crypto context verified`);
                 break;
               }
             }
