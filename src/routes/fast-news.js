@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getArticles, getBreakingNews } = require('../config/supabase');
+const { enhanceArticlesWithImages } = require('../services/newsService');
 const simpleCache = require('../services/simpleCacheService');
 const logger = require('../utils/logger');
 
@@ -97,8 +98,11 @@ router.get('/', async (req, res) => {
     const startIndex = (parseInt(page) - 1) * parseInt(limit);
     const paginatedNews = filteredNews.slice(startIndex, startIndex + parseInt(limit));
     
+    // Enhance articles with images if they don't have them
+    const enhancedNews = await enhanceArticlesWithImages(paginatedNews);
+    
     const result = {
-      articles: paginatedNews,
+      articles: enhancedNews,
       pagination: {
         current: parseInt(page),
         total: Math.ceil(filteredNews.length / limit),
