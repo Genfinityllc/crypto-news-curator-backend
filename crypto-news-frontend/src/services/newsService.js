@@ -24,14 +24,16 @@ class NewsService {
       limit = 20,
       category = 'all',
       sortBy = 'publishedAt',
-      search = null
+      search = null,
+      forceRefresh = true // Always force refresh to get latest images
     } = options;
 
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
       category,
-      sortBy
+      sortBy,
+      forceRefresh: forceRefresh.toString()
     });
 
     if (search) {
@@ -56,7 +58,8 @@ class NewsService {
       limit = 20,
       category = 'all',
       sortBy = 'publishedAt',
-      search = null
+      search = null,
+      forceRefresh = true
     } = options;
 
     const params = new URLSearchParams({
@@ -64,7 +67,8 @@ class NewsService {
       page: page.toString(),
       limit: limit.toString(),
       category,
-      sortBy
+      sortBy,
+      forceRefresh: forceRefresh.toString()
     });
 
     if (search) {
@@ -89,7 +93,8 @@ class NewsService {
       limit = 20,
       category = 'all',
       sortBy = 'publishedAt',
-      search = null
+      search = null,
+      forceRefresh = true
     } = options;
 
     const params = new URLSearchParams({
@@ -97,7 +102,8 @@ class NewsService {
       page: page.toString(),
       limit: limit.toString(),
       category,
-      sortBy
+      sortBy,
+      forceRefresh: forceRefresh.toString()
     });
 
     if (search) {
