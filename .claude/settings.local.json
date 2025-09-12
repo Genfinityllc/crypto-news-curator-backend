@@ -119,7 +119,9 @@
       "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_ui4EET/**)",
       "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_PGEsuF/**)",
       "Read(/Users/valorkopeny/crypto-news-frontend/**)",
-      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_E3lMyM/**)"
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_E3lMyM/**)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_27pRJz/**)",
+      "Read(/Users/valorkopeny/**)"
     ],
     "deny": [],
     "ask": []

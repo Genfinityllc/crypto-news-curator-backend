@@ -8,7 +8,7 @@ const { testSupabaseConnection } = require('./config/supabase');
 const rateLimit = require('express-rate-limit');
 
 // Load environment variables
-dotenv.config(); // Force Railway redeploy
+dotenv.config(); // Force Railway redeploy with cron-manual routes
 
 // Import routes
 const newsRoutes = require('./routes/supabase-news');
