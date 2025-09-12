@@ -561,20 +561,47 @@ async function fetchRealCryptoNews() {
                             title.toLowerCase().includes('alert') ||
                             (new Date() - new Date(item.pubDate)) < 2 * 60 * 60 * 1000; // Last 2 hours
 
-          // Extract images from RSS item
+          // Extract images from RSS item with enhanced crypto.news support
           let imageUrl = null;
           
-          // Try multiple RSS image sources
+          // Debug RSS item structure for crypto.news
+          if (feedUrl.includes('crypto.news')) {
+            console.log('🔍 Crypto.news RSS item structure:', {
+              title: title.substring(0, 50),
+              enclosure: item.enclosure,
+              mediaContent: item['media:content'],
+              mediaThumbnail: item['media:thumbnail'],
+              image: item.image,
+              guid: item.guid
+            });
+          }
+          
+          // Enhanced image extraction prioritizing featured images
           if (item.enclosure && item.enclosure.url && item.enclosure.type && item.enclosure.type.includes('image')) {
             imageUrl = item.enclosure.url;
+            console.log('📷 Using enclosure image:', imageUrl);
+          } else if (item['media:content'] && item['media:content'].url) {
+            imageUrl = item['media:content'].url;
+            console.log('📷 Using media:content image:', imageUrl);
           } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
             imageUrl = item['media:content'].$.url;
+            console.log('📷 Using media:content.$ image:', imageUrl);
+          } else if (item['media:thumbnail'] && item['media:thumbnail'].url) {
+            imageUrl = item['media:thumbnail'].url;
+            console.log('📷 Using media:thumbnail image:', imageUrl);
           } else if (item['media:thumbnail'] && item['media:thumbnail'].$ && item['media:thumbnail'].$.url) {
             imageUrl = item['media:thumbnail'].$.url;
+            console.log('📷 Using media:thumbnail.$ image:', imageUrl);
           } else if (item.image && item.image.url) {
             imageUrl = item.image.url;
+            console.log('📷 Using item.image.url:', imageUrl);
           } else if (item['itunes:image'] && item['itunes:image'].href) {
             imageUrl = item['itunes:image'].href;
+            console.log('📷 Using iTunes image:', imageUrl);
+          }
+          
+          if (!imageUrl && feedUrl.includes('crypto.news')) {
+            console.log('❌ No image found for crypto.news article:', title.substring(0, 50));
           }
 
           // Create base article object
