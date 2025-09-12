@@ -532,13 +532,38 @@ async function fetchRealCryptoNews() {
             'Bitcoin Cash': ['bitcoin cash', 'bch', 'bitcoin cash network']
           };
           
-          // Check for network keywords in title and content
+          // Check for network keywords in title and content with crypto context validation
           const searchText = (title + ' ' + content).toLowerCase();
+          
+          // Crypto context keywords to ensure articles are actually about cryptocurrency/blockchain
+          const cryptoContextKeywords = [
+            'crypto', 'cryptocurrency', 'blockchain', 'token', 'coin', 'defi', 'nft', 
+            'trading', 'price', 'market', 'exchange', 'wallet', 'mining', 'staking',
+            'protocol', 'network', 'ethereum', 'bitcoin', 'altcoin', 'digital currency',
+            'smart contract', 'dapp', 'web3', 'yield', 'liquidity', 'governance',
+            'consensus', 'validator', 'node', 'hash', 'ledger', 'decentralized'
+          ];
           
           for (const [networkName, keywords] of Object.entries(networkKeywords)) {
             for (const keyword of keywords) {
               if (searchText.includes(keyword.toLowerCase())) {
+                // For ambiguous network names, verify crypto context
+                const ambiguousNetworks = ['Avalanche', 'Cosmos', 'Stellar', 'Flow', 'Neo', 'Helium'];
+                
+                if (ambiguousNetworks.includes(networkName)) {
+                  // Check if article contains crypto-related context
+                  const hasCryptoContext = cryptoContextKeywords.some(cryptoKeyword => 
+                    searchText.includes(cryptoKeyword)
+                  );
+                  
+                  if (!hasCryptoContext) {
+                    console.log(`⚠️  Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
+                    continue; // Skip this match if no crypto context
+                  }
+                }
+                
                 network = networkName;
+                console.log(`✅ Network detected: ${network} (keyword: "${keyword}")`);
                 break;
               }
             }
