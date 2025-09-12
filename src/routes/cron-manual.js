@@ -253,4 +253,61 @@ router.get('/test-clients', async (req, res) => {
   }
 });
 
+/**
+ * Test individual network filtering
+ */
+router.get('/test-network/:networkName', async (req, res) => {
+  try {
+    const { getArticles } = require('../config/supabase');
+    const { networkName } = req.params;
+    
+    // Get all articles and filter for specific network
+    const allArticles = await getArticles({ limit: 200 });
+    
+    // Test different filtering approaches
+    const exactMatch = allArticles.data.filter(article => 
+      article.network === networkName
+    );
+    
+    const caseInsensitiveMatch = allArticles.data.filter(article => 
+      article.network && article.network.toLowerCase() === networkName.toLowerCase()
+    );
+    
+    const containsMatch = allArticles.data.filter(article => 
+      article.network && article.network.toLowerCase().includes(networkName.toLowerCase())
+    );
+    
+    // Get all unique networks for reference
+    const allNetworks = [...new Set(allArticles.data.map(article => article.network))].sort();
+    
+    res.json({
+      success: true,
+      searchingFor: networkName,
+      totalArticles: allArticles.data.length,
+      exactMatch: {
+        count: exactMatch.length,
+        samples: exactMatch.slice(0, 3).map(a => ({ title: a.title, network: a.network }))
+      },
+      caseInsensitiveMatch: {
+        count: caseInsensitiveMatch.length,
+        samples: caseInsensitiveMatch.slice(0, 3).map(a => ({ title: a.title, network: a.network }))
+      },
+      containsMatch: {
+        count: containsMatch.length,
+        samples: containsMatch.slice(0, 3).map(a => ({ title: a.title, network: a.network }))
+      },
+      allNetworks: allNetworks,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error testing network filtering:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;

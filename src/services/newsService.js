@@ -359,15 +359,32 @@ async function enhanceArticlesWithImages(articles) {
     
     for (const article of articles) {
       try {
-        // Generate card images for the article
-        const cardImages = await generateCardCoverImage(article);
+        // Generate card images for the article - prioritize RSS images when available
+        let cardImages;
+        let coverImage = article.cover_image;
+        
+        if (article.cover_image) {
+          // Use RSS image and enhance with weserv.nl optimization
+          const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=400&h=225&fit=cover&output=jpg&q=85`;
+          cardImages = {
+            small: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+            medium: optimizedImage,
+            large: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+            square: `https://images.weserv.nl/?url=${encodeURIComponent(article.cover_image)}&w=300&h=300&fit=cover&output=jpg&q=85`
+          };
+          coverImage = optimizedImage;
+        } else {
+          // Generate card images for articles without RSS images
+          cardImages = await generateCardCoverImage(article);
+          coverImage = cardImages.medium;
+        }
         
         // Add image data to article
         const enhancedArticle = {
           ...article,
           card_images: cardImages,
-          cover_image: cardImages.medium, // Default to medium size
-          has_real_image: !cardImages.medium?.includes('placeholder'),
+          cover_image: coverImage,
+          has_real_image: !!article.cover_image, // True if we have an RSS image
           image_optimized: true
         };
         
@@ -629,13 +646,40 @@ async function fetchRealCryptoNews() {
             console.log('❌ No image found for crypto.news article:', title.substring(0, 50));
           }
 
+          // Enhanced source extraction for Google News
+          let sourceExtraction = feed.title || new URL(feedUrl).hostname;
+          let originalUrl = item.link;
+          let cleanTitle = title;
+          
+          // Extract original source from Google News titles and URLs
+          if (feedUrl.includes('news.google.com')) {
+            // Extract source from title (format: "Article Title - Original Source")
+            const titleMatch = title.match(/^(.+)\s-\s([^-]+)$/);
+            if (titleMatch && titleMatch[2]) {
+              sourceExtraction = titleMatch[2].trim();
+              // Clean up title by removing source
+              cleanTitle = titleMatch[1].trim();
+            }
+            
+            // Try to extract original URL from Google News URL
+            try {
+              const googleUrl = new URL(item.link);
+              if (googleUrl.searchParams.get('url')) {
+                originalUrl = decodeURIComponent(googleUrl.searchParams.get('url'));
+              }
+            } catch (urlError) {
+              logger.warn('Could not extract original URL from Google News link');
+            }
+          }
+
           // Create base article object
           const baseArticle = {
-            title: title,
+            title: cleanTitle,
             content: content.substring(0, 300),
             summary: content.substring(0, 200),
-            url: item.link,
-            source: feed.title || new URL(feedUrl).hostname,
+            url: originalUrl, // Use original URL when available
+            google_news_url: feedUrl.includes('news.google.com') ? item.link : null, // Keep Google News URL for reference
+            source: sourceExtraction,
             author: item.creator || item.author || 'Unknown',
             published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
             publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
@@ -650,7 +694,9 @@ async function fetchRealCryptoNews() {
             view_count: Math.floor(Math.random() * 500) + 50,
             share_count: Math.floor(Math.random() * 100) + 10,
             image_url: imageUrl, // RSS image URL
-            cover_image: imageUrl, // RSS cover image
+            cover_image: imageUrl || null, // RSS cover image, null if not available
+            extracted_images: [],
+            needs_image_generation: !imageUrl, // Flag articles that need generated images
             metadata: {
               feedUrl: feedUrl,
               feedTitle: feed.title
