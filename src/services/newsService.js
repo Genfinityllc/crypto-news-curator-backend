@@ -351,6 +351,81 @@ async function updateNewsScores() {
 /**
  * Enhance articles with card-optimized images
  */
+/**
+ * Scrape article image from the actual article URL
+ */
+async function scrapeArticleImage(articleUrl) {
+  try {
+    const axios = require('axios');
+    const cheerio = require('cheerio');
+    
+    logger.info(`Scraping image from: ${articleUrl}`);
+    
+    // Fetch the article page
+    const response = await axios.get(articleUrl, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    const $ = cheerio.load(response.data);
+    
+    // Look for common image patterns in news articles
+    let imageUrl = null;
+    
+    // Try different selectors for news article images
+    const selectors = [
+      'meta[property="og:image"]',
+      'meta[name="twitter:image"]',
+      'img[class*="article"]',
+      'img[class*="hero"]',
+      'img[class*="featured"]',
+      'img[class*="main"]',
+      'img[class*="lead"]',
+      'img[src*="im-"]', // Wall Street Journal pattern
+      'img[src*="images.wsj.net"]', // WSJ specific
+      'img[src*="media"]',
+      'img[src*="cdn"]',
+      'img[src*="static"]'
+    ];
+    
+    for (const selector of selectors) {
+      const element = $(selector).first();
+      if (element.length) {
+        if (selector.includes('meta')) {
+          imageUrl = element.attr('content');
+        } else {
+          imageUrl = element.attr('src') || element.attr('data-src');
+        }
+        
+        if (imageUrl) {
+          // Convert relative URLs to absolute
+          if (imageUrl.startsWith('//')) {
+            imageUrl = 'https:' + imageUrl;
+          } else if (imageUrl.startsWith('/')) {
+            const urlObj = new URL(articleUrl);
+            imageUrl = urlObj.origin + imageUrl;
+          }
+          
+          // Validate that it's a real image URL
+          if (imageUrl.includes('.jpg') || imageUrl.includes('.png') || imageUrl.includes('.webp') || imageUrl.includes('im-')) {
+            logger.info(`Found image: ${imageUrl}`);
+            return imageUrl;
+          }
+        }
+      }
+    }
+    
+    logger.warn(`No suitable image found for: ${articleUrl}`);
+    return null;
+    
+  } catch (error) {
+    logger.error(`Error scraping image from ${articleUrl}:`, error.message);
+    return null;
+  }
+}
+
 async function enhanceArticlesWithImages(articles) {
   try {
     logger.info(`Enhancing ${articles.length} articles with card images`);
@@ -363,7 +438,41 @@ async function enhanceArticlesWithImages(articles) {
         let cardImages;
         let coverImage = article.cover_image;
         
-        if (article.cover_image) {
+        // Check if this is a Google News article without proper image
+        const isGoogleNewsArticle = article.source && 
+          (article.source.includes('Google News') || 
+           article.source.includes('"') && article.source.includes('" - Google News')) &&
+          (!article.cover_image || 
+           article.cover_image.includes('placeholder') || 
+           article.cover_image.includes('via.placeholder'));
+
+        if (isGoogleNewsArticle && article.url) {
+          // Try to scrape the actual article image from the article URL
+          try {
+            const scrapedImage = await scrapeArticleImage(article.url);
+            if (scrapedImage) {
+              // Use the scraped image
+              const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=400&h=225&fit=cover&output=jpg&q=85`;
+              cardImages = {
+                small: `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+                medium: optimizedImage,
+                large: `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+                square: `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=300&h=300&fit=cover&output=jpg&q=85`
+              };
+              coverImage = optimizedImage;
+              logger.info(`Scraped image for Google News article: ${scrapedImage}`);
+            } else {
+              // Fallback to generated image
+              cardImages = await generateCardCoverImage(article);
+              coverImage = cardImages.medium;
+            }
+          } catch (scrapeError) {
+            logger.warn(`Failed to scrape image for ${article.url}:`, scrapeError.message);
+            // Fallback to generated image
+            cardImages = await generateCardCoverImage(article);
+            coverImage = cardImages.medium;
+          }
+        } else if (article.cover_image) {
           // Clean up malformed URLs by extracting the original image URL
           let originalImageUrl = article.cover_image;
           
