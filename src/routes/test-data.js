@@ -96,4 +96,76 @@ router.post('/insert-test-articles', async (req, res) => {
   }
 });
 
+// Update existing articles with better images
+router.post('/update-article-images', async (req, res) => {
+  try {
+    logger.info('Updating existing articles with better images');
+    
+    const client = getSupabaseClient();
+    if (!client) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    // Update Algorand article with proper image
+    const { error: algoError } = await client
+      .from('articles')
+      .update({ 
+        cover_image: 'https://images.weserv.nl/?url=https%3A%2F%2Fcryptoslate.com%2Fwp-content%2Fuploads%2F2024%2F11%2Falgorand.jpg&w=400&h=225&fit=cover&output=jpg&q=85'
+      })
+      .eq('network', 'Algorand')
+      .eq('title', 'Algorand Launches New DeFi Protocol for Enhanced Yield Farming');
+
+    if (algoError) {
+      logger.error('Error updating Algorand image:', algoError.message);
+    } else {
+      logger.info('Updated Algorand article image');
+    }
+
+    // Update Hedera article with proper image
+    const { error: hederaError } = await client
+      .from('articles')
+      .update({ 
+        cover_image: 'https://images.weserv.nl/?url=https%3A%2F%2Fcryptoslate.com%2Fwp-content%2Fuploads%2F2024%2F11%2Fhedera-hashgraph.jpg&w=400&h=225&fit=cover&output=jpg&q=85'
+      })
+      .eq('network', 'Hedera')
+      .eq('title', 'Hedera (HBAR) Price Surges 15% as ETF Speculation Drives Institutional Interest');
+
+    if (hederaError) {
+      logger.error('Error updating Hedera image:', hederaError.message);
+    } else {
+      logger.info('Updated Hedera article image');
+    }
+
+    // Update XDC Network article with proper image
+    const { error: xdcError } = await client
+      .from('articles')
+      .update({ 
+        cover_image: 'https://images.weserv.nl/?url=https%3A%2F%2Fcryptoslate.com%2Fwp-content%2Fuploads%2F2024%2F11%2Fxdc-network.jpg&w=400&h=225&fit=cover&output=jpg&q=85'
+      })
+      .eq('network', 'XDC Network')
+      .eq('title', 'XDC Network Partners with Major Financial Institution for Cross-Border Payments');
+
+    if (xdcError) {
+      logger.error('Error updating XDC Network image:', xdcError.message);
+    } else {
+      logger.info('Updated XDC Network article image');
+    }
+
+    res.json({
+      success: true,
+      message: 'Updated article images successfully'
+    });
+  } catch (error) {
+    logger.error('Error updating article images:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating article images',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
