@@ -3,6 +3,7 @@ import NewsTabs from './components/news/NewsTabs';
 import './App.css';
 
 function App() {
+  // Force redeploy - build fix applied
   return (
     <div className="App">
       <header className="App-header">
