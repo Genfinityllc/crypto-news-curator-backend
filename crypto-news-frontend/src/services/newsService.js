@@ -18,7 +18,7 @@ class NewsService {
   /**
    * Fetch all news (mixed crypto networks)
    */
-  async getAllNews(options = {}) {
+  static async getAllNews(options = {}) {
     const {
       page = 1,
       limit = 20,
@@ -50,7 +50,7 @@ class NewsService {
   /**
    * Fetch client-specific news (your specific clients only)
    */
-  async getClientNews(options = {}) {
+  static async getClientNews(options = {}) {
     const {
       page = 1,
       limit = 20,
@@ -83,7 +83,7 @@ class NewsService {
   /**
    * Fetch breaking news from all networks
    */
-  async getBreakingNews(options = {}) {
+  static async getBreakingNews(options = {}) {
     const {
       page = 1,
       limit = 20,
@@ -116,7 +116,7 @@ class NewsService {
   /**
    * Fetch news by specific network
    */
-  async getNewsByNetwork(network, options = {}) {
+  static async getNewsByNetwork(network, options = {}) {
     const {
       page = 1,
       limit = 20,
@@ -149,7 +149,7 @@ class NewsService {
   /**
    * Get cache statistics (for monitoring)
    */
-  async getCacheStats() {
+  static async getCacheStats() {
     try {
       const response = await api.get('/api/fast-news/cache/stats');
       return response.data;
@@ -160,4 +160,4 @@ class NewsService {
   }
 }
 
-export default new NewsService();
+export default NewsService;
