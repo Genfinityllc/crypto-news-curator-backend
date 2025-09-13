@@ -268,4 +268,97 @@ router.post('/cleanup-test-articles', async (req, res) => {
   }
 });
 
+// Production cleanup endpoint
+router.post('/production-cleanup', async (req, res) => {
+  try {
+    logger.info('Starting production cleanup of problematic articles');
+    
+    const client = getSupabaseClient();
+    if (!client) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    let deletedCount = 0;
+
+    // Delete articles with example URLs
+    const { error: exampleError } = await client
+      .from('articles')
+      .delete()
+      .like('url', '%example.com%');
+
+    if (exampleError) {
+      logger.error('Error deleting example articles:', exampleError.message);
+    } else {
+      logger.info('Deleted articles with example URLs');
+      deletedCount++;
+    }
+
+    // Delete articles with placeholder images
+    const { error: placeholderError } = await client
+      .from('articles')
+      .delete()
+      .like('cover_image', '%via.placeholder%');
+
+    if (placeholderError) {
+      logger.error('Error deleting placeholder articles:', placeholderError.message);
+    } else {
+      logger.info('Deleted articles with placeholder images');
+      deletedCount++;
+    }
+
+    // Delete test articles from fake sources
+    const testSources = ['DeFi Pulse', 'Enterprise Blockchain News', 'NFT News'];
+    for (const source of testSources) {
+      const { error: sourceError } = await client
+        .from('articles')
+        .delete()
+        .eq('source', source);
+      
+      if (sourceError) {
+        logger.error(`Error deleting ${source} articles:`, sourceError.message);
+      } else {
+        logger.info(`Deleted ${source} test articles`);
+        deletedCount++;
+      }
+    }
+
+    // Delete specific problematic articles
+    const problematicTitles = [
+      'Panther volleyball rolls past Rice in three-set sweep',
+      'Op-Ed: From Dreams to Nightmares',
+      'investors-optimism-for-lower-rates-lifts-nasdaq'
+    ];
+    
+    for (const title of problematicTitles) {
+      const { error: titleError } = await client
+        .from('articles')
+        .delete()
+        .ilike('title', `%${title}%`);
+      
+      if (titleError) {
+        logger.error(`Error deleting article "${title}":`, titleError.message);
+      } else {
+        logger.info(`Deleted article with title "${title}"`);
+        deletedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Production cleanup completed. ${deletedCount} cleanup operations performed.`,
+      deletedCount
+    });
+  } catch (error) {
+    logger.error('Error during production cleanup:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error during production cleanup',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
