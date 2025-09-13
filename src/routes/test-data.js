@@ -346,9 +346,23 @@ router.post('/production-cleanup', async (req, res) => {
       }
     }
 
+    // Nuclear option: Delete ALL articles and let the system rebuild with clean content
+    logger.info('Performing nuclear cleanup - deleting ALL articles');
+    const { error: nuclearError } = await client
+      .from('articles')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+
+    if (nuclearError) {
+      logger.error('Error during nuclear cleanup:', nuclearError.message);
+    } else {
+      logger.info('Nuclear cleanup completed - all articles deleted');
+      deletedCount++;
+    }
+
     res.json({
       success: true,
-      message: `Production cleanup completed. ${deletedCount} cleanup operations performed.`,
+      message: `Production cleanup completed. ${deletedCount} cleanup operations performed. ALL ARTICLES DELETED.`,
       deletedCount
     });
   } catch (error) {
