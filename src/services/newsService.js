@@ -624,7 +624,53 @@ async function fetchRealCryptoNews() {
         logger.info(`Parsing RSS feed: ${feedUrl}`);
         const feed = await parser.parseURL(feedUrl);
         
-        const articles = feed.items.slice(0, 10).map(item => {
+        const articles = feed.items.slice(0, 10).filter(item => {
+          // Pre-filter to remove non-crypto content early
+          const title = item.title || '';
+          const content = item.content || item.summary || item.description || '';
+          const searchText = `${title} ${content}`.toLowerCase();
+          
+          // Check for non-crypto content first
+          const nonCryptoKeywords = [
+            'immigration', 'supreme court', 'school board', 'education', 'politics', 'election',
+            'healthcare', 'climate change', 'environment', 'sports', 'entertainment', 'celebrity',
+            'movie', 'music', 'fashion', 'food', 'travel', 'real estate', 'mortgage', 'insurance',
+            'op-ed', 'opinion', 'editorial', 'commentary', 'dreams to nightmares'
+          ];
+          
+          const hasNonCryptoContent = nonCryptoKeywords.some(keyword => 
+            searchText.includes(keyword.toLowerCase())
+          );
+          
+          // Enhanced crypto context validation
+          const cryptoContextKeywords = [
+            'crypto', 'cryptocurrency', 'blockchain', 'token', 'coin', 'defi', 'nft', 
+            'trading', 'price', 'market', 'exchange', 'wallet', 'mining', 'staking',
+            'protocol', 'network', 'ethereum', 'bitcoin', 'altcoin', 'digital currency',
+            'smart contract', 'dapp', 'web3', 'yield', 'liquidity', 'governance',
+            'consensus', 'validator', 'node', 'hash', 'ledger', 'decentralized',
+            'btc', 'eth', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'hbar',
+            'xdc', 'algorand', 'constellation', 'dag', 'hashpack', 'swap'
+          ];
+          
+          const hasCryptoContext = cryptoContextKeywords.some(cryptoKeyword => 
+            searchText.includes(cryptoKeyword)
+          );
+          
+          // Skip if non-crypto content without crypto context
+          if (hasNonCryptoContent && !hasCryptoContext) {
+            console.log(`❌ Filtering out non-crypto article: "${title.substring(0, 50)}..."`);
+            return false; // Skip this article
+          }
+          
+          // Must have crypto context
+          if (!hasCryptoContext) {
+            console.log(`❌ Filtering out article without crypto context: "${title.substring(0, 50)}..."`);
+            return false; // Skip this article
+          }
+          
+          return true; // Keep this article
+        }).map(item => {
           // Extract network from title/content
           const title = item.title || '';
           const content = item.content || item.summary || item.description || '';
@@ -692,32 +738,12 @@ async function fetchRealCryptoNews() {
           const searchText = (title + ' ' + content).toLowerCase();
           
           // Crypto context keywords to ensure articles are actually about cryptocurrency/blockchain
-          const cryptoContextKeywords = [
-            'crypto', 'cryptocurrency', 'blockchain', 'token', 'coin', 'defi', 'nft', 
-            'trading', 'price', 'market', 'exchange', 'wallet', 'mining', 'staking',
-            'protocol', 'network', 'ethereum', 'bitcoin', 'altcoin', 'digital currency',
-            'smart contract', 'dapp', 'web3', 'yield', 'liquidity', 'governance',
-            'consensus', 'validator', 'node', 'hash', 'ledger', 'decentralized',
-            'btc', 'eth', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'hbar',
-            'xdc', 'algorand', 'constellation', 'dag', 'hashpack', 'swap'
-          ];
-          
+          // Network detection (crypto context already validated in filter)
           for (const [networkName, keywords] of Object.entries(networkKeywords)) {
             for (const keyword of keywords) {
               if (searchText.includes(keyword.toLowerCase())) {
-                // ALWAYS verify crypto context for ALL network matches to prevent false positives
-                const hasCryptoContext = cryptoContextKeywords.some(cryptoKeyword => 
-                  searchText.includes(cryptoKeyword)
-                );
-                
-                if (!hasCryptoContext) {
-                  // STRICT: No crypto context = no crypto article (even for client networks)
-                  console.log(`❌ Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
-                  continue; // Skip this match if no crypto context
-                }
-                
                 network = networkName;
-                console.log(`✅ Network detected: ${network} (keyword: "${keyword}") - crypto context verified`);
+                console.log(`✅ Network detected: ${network} (keyword: "${keyword}")`);
                 break;
               }
             }
@@ -734,22 +760,6 @@ async function fetchRealCryptoNews() {
             category = 'technology';
           }
 
-          // Additional filtering to remove non-crypto content
-          const nonCryptoKeywords = [
-            'immigration', 'supreme court', 'school board', 'education', 'politics', 'election',
-            'healthcare', 'climate change', 'environment', 'sports', 'entertainment', 'celebrity',
-            'movie', 'music', 'fashion', 'food', 'travel', 'real estate', 'mortgage', 'insurance',
-            'op-ed', 'opinion', 'editorial', 'commentary', 'dreams to nightmares'
-          ];
-          
-          const hasNonCryptoContent = nonCryptoKeywords.some(keyword => 
-            searchText.includes(keyword.toLowerCase())
-          );
-          
-          if (hasNonCryptoContent && !hasCryptoContext) {
-            console.log(`❌ Filtering out non-crypto article: "${title.substring(0, 50)}..."`);
-            continue; // Skip this article
-          }
 
           // Determine if breaking news
           const isBreaking = title.toLowerCase().includes('breaking') || 
