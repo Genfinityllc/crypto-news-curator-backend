@@ -711,16 +711,9 @@ async function fetchRealCryptoNews() {
                 );
                 
                 if (!hasCryptoContext) {
-                  // Temporarily allow articles for client networks to populate the database
-                  const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
-                  if (clientNetworks.includes(networkName)) {
-                    console.log(`⚠️  Allowing ${networkName} article without crypto context for database population: "${title.substring(0, 50)}..."`);
-                    network = networkName;
-                    break;
-                  } else {
-                    console.log(`⚠️  Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
-                    continue; // Skip this match if no crypto context
-                  }
+                  // STRICT: No crypto context = no crypto article (even for client networks)
+                  console.log(`❌ Skipping ${networkName} match for "${title.substring(0, 50)}..." - no crypto context detected`);
+                  continue; // Skip this match if no crypto context
                 }
                 
                 network = networkName;
@@ -739,6 +732,23 @@ async function fetchRealCryptoNews() {
             category = 'regulation';
           } else if (title.toLowerCase().includes('technology') || title.toLowerCase().includes('blockchain') || title.toLowerCase().includes('upgrade')) {
             category = 'technology';
+          }
+
+          // Additional filtering to remove non-crypto content
+          const nonCryptoKeywords = [
+            'immigration', 'supreme court', 'school board', 'education', 'politics', 'election',
+            'healthcare', 'climate change', 'environment', 'sports', 'entertainment', 'celebrity',
+            'movie', 'music', 'fashion', 'food', 'travel', 'real estate', 'mortgage', 'insurance',
+            'op-ed', 'opinion', 'editorial', 'commentary', 'dreams to nightmares'
+          ];
+          
+          const hasNonCryptoContent = nonCryptoKeywords.some(keyword => 
+            searchText.includes(keyword.toLowerCase())
+          );
+          
+          if (hasNonCryptoContent && !hasCryptoContext) {
+            console.log(`❌ Filtering out non-crypto article: "${title.substring(0, 50)}..."`);
+            continue; // Skip this article
           }
 
           // Determine if breaking news

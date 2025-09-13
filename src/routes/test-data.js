@@ -202,4 +202,70 @@ router.post('/test-image-scraping', async (req, res) => {
   }
 });
 
+// Clean up test articles with example URLs
+router.post('/cleanup-test-articles', async (req, res) => {
+  try {
+    logger.info('Cleaning up test articles with example URLs');
+    
+    const client = getSupabaseClient();
+    if (!client) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    // Delete articles with example URLs
+    const { error: exampleError } = await client
+      .from('articles')
+      .delete()
+      .like('url', '%example.com%');
+
+    if (exampleError) {
+      logger.error('Error deleting example articles:', exampleError.message);
+    } else {
+      logger.info('Deleted articles with example URLs');
+    }
+
+    // Delete articles with placeholder images
+    const { error: placeholderError } = await client
+      .from('articles')
+      .delete()
+      .like('cover_image', '%via.placeholder%');
+
+    if (placeholderError) {
+      logger.error('Error deleting placeholder articles:', placeholderError.message);
+    } else {
+      logger.info('Deleted articles with placeholder images');
+    }
+
+    // Delete test articles from fake sources
+    const testSources = ['DeFi Pulse', 'Enterprise Blockchain News', 'NFT News'];
+    for (const source of testSources) {
+      const { error: sourceError } = await client
+        .from('articles')
+        .delete()
+        .eq('source', source);
+      
+      if (sourceError) {
+        logger.error(`Error deleting ${source} articles:`, sourceError.message);
+      } else {
+        logger.info(`Deleted ${source} test articles`);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Test articles cleaned up successfully'
+    });
+  } catch (error) {
+    logger.error('Error cleaning up test articles:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error cleaning up test articles',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
