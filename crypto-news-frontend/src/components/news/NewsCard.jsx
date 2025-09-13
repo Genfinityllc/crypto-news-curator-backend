@@ -12,7 +12,8 @@ const NewsCard = ({ article }) => {
     cover_image,
     image_url,
     is_breaking,
-    viral_score
+    viral_score,
+    source
   } = article;
 
   const publishedDate = published_at || publishedAt;
@@ -44,16 +45,23 @@ const NewsCard = ({ article }) => {
       'Avalanche': '#E84142',
       'XRP': '#23292F',
       'Dogecoin': '#C2A633',
-      'BNB Chain': '#F3BA2F'
+      'BNB Chain': '#F3BA2F',
+      'Uniswap': '#FF007A',
+      'Chainlink': '#375BD2'
     };
     return colors[network] || '#6B7280';
   };
 
+  const truncateText = (text, maxLength) => {
+    if (!text) return '';
+    return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+  };
+
   return (
-    <div className={`news-card ${is_breaking ? 'breaking' : ''}`}>
+    <article className={`news-card ${is_breaking ? 'breaking' : ''}`} role="article">
       {/* Breaking Badge */}
       {is_breaking && (
-        <div className="breaking-badge">
+        <div className="breaking-badge" role="status" aria-label="Breaking news">
           🔥 BREAKING
         </div>
       )}
@@ -63,6 +71,8 @@ const NewsCard = ({ article }) => {
         <div 
           className="network-badge"
           style={{ backgroundColor: getNetworkColor(network) }}
+          role="img"
+          aria-label={`${network} network`}
         >
           {network}
         </div>
@@ -74,6 +84,7 @@ const NewsCard = ({ article }) => {
           <img 
             src={imageUrl} 
             alt={title}
+            loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
             }}
@@ -83,52 +94,66 @@ const NewsCard = ({ article }) => {
 
       {/* Article Content */}
       <div className="news-content">
-        <h3 className="news-title">
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            {title}
-          </a>
-        </h3>
+        <header>
+          <h3 className="news-title">
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              aria-label={`Read full article: ${title}`}
+            >
+              {title}
+            </a>
+          </h3>
+        </header>
 
         {content && (
           <p className="news-summary">
-            {content.length > 200 ? `${content.substring(0, 200)}...` : content}
+            {truncateText(content, 150)}
           </p>
         )}
 
         {/* Article Metadata */}
-        <div className="news-meta">
+        <div className="news-meta" role="group" aria-label="Article metadata">
           {publishedDate && (
-            <span className="publish-date">
+            <span className="publish-date" title="Publication date">
               📅 {formatDate(publishedDate)}
             </span>
           )}
           
+          {source && (
+            <span className="source" title="News source">
+              📰 {source.length > 20 ? truncateText(source, 20) : source}
+            </span>
+          )}
+          
           {category && category !== 'general' && (
-            <span className="category">
+            <span className="category" title="Article category">
               🏷️ {category}
             </span>
           )}
 
           {viral_score && (
-            <span className="viral-score">
+            <span className="viral-score" title="Viral score">
               📈 Score: {viral_score}
             </span>
           )}
         </div>
 
         {/* Read More Link */}
-        <div className="news-footer">
+        <footer className="news-footer">
           <a 
             href={url} 
             target="_blank" 
             rel="noopener noreferrer"
             className="read-more"
+            aria-label={`Read full article: ${title}`}
           >
             Read Full Article →
           </a>
-        </div>
+        </footer>
       </div>
-    </div>
+    </article>
   );
 };
 

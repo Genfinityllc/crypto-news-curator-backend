@@ -71,16 +71,29 @@ const NewsTabs = () => {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+    // Scroll to top when changing tabs on mobile
+    if (window.innerWidth <= 768) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handlePageChange = (newPage) => {
     fetchNews(activeTab, newPage);
+    // Scroll to top when changing pages on mobile
+    if (window.innerWidth <= 768) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleNetworkSelect = (network) => {
-    // For now, just log the selection - you can implement filtering logic here
     console.log('Selected network:', network);
-    // You could add network filtering logic here
+    // Scroll to news grid when selecting network on mobile
+    if (window.innerWidth <= 768) {
+      const newsGrid = document.querySelector('.news-grid');
+      if (newsGrid) {
+        newsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
   };
 
   const getTabLabel = (tab) => {
@@ -110,26 +123,38 @@ const NewsTabs = () => {
   return (
     <div className="news-tabs">
       {/* Tab Navigation */}
-      <div className="tab-navigation">
+      <nav className="tab-navigation" role="tablist" aria-label="News categories">
         <button
           className={`tab-button ${activeTab === 'all' ? 'active' : ''}`}
           onClick={() => handleTabChange('all')}
+          role="tab"
+          aria-selected={activeTab === 'all'}
+          aria-controls="all-news-panel"
+          id="all-news-tab"
         >
           All News
         </button>
         <button
           className={`tab-button ${activeTab === 'clients' ? 'active' : ''}`}
           onClick={() => handleTabChange('clients')}
+          role="tab"
+          aria-selected={activeTab === 'clients'}
+          aria-controls="client-news-panel"
+          id="client-news-tab"
         >
           Client News
         </button>
         <button
           className={`tab-button ${activeTab === 'breaking' ? 'active' : ''}`}
           onClick={() => handleTabChange('breaking')}
+          role="tab"
+          aria-selected={activeTab === 'breaking'}
+          aria-controls="breaking-news-panel"
+          id="breaking-news-tab"
         >
           Breaking News
         </button>
-      </div>
+      </nav>
 
       {/* Tab Description */}
       <div className="tab-description">
@@ -164,10 +189,22 @@ const NewsTabs = () => {
 
       {/* News Grid */}
       {!loading && !error && (
-        <div className="news-grid">
-          {news.map((article, index) => (
-            <NewsCard key={`${article.id || article.url}-${index}`} article={article} />
-          ))}
+        <div 
+          className="news-grid" 
+          role="tabpanel" 
+          id={`${activeTab}-news-panel`}
+          aria-labelledby={`${activeTab}-news-tab`}
+          aria-live="polite"
+        >
+          {news.length === 0 ? (
+            <div className="no-articles">
+              <p>No articles found for this category.</p>
+            </div>
+          ) : (
+            news.map((article, index) => (
+              <NewsCard key={`${article.id || article.url}-${index}`} article={article} />
+            ))
+          )}
         </div>
       )}
 
