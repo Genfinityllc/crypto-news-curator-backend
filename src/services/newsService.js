@@ -635,7 +635,9 @@ async function fetchRealCryptoNews() {
             'immigration', 'supreme court', 'school board', 'education', 'politics', 'election',
             'healthcare', 'climate change', 'environment', 'sports', 'entertainment', 'celebrity',
             'movie', 'music', 'fashion', 'food', 'travel', 'real estate', 'mortgage', 'insurance',
-            'op-ed', 'opinion', 'editorial', 'commentary', 'dreams to nightmares'
+            'op-ed', 'opinion', 'editorial', 'commentary', 'dreams to nightmares',
+            'volleyball', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf',
+            'athletics', 'university', 'college', 'school', 'student', 'team', 'game', 'match'
           ];
           
           const hasNonCryptoContent = nonCryptoKeywords.some(keyword => 
