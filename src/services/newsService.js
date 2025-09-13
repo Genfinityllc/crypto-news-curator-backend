@@ -659,8 +659,8 @@ async function fetchRealCryptoNews() {
             searchText.includes(cryptoKeyword)
           );
           
-          // Skip if non-crypto content without crypto context
-          if (hasNonCryptoContent && !hasCryptoContext) {
+          // Skip if non-crypto content (regardless of crypto context)
+          if (hasNonCryptoContent) {
             console.log(`❌ Filtering out non-crypto article: "${title.substring(0, 50)}..."`);
             return false; // Skip this article
           }
