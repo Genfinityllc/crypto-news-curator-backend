@@ -446,13 +446,16 @@ async function enhanceArticlesWithImages(articles) {
         let cardImages;
         let coverImage = article.cover_image;
         
-        // Check if this is a Google News article without proper image
+        // Check if this is a Google News article that needs image scraping
         const isGoogleNewsArticle = article.source && 
           (article.source.includes('Google News') || 
-           article.source.includes('"') && article.source.includes('" - Google News')) &&
+           article.source.includes('" - Google News')) &&
+          // Also check if the image is a generic Google thumbnail
           (!article.cover_image || 
            article.cover_image.includes('placeholder') || 
-           article.cover_image.includes('via.placeholder'));
+           article.cover_image.includes('via.placeholder') ||
+           article.cover_image.includes('lh3.googleusercontent.com') ||
+           article.cover_image.includes('googleusercontent'));
 
         if (isGoogleNewsArticle && article.url) {
           // Try to scrape the actual article image from the article URL
@@ -534,12 +537,19 @@ async function enhanceArticlesWithImages(articles) {
           coverImage = cardImages.medium;
         }
         
+        // Determine if this is a real scraped/RSS image vs generated
+        const hasRealImage = coverImage && 
+          !coverImage.includes('placeholder') && 
+          !coverImage.includes('generated') &&
+          !coverImage.includes('default') &&
+          (coverImage.includes('http') || coverImage.includes('https'));
+
         // Add image data to article
         const enhancedArticle = {
           ...article,
           card_images: cardImages,
           cover_image: coverImage,
-          has_real_image: !!article.cover_image, // True if we have an RSS image
+          has_real_image: hasRealImage,
           image_optimized: true
         };
         
