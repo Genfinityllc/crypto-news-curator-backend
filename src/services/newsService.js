@@ -4,7 +4,7 @@ const Parser = require('rss-parser');
 // News model removed - using Supabase instead
 const logger = require('../utils/logger');
 const { calculateViralScore, rewriteArticle, calculateReadabilityScore } = require('./aiService');
-const { generateCardCoverImage, extractArticleImages } = require('./imageService');
+const { generateCardCoverImage, extractArticleImages, isGenericGoogleImage, secondaryImageExtraction, extractGoogleNewsImages } = require('./imageService');
 
 // Initialize RSS parser
 const parser = new Parser({
@@ -448,82 +448,91 @@ async function enhanceArticlesWithImages(articles) {
           (article.source && 
            (article.source.includes('Google News') || 
             article.source.includes('" - Google News'))) ||
-          // Also check if the image is a generic Google thumbnail that needs replacement
+          // Enhanced generic image detection
           (article.cover_image && (
            article.cover_image.includes('placeholder') || 
            article.cover_image.includes('via.placeholder') ||
-           article.cover_image.includes('lh3.googleusercontent.com') ||
-           article.cover_image.includes('googleusercontent')));
+           isGenericGoogleImage(article.cover_image)));
 
         if (isGoogleNewsArticle) {
-          // Try to scrape the actual article image from the article URL
+          // Use enhanced Google News image extraction
           try {
-            let urlToScrape = article.url;
+            logger.info(`Attempting enhanced Google News image extraction for: ${article.title.substring(0, 50)}...`);
             
-            // Enhanced Google News redirect resolution
-            if (article.url && article.url.includes('news.google.com')) {
-              try {
-                // Method 1: Try direct redirect following
-                const axios = require('axios');
-                const redirectResponse = await axios.get(article.url, {
-                  maxRedirects: 3,
-                  timeout: 10000,
-                  validateStatus: (status) => status >= 200 && status < 500,
-                  headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5'
-                  }
-                });
+            // Get RSS content if available
+            const rssContent = article.rss_item ? article.rss_item['content:encoded'] : null;
+            
+            // Use the enhanced Google News image extraction
+            const extractedImages = await extractGoogleNewsImages(article.url, rssContent);
+            
+            if (extractedImages && extractedImages.length > 0) {
+              // Filter out generic Google images
+              const nonGenericImages = extractedImages.filter(img => !isGenericGoogleImage(img.url));
+              
+              if (nonGenericImages.length > 0) {
+                // Use the best non-generic image
+                const bestImage = nonGenericImages[0];
+                const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(bestImage.url)}&w=400&h=225&fit=cover&output=jpg&q=85`;
                 
-                // Check if we got redirected to the actual article
-                if (redirectResponse.request && redirectResponse.request.res && redirectResponse.request.res.responseUrl) {
-                  urlToScrape = redirectResponse.request.res.responseUrl;
-                  logger.info(`Resolved Google News URL to: ${urlToScrape}`);
-                } else if (redirectResponse.headers && redirectResponse.headers.location) {
-                  urlToScrape = redirectResponse.headers.location;
-                  logger.info(`Got redirect location: ${urlToScrape}`);
+                cardImages = {
+                  small: `https://images.weserv.nl/?url=${encodeURIComponent(bestImage.url)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+                  medium: optimizedImage,
+                  large: `https://images.weserv.nl/?url=${encodeURIComponent(bestImage.url)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+                  square: `https://images.weserv.nl/?url=${encodeURIComponent(bestImage.url)}&w=300&h=300&fit=cover&output=jpg&q=85`
+                };
+                coverImage = optimizedImage;
+                
+                // Mark as having real image
+                article.has_real_image = true;
+                
+                logger.info(`Enhanced extraction found real image from ${bestImage.source}: ${bestImage.url}`);
+              } else if (extractedImages.length > 0) {
+                // If we only got generic images, try secondary extraction
+                logger.info(`Only generic images found, attempting secondary extraction`);
+                const secondaryImages = await secondaryImageExtraction(article.url, extractedImages);
+                const nonGenericSecondary = secondaryImages.filter(img => !isGenericGoogleImage(img.url));
+                
+                if (nonGenericSecondary.length > 0) {
+                  const bestSecondaryImage = nonGenericSecondary[0];
+                  const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(bestSecondaryImage.url)}&w=400&h=225&fit=cover&output=jpg&q=85`;
+                  
+                  cardImages = {
+                    small: `https://images.weserv.nl/?url=${encodeURIComponent(bestSecondaryImage.url)}&w=300&h=169&fit=cover&output=jpg&q=85`,
+                    medium: optimizedImage,
+                    large: `https://images.weserv.nl/?url=${encodeURIComponent(bestSecondaryImage.url)}&w=500&h=281&fit=cover&output=jpg&q=85`,
+                    square: `https://images.weserv.nl/?url=${encodeURIComponent(bestSecondaryImage.url)}&w=300&h=300&fit=cover&output=jpg&q=85`
+                  };
+                  coverImage = optimizedImage;
+                  
+                  // Mark as having real image
+                  article.has_real_image = true;
+                  
+                  logger.info(`Secondary extraction found real image: ${bestSecondaryImage.url}`);
                 } else {
-                  // Try to extract URL from Google News response body
-                  const googleBody = redirectResponse.data;
-                  const urlMatch = googleBody.match(/url=([^&]+)/) || googleBody.match(/href="([^"]+)"/);
-                  if (urlMatch && urlMatch[1]) {
-                    urlToScrape = decodeURIComponent(urlMatch[1]);
-                    logger.info(`Extracted URL from Google News body: ${urlToScrape}`);
-                  }
+                  // Still only generic images, fallback to generated
+                  logger.warn(`Secondary extraction also yielded only generic images for: ${article.title.substring(0, 50)}`);
+                  cardImages = await generateCardCoverImage(article);
+                  coverImage = cardImages.medium;
+                  article.has_real_image = false;
                 }
-              } catch (redirectError) {
-                logger.warn(`Google News redirect failed: ${redirectError.message}`);
-                urlToScrape = article.url; // Use original URL as fallback
+              } else {
+                logger.warn(`No images found for Google News article: ${article.title.substring(0, 50)}`);
+                cardImages = await generateCardCoverImage(article);
+                coverImage = cardImages.medium;
+                article.has_real_image = false;
               }
-            }
-            
-            const scrapedImage = await scrapeArticleImage(urlToScrape);
-            if (scrapedImage) {
-              // Use the scraped image
-              const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=400&h=225&fit=cover&output=jpg&q=85`;
-              cardImages = {
-                small: `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=300&h=169&fit=cover&output=jpg&q=85`,
-                medium: optimizedImage,
-                large: `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=500&h=281&fit=cover&output=jpg&q=85`,
-                square: `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=300&h=300&fit=cover&output=jpg&q=85`
-              };
-              coverImage = optimizedImage;
-              logger.info(`Scraped image for Google News article: ${scrapedImage}`);
             } else {
-              logger.warn(`No image scraped for article: ${article.title.substring(0, 50)}`);
-              // Fallback to generated image
+              logger.warn(`Enhanced extraction failed for: ${article.title.substring(0, 50)}`);
               cardImages = await generateCardCoverImage(article);
               coverImage = cardImages.medium;
-              
-              // Mark as generated image
               article.has_real_image = false;
             }
-          } catch (scrapeError) {
-            logger.warn(`Failed to scrape image for ${article.url}:`, scrapeError.message);
+          } catch (enhancedError) {
+            logger.warn(`Enhanced Google News extraction failed for ${article.url}:`, enhancedError.message);
             // Fallback to generated image
             cardImages = await generateCardCoverImage(article);
             coverImage = cardImages.medium;
+            article.has_real_image = false;
           }
         } else if (article.cover_image) {
           // Clean up malformed URLs by extracting the original image URL

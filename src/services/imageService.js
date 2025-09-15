@@ -220,6 +220,152 @@ function extractContentImages($, articleUrl) {
     }
   }
   
+  // 99Bitcoins-specific selectors
+  if (domain.includes('99bitcoins.com')) {
+    const bitcoinsSelectors = [
+      // Featured image
+      '.featured-image img, .post-thumbnail img',
+      // Article content images
+      '.post-content img[src*="99bitcoins"], .entry-content img[src*="99bitcoins"]',
+      // WordPress attachment images
+      '.wp-post-image, .attachment-large, .attachment-full',
+      // Hero/banner images
+      '.hero-image img, .banner-image img',
+      // Content area images
+      '.content img[width], .main-content img'
+    ];
+    
+    for (const selector of bitcoinsSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for 99Bitcoins featured images
+          if (className.includes('featured') || parentClass.includes('featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: '99bitcoins-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // openPR.com-specific selectors
+  if (domain.includes('openpr.com')) {
+    const openprSelectors = [
+      // Press release images
+      '.press-release-image img, .pr-image img',
+      // Article content images
+      '.article-content img, .press-content img',
+      // Featured images
+      '.featured img, .main-image img',
+      // Content area images with good dimensions
+      '.content img[width], .body img[src*="openpr"]'
+    ];
+    
+    for (const selector of openprSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for openPR main images
+          if (className.includes('main') || parentClass.includes('press-release')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'openpr-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // CoinDesk-specific selectors
+  if (domain.includes('coindesk.com')) {
+    const coindeskSelectors = [
+      // Article lead image
+      '.article-lead-image img, .lead-image img',
+      // Featured image
+      '.featured-image img, .hero-image img',
+      // Article content images
+      '.article-wrap img[src*="coindesk"], .content-wrap img[src*="coindesk"]',
+      // WordPress and CMS images
+      '.wp-post-image, .post-image img',
+      // High-resolution content images
+      'figure img, .media img, .image-wrap img'
+    ];
+    
+    for (const selector of coindeskSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for CoinDesk lead/featured images
+          if (className.includes('lead') || parentClass.includes('lead') || 
+              className.includes('hero') || parentClass.includes('hero')) priority += 5;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'coindesk-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
   // CryptoNews.com-specific selectors  
   if (domain.includes('cryptonews.com') || domain.includes('crypto.news')) {
     const cryptonewsSelectors = [
@@ -456,6 +602,144 @@ function extractRSSContentImages(content, articleUrl) {
 }
 
 /**
+ * Detect if an image is a generic Google News image
+ */
+function isGenericGoogleImage(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') return false;
+  
+  const urlLower = imageUrl.toLowerCase();
+  
+  // Google generic image patterns
+  const googleGenericPatterns = [
+    'lh3.googleusercontent.com',
+    'lh4.googleusercontent.com', 
+    'lh5.googleusercontent.com',
+    'lh6.googleusercontent.com'
+  ];
+  
+  for (const pattern of googleGenericPatterns) {
+    if (urlLower.includes(pattern)) {
+      // Check for specific generic image characteristics
+      if (urlLower.includes('s0-w300-rw') || 
+          urlLower.includes('=s0-') ||
+          urlLower.includes('=w300-') ||
+          urlLower.includes('default-') ||
+          urlLower.includes('noimage') ||
+          urlLower.includes('placeholder')) {
+        return true;
+      }
+      // If it's from googleusercontent but doesn't have these patterns,
+      // it might still be generic if it's very small or has generic params
+      if (urlLower.includes('=w100') || urlLower.includes('=h100') || 
+          urlLower.includes('=s100') || urlLower.includes('=s64')) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Enhanced Google News URL decoding with better Base64/redirect handling
+ */
+async function decodeGoogleNewsUrl(googleNewsUrl) {
+  try {
+    logger.info(`Decoding Google News URL: ${googleNewsUrl}`);
+    
+    // Method 1: Check if URL contains encoded data
+    if (googleNewsUrl.includes('articles/')) {
+      const articleMatch = googleNewsUrl.match(/articles\/([^?&]+)/);
+      if (articleMatch && articleMatch[1]) {
+        const encodedData = articleMatch[1];
+        
+        // Try to decode if it looks like Base64
+        try {
+          const decoded = Buffer.from(encodedData, 'base64').toString('utf-8');
+          const urlMatch = decoded.match(/https?:\/\/[^\s"'>]+/);
+          if (urlMatch) {
+            logger.info(`Decoded URL from Base64: ${urlMatch[0]}`);
+            return urlMatch[0];
+          }
+        } catch (decodeError) {
+          // Not valid Base64, continue with other methods
+        }
+        
+        // Try URL decoding
+        try {
+          const urlDecoded = decodeURIComponent(encodedData);
+          const urlMatch = urlDecoded.match(/https?:\/\/[^\s"'>]+/);
+          if (urlMatch) {
+            logger.info(`Decoded URL from URI encoding: ${urlMatch[0]}`);
+            return urlMatch[0];
+          }
+        } catch (urlDecodeError) {
+          // Continue with redirect method
+        }
+      }
+    }
+    
+    // Method 2: Follow redirects with better handling
+    const response = await axios.get(googleNewsUrl, {
+      timeout: 15000,
+      maxRedirects: 8, // Increased redirect limit
+      validateStatus: (status) => status >= 200 && status < 500,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    // Get the final URL after all redirects
+    let finalUrl = response.request.res.responseUrl || 
+                   response.request.responseURL || 
+                   response.config.url;
+    
+    if (finalUrl && finalUrl !== googleNewsUrl && !finalUrl.includes('news.google.com')) {
+      logger.info(`Google News URL resolved via redirects to: ${finalUrl}`);
+      return finalUrl;
+    }
+    
+    // Method 3: Parse response body for embedded URLs
+    if (response.data && typeof response.data === 'string') {
+      const bodyContent = response.data;
+      
+      // Look for various URL patterns in the response
+      const urlPatterns = [
+        /url=([^&"'\s>]+)/gi,
+        /href="([^"]+)"/gi,
+        /data-url="([^"]+)"/gi,
+        /'url'\s*:\s*'([^']+)'/gi,
+        /"url"\s*:\s*"([^"]+)"/gi,
+        /window\.location\.href\s*=\s*["']([^"']+)["']/gi
+      ];
+      
+      for (const pattern of urlPatterns) {
+        let match;
+        while ((match = pattern.exec(bodyContent)) !== null) {
+          const potentialUrl = decodeURIComponent(match[1]);
+          if (potentialUrl.startsWith('http') && !potentialUrl.includes('google.com')) {
+            logger.info(`Found embedded URL in Google News response: ${potentialUrl}`);
+            return potentialUrl;
+          }
+        }
+      }
+    }
+    
+    logger.warn(`Could not decode Google News URL: ${googleNewsUrl}`);
+    return googleNewsUrl;
+    
+  } catch (error) {
+    logger.warn(`Failed to decode Google News URL ${googleNewsUrl}:`, error.message);
+    return googleNewsUrl;
+  }
+}
+
+/**
  * Handle Google News URLs and extract the actual source URL
  */
 async function resolveGoogleNewsUrl(googleNewsUrl) {
@@ -464,26 +748,198 @@ async function resolveGoogleNewsUrl(googleNewsUrl) {
       return googleNewsUrl; // Not a Google News URL
     }
     
-    logger.info(`Resolving Google News URL: ${googleNewsUrl}`);
-    
-    // For Google News RSS feeds, the actual URL is usually in the link
-    // But we need to follow redirects to get the final destination
-    const response = await axios.get(googleNewsUrl, {
-      timeout: 10000,
-      maxRedirects: 5,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    
-    // The final URL after redirects is what we want
-    const finalUrl = response.request.res.responseUrl || response.config.url;
-    logger.info(`Google News URL resolved to: ${finalUrl}`);
-    return finalUrl;
+    return await decodeGoogleNewsUrl(googleNewsUrl);
     
   } catch (error) {
     logger.warn(`Failed to resolve Google News URL ${googleNewsUrl}:`, error.message);
     return googleNewsUrl; // Return original URL as fallback
+  }
+}
+
+/**
+ * Secondary image extraction with retry logic for failed Google News extractions
+ */
+async function secondaryImageExtraction(articleUrl, originalImages = [], attempt = 1) {
+  const maxAttempts = 3;
+  
+  if (attempt > maxAttempts) {
+    logger.warn(`Max attempts reached for secondary extraction: ${articleUrl}`);
+    return originalImages;
+  }
+  
+  try {
+    logger.info(`Secondary image extraction attempt ${attempt} for: ${articleUrl}`);
+    
+    // Wait between attempts with exponential backoff
+    if (attempt > 1) {
+      const delay = Math.pow(2, attempt - 1) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    // Try different user agents for better compatibility
+    const userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0'
+    ];
+    
+    const userAgent = userAgents[attempt - 1] || userAgents[0];
+    
+    const response = await axios.get(articleUrl, {
+      timeout: 20000,
+      maxRedirects: 10,
+      headers: {
+        'User-Agent': userAgent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Upgrade-Insecure-Requests': '1'
+      },
+      validateStatus: (status) => status >= 200 && status < 400
+    });
+    
+    const $ = cheerio.load(response.data);
+    const domain = new URL(articleUrl).hostname.toLowerCase();
+    const images = [];
+    
+    // More aggressive image extraction for secondary attempt
+    const aggressiveSelectors = [
+      // JSON-LD structured data images
+      'script[type="application/ld+json"]',
+      // Meta tags (even if we already tried them)
+      'meta[property*="image"], meta[name*="image"]',
+      // Any img with reasonable size attributes
+      'img[width], img[height], img[style*="width"], img[style*="height"]',
+      // Images in main content areas regardless of class
+      'main img, .main img, #main img, .content img, #content img',
+      // Article-related containers
+      '[class*="article"] img, [class*="post"] img, [class*="story"] img',
+      // Images with srcset (responsive images)
+      'img[srcset]',
+      // Background images in CSS
+      '[style*="background-image"]'
+    ];
+    
+    // Extract JSON-LD structured data
+    $('script[type="application/ld+json"]').each((i, element) => {
+      try {
+        const jsonData = JSON.parse($(element).html());
+        const extractImagesFromJson = (obj) => {
+          if (typeof obj === 'object' && obj !== null) {
+            if (obj.image) {
+              const imgUrl = typeof obj.image === 'string' ? obj.image : 
+                           obj.image.url || obj.image.contentUrl || obj.image['@id'];
+              if (imgUrl && imgUrl.startsWith('http')) {
+                images.push({
+                  url: imgUrl,
+                  alt: obj.headline || obj.name || 'Structured data image',
+                  source: 'json-ld',
+                  priority: 9
+                });
+              }
+            }
+            for (const key in obj) {
+              extractImagesFromJson(obj[key]);
+            }
+          } else if (Array.isArray(obj)) {
+            obj.forEach(extractImagesFromJson);
+          }
+        };
+        extractImagesFromJson(jsonData);
+      } catch (jsonError) {
+        // Skip invalid JSON
+      }
+    });
+    
+    // Process other selectors
+    for (const selector of aggressiveSelectors.slice(1)) {
+      $(selector).each((i, element) => {
+        const $el = $(element);
+        let src = null;
+        
+        if ($el.is('img')) {
+          src = $el.attr('src') || $el.attr('data-src') || $el.attr('data-original') || 
+                $el.attr('data-lazy-src') || $el.attr('data-srcset');
+          
+          // Handle srcset
+          if (!src && $el.attr('srcset')) {
+            const srcset = $el.attr('srcset');
+            const srcsetMatch = srcset.match(/([^\s,]+)\s+\d+[wx]/g);
+            if (srcsetMatch && srcsetMatch.length > 0) {
+              // Get the largest image from srcset
+              src = srcsetMatch[srcsetMatch.length - 1].split(' ')[0];
+            }
+          }
+        } else if ($el.attr('style') && $el.attr('style').includes('background-image')) {
+          const style = $el.attr('style');
+          const bgMatch = style.match(/background-image:\s*url\(['"]?([^'"\)]+)['"]?\)/);
+          if (bgMatch && bgMatch[1]) {
+            src = bgMatch[1];
+          }
+        }
+        
+        if (src && src.length > 10) {
+          const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+          
+          // Skip if we already have this URL
+          if (images.some(img => img.url === absoluteUrl) || 
+              originalImages.some(img => img.url === absoluteUrl)) {
+            return;
+          }
+          
+          const alt = $el.attr('alt') || $el.attr('title') || '';
+          
+          if (isValidNewsImage(absoluteUrl, alt, $el)) {
+            const width = parseInt($el.attr('width')) || parseInt($el.css('width')) || 0;
+            const height = parseInt($el.attr('height')) || parseInt($el.css('height')) || 0;
+            const className = $el.attr('class') || '';
+            const parentClass = $el.parent().attr('class') || '';
+            
+            let priority = calculateImagePriority(className, parentClass, alt, width, height);
+            // Boost priority for images found in secondary extraction
+            priority += 2;
+            
+            images.push({
+              url: absoluteUrl,
+              alt: alt,
+              width: width,
+              height: height,
+              source: `secondary-extraction-${attempt}`,
+              className: className,
+              priority: priority
+            });
+          }
+        }
+      });
+    }
+    
+    logger.info(`Secondary extraction attempt ${attempt} found ${images.length} additional images`);
+    
+    // Combine with original images and sort by priority
+    const allImages = [...originalImages, ...images];
+    allImages.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    
+    // If we found good images, return them; otherwise retry
+    if (images.length > 0) {
+      return allImages;
+    } else {
+      return await secondaryImageExtraction(articleUrl, originalImages, attempt + 1);
+    }
+    
+  } catch (error) {
+    logger.warn(`Secondary extraction attempt ${attempt} failed for ${articleUrl}:`, error.message);
+    
+    // Retry on failure
+    if (attempt < maxAttempts) {
+      return await secondaryImageExtraction(articleUrl, originalImages, attempt + 1);
+    } else {
+      return originalImages;
+    }
   }
 }
 
@@ -500,7 +956,18 @@ async function extractGoogleNewsImages(articleUrl, rssContent = null) {
     // If we got a different URL, extract images from the actual source
     if (actualUrl !== articleUrl) {
       logger.info(`Following redirect to source: ${actualUrl}`);
-      return await extractArticleImages(actualUrl, rssContent);
+      const primaryImages = await extractArticleImages(actualUrl, rssContent);
+      
+      // Check if we got any good non-generic images
+      const nonGenericImages = primaryImages.filter(img => !isGenericGoogleImage(img.url));
+      
+      if (nonGenericImages.length > 0) {
+        return primaryImages;
+      } else {
+        // If we only got generic images, try secondary extraction
+        logger.info(`Primary extraction yielded generic images, trying secondary extraction`);
+        return await secondaryImageExtraction(actualUrl, primaryImages);
+      }
     }
     
     // If it's still a Google News URL, try to extract what we can
@@ -546,7 +1013,7 @@ async function extractGoogleNewsImages(articleUrl, rssContent = null) {
         const alt = $img.attr('alt') || '';
         const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
         
-        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+        if (isValidNewsImage(absoluteUrl, alt, $img) && !isGenericGoogleImage(absoluteUrl)) {
           allImages.push({
             url: absoluteUrl,
             alt: alt,
@@ -580,9 +1047,20 @@ async function extractArticleImages(articleUrl, rssContent = null) {
       const googleImages = await extractGoogleNewsImages(articleUrl, rssContent);
       allImages.push(...googleImages);
       
-      // If we got good results from Google News extraction, return those
-      if (googleImages.length > 0) {
-        return googleImages.slice(0, 8);
+      // Filter out generic Google images
+      const nonGenericImages = googleImages.filter(img => !isGenericGoogleImage(img.url));
+      
+      // If we got good non-generic results from Google News extraction, return those
+      if (nonGenericImages.length > 0) {
+        return nonGenericImages.slice(0, 8);
+      } else if (googleImages.length > 0) {
+        // If we only got generic images, try secondary extraction
+        logger.info(`Google News extraction yielded only generic images, trying secondary extraction`);
+        const resolvedUrl = await resolveGoogleNewsUrl(articleUrl);
+        if (resolvedUrl !== articleUrl) {
+          const secondaryImages = await secondaryImageExtraction(resolvedUrl, googleImages);
+          return secondaryImages.slice(0, 8);
+        }
       }
     }
     
@@ -1039,5 +1517,8 @@ module.exports = {
   extractGoogleNewsImages,
   resolveGoogleNewsUrl,
   extractRSSItemImages,
-  isImageUrl
+  isImageUrl,
+  isGenericGoogleImage,
+  decodeGoogleNewsUrl,
+  secondaryImageExtraction
 };
