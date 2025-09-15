@@ -171,25 +171,31 @@ function extractContentImages($, articleUrl) {
     }
   }
   
-  // CryptoSlate-specific selectors
+  // CryptoSlate-specific selectors (enhanced)
   if (domain.includes('cryptoslate.com')) {
     const cryptoslateSelectors = [
-      // Featured image in article header
+      // Featured image in article header (highest priority)
       '.post-hero img, .article-hero img',
-      // Main content images
+      // Lead/main article images
+      '.post-lead img, .article-lead img',
+      // Main content images with CryptoSlate domain
       '.post-content img[src*="cryptoslate"], .article-content img[src*="cryptoslate"]',
       // WordPress attachment images
-      '.wp-post-image, .attachment-full',
+      '.wp-post-image, .attachment-full, .attachment-large',
       // Figure elements with high-res images
       'figure.wp-block-image img, figure img',
-      // Post thumbnail
-      '.post-thumbnail img'
+      // Post thumbnail and featured containers
+      '.post-thumbnail img, .featured-image img',
+      // Content area images with good dimensions
+      '.content img[width], .article img[width]',
+      // Media and image wrapper elements
+      '.media img, .image-wrapper img, .post-media img'
     ];
     
     for (const selector of cryptoslateSelectors) {
       $(selector).each((i, element) => {
         const $img = $(element);
-        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
         
         if (!src || src.length < 10) return;
         
@@ -204,14 +210,15 @@ function extractContentImages($, articleUrl) {
           
           let priority = calculateImagePriority(className, parentClass, alt, width, height);
           // Boost priority for CryptoSlate hero/featured images
-          if (className.includes('wp-post-image') || parentClass.includes('post-hero')) priority += 4;
+          if (className.includes('wp-post-image') || parentClass.includes('post-hero') ||
+              parentClass.includes('article-hero') || className.includes('featured')) priority += 4;
           
           images.push({
             url: absoluteUrl,
             alt: alt,
             width: width,
             height: height,
-            source: 'cryptoslate-featured',
+            source: 'cryptoslate-enhanced',
             className: className,
             priority: priority
           });
@@ -366,22 +373,22 @@ function extractContentImages($, articleUrl) {
     }
   }
   
-  // CryptoNews.com-specific selectors  
-  if (domain.includes('cryptonews.com') || domain.includes('crypto.news')) {
-    const cryptonewsSelectors = [
-      // Article featured image
-      '.post-featured-image img, .article-featured img',
-      // Content images with good resolution
-      '.post-content img[width], .article-content img[width]',
-      // WordPress and CMS images
-      '.wp-post-image, .post-image img',
-      // Figure and media elements
-      'figure img, .media img',
-      // High-resolution images in content
-      '.content img[src*="cryptonews"], .post-body img[src*="crypto.news"]'
+  // Yahoo Finance-specific selectors
+  if (domain.includes('finance.yahoo.com')) {
+    const yahooFinanceSelectors = [
+      // Article hero/lead image
+      '.caas-lead-media img, .caas-hero img',
+      // Main article image
+      '.caas-img img, .caas-figure img',
+      // Content images
+      '.caas-body img[src*="yahoo"], .caas-content img',
+      // Media container images
+      '.media-object img, .figure img',
+      // High-resolution images
+      'img[src*="s.yimg.com"]'
     ];
     
-    for (const selector of cryptonewsSelectors) {
+    for (const selector of yahooFinanceSelectors) {
       $(selector).each((i, element) => {
         const $img = $(element);
         let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
@@ -398,15 +405,284 @@ function extractContentImages($, articleUrl) {
           const parentClass = $img.parent().attr('class') || '';
           
           let priority = calculateImagePriority(className, parentClass, alt, width, height);
-          // Boost priority for CryptoNews featured images
-          if (className.includes('wp-post-image') || parentClass.includes('post-featured')) priority += 4;
+          // Boost priority for Yahoo Finance lead/hero images
+          if (className.includes('caas-lead') || parentClass.includes('caas-lead') || 
+              className.includes('caas-hero') || parentClass.includes('caas-hero')) priority += 5;
           
           images.push({
             url: absoluteUrl,
             alt: alt,
             width: width,
             height: height,
-            source: 'cryptonews-featured',
+            source: 'yahoo-finance-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // Brave New Coin-specific selectors
+  if (domain.includes('bravenewcoin.com')) {
+    const braveNewCoinSelectors = [
+      // Article featured image
+      '.article-hero img, .post-hero img',
+      // Featured/main images
+      '.featured-image img, .main-image img',
+      // Content images with good resolution
+      '.article-content img[width], .post-content img[width]',
+      // WordPress and CMS images
+      '.wp-post-image, .attachment-large',
+      // Figure and media elements
+      'figure img, .media img',
+      // High-resolution images in content
+      '.content img[src*="bravenewcoin"], .article img[src*="bravenewcoin"]'
+    ];
+    
+    for (const selector of braveNewCoinSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for Brave New Coin hero/featured images
+          if (className.includes('wp-post-image') || parentClass.includes('article-hero') ||
+              parentClass.includes('featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'bravenewcoin-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+
+  // CryptoNews.com-specific selectors (enhanced)
+  if (domain.includes('cryptonews.com') || domain.includes('crypto.news')) {
+    const cryptonewsSelectors = [
+      // Article featured image (highest priority)
+      '.post-featured-image img, .article-featured img',
+      // Hero/banner images
+      '.hero-image img, .banner-image img',
+      // Content images with good resolution
+      '.post-content img[width], .article-content img[width]',
+      // WordPress and CMS images
+      '.wp-post-image, .post-image img, .attachment-large',
+      // Figure and media elements
+      'figure img, .media img, .image-wrapper img',
+      // High-resolution images in content
+      '.content img[src*="cryptonews"], .post-body img[src*="crypto.news"]',
+      // Additional CryptoNews specific patterns
+      '.article-body img, .news-content img',
+      // Thumbnail and gallery images (lower priority)
+      '.thumbnail img, .gallery img'
+    ];
+    
+    for (const selector of cryptonewsSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for CryptoNews featured images
+          if (className.includes('wp-post-image') || parentClass.includes('post-featured') ||
+              parentClass.includes('hero') || className.includes('featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'cryptonews-enhanced',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // CoinCentral-specific selectors
+  if (domain.includes('coincentral.com')) {
+    const coincentralSelectors = [
+      // Article featured/hero image
+      '.post-hero img, .article-hero img, .featured-image img',
+      // Main article content images
+      '.post-content img[width], .article-content img[width]',
+      // WordPress attachment images
+      '.wp-post-image, .attachment-large, .attachment-full',
+      // Content images with CoinCentral domain
+      '.content img[src*="coincentral"], .post img[src*="coincentral"]',
+      // Figure and media elements
+      'figure img, .media img, .image-container img',
+      // Post thumbnail and lead images
+      '.post-thumbnail img, .lead-image img'
+    ];
+    
+    for (const selector of coincentralSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for CoinCentral hero/featured images
+          if (className.includes('wp-post-image') || parentClass.includes('post-hero') ||
+              className.includes('featured') || parentClass.includes('featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'coincentral-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // U.Today-specific selectors
+  if (domain.includes('u.today')) {
+    const utodaySelectors = [
+      // Article hero/featured image
+      '.article-hero img, .post-hero img, .news-hero img',
+      // Main article images
+      '.article-image img, .featured-image img',
+      // Content images with good dimensions
+      '.article-content img[width], .post-content img[width]',
+      // High-resolution content images
+      '.content img[src*="u.today"], .article img[src*="u.today"]',
+      // WordPress and CMS images
+      '.wp-post-image, .attachment-large',
+      // Figure and media elements
+      'figure img, .media img, .image-wrapper img',
+      // Lead and thumbnail images
+      '.lead-image img, .post-thumbnail img'
+    ];
+    
+    for (const selector of utodaySelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for U.Today hero/featured images
+          if (className.includes('wp-post-image') || parentClass.includes('article-hero') ||
+              parentClass.includes('news-hero') || className.includes('featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'utoday-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // Crypto Daily-specific selectors
+  if (domain.includes('cryptodaily.co.uk')) {
+    const cryptodailySelectors = [
+      // Article featured/hero image
+      '.article-hero img, .post-hero img, .featured-image img',
+      // Main content images with good resolution
+      '.article-content img[width], .post-content img[width]',
+      // WordPress and CMS images
+      '.wp-post-image, .attachment-large, .attachment-full',
+      // Content images from Crypto Daily domain
+      '.content img[src*="cryptodaily"], .article img[src*="cryptodaily"]',
+      // Figure and media elements
+      'figure img, .media img, .image-container img',
+      // Post thumbnail and lead images
+      '.post-thumbnail img, .lead-image img, .main-image img',
+      // News specific containers
+      '.news-image img, .story-image img'
+    ];
+    
+    for (const selector of cryptodailySelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for Crypto Daily hero/featured images
+          if (className.includes('wp-post-image') || parentClass.includes('article-hero') ||
+              className.includes('featured') || parentClass.includes('featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'cryptodaily-featured',
             className: className,
             priority: priority
           });
