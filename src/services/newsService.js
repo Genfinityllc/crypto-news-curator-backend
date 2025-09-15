@@ -22,6 +22,41 @@ const parser = new Parser({
   }
 });
 
+/**
+ * Calculate string similarity using Levenshtein distance
+ */
+function calculateStringSimilarity(str1, str2) {
+  const matrix = [];
+  const len1 = str1.length;
+  const len2 = str2.length;
+
+  if (len1 === 0) return len2 === 0 ? 1 : 0;
+  if (len2 === 0) return 0;
+
+  // Initialize matrix
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill matrix
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,     // deletion
+        matrix[i][j - 1] + 1,     // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+
+  const maxLen = Math.max(len1, len2);
+  return 1 - matrix[len1][len2] / maxLen;
+}
+
 // Official network sources mapping
 const OFFICIAL_NETWORK_SOURCES = {
   'Bitcoin': ['https://bitcoincore.org/en/news/', 'https://bitcoin.org/en/news', 'https://bitcoinmagazine.com'],
@@ -152,58 +187,19 @@ async function scrapeNewsSources(network, source) {
 
 /**
  * Perform web search for crypto-related content
+ * DISABLED: This function previously created example articles with '#' URLs
+ * Real articles come from RSS feeds only
  */
 async function performWebSearch(query, network = null) {
   try {
-    logger.info(`Performing web search for: ${query}`);
+    logger.info(`Web search disabled to prevent example articles. Query: ${query}`);
     
-    // For demo purposes, we'll simulate web search results
-    // In production, you'd integrate with Google Custom Search API, Bing Search API, or similar
+    // Return empty array to prevent example articles
+    // Real articles are fetched from RSS feeds in fetchRealCryptoNews()
+    return [];
     
-    const searchResults = [
-      {
-        title: `Breaking: ${query} Shows Strong Market Performance`,
-        network: network || `${query} (Web Search)`,
-        category: 'Market Analysis',
-        score: 78,
-        engagementMetrics: { shares: 156, comments: 23, views: 3400 },
-        originalSource: 'Live Web Search',
-        publishedAt: new Date(),
-        content: `Recent market analysis reveals ${query} demonstrating exceptional growth patterns with increased trading volume and positive sentiment indicators. Technical analysis suggests continued upward momentum with strong support levels established across major exchanges.`,
-        url: '#',
-        tags: [query, 'Market', 'Analysis'],
-        isActive: true
-      },
-      {
-        title: `${query} Network Announces Major Partnership`,
-        network: network || `${query} (Web Search)`,
-        category: 'Partnership',
-        score: 82,
-        engagementMetrics: { shares: 89, comments: 12, views: 2100 },
-        originalSource: 'Live Web Search',
-        publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        content: `${query} has announced a strategic partnership with a leading enterprise client, marking a significant milestone in their expansion efforts. The collaboration focuses on implementing blockchain solutions for supply chain management.`,
-        url: '#',
-        tags: [query, 'Partnership', 'Enterprise'],
-        isActive: true
-      }
-    ];
-
-    // Save search results to database
-    const savedResults = [];
-    for (const result of searchResults) {
-      try {
-        const savedResult = await News.create(result);
-        savedResults.push(savedResult);
-      } catch (error) {
-        logger.warn(`Error saving search result:`, error.message);
-      }
-    }
-
-    return savedResults;
-
   } catch (error) {
-    logger.error(`Error performing web search:`, error.message);
+    logger.error(`Error in web search function:`, error.message);
     throw new Error(`Failed to perform web search: ${error.message}`);
   }
 }
@@ -446,21 +442,63 @@ async function enhanceArticlesWithImages(articles) {
         let cardImages;
         let coverImage = article.cover_image;
         
-        // Check if this is a Google News article that needs image scraping
-        const isGoogleNewsArticle = article.source && 
-          (article.source.includes('Google News') || 
-           article.source.includes('" - Google News')) &&
-          // Also check if the image is a generic Google thumbnail
-          (!article.cover_image || 
+        // Enhanced Google News article detection for image scraping
+        const isGoogleNewsArticle = (article.metadata && article.metadata.feedUrl && article.metadata.feedUrl.includes('news.google.com')) ||
+          (article.google_news_url && article.google_news_url.includes('news.google.com')) ||
+          (article.source && 
+           (article.source.includes('Google News') || 
+            article.source.includes('" - Google News'))) ||
+          // Also check if the image is a generic Google thumbnail that needs replacement
+          (article.cover_image && (
            article.cover_image.includes('placeholder') || 
            article.cover_image.includes('via.placeholder') ||
            article.cover_image.includes('lh3.googleusercontent.com') ||
-           article.cover_image.includes('googleusercontent'));
+           article.cover_image.includes('googleusercontent')));
 
-        if (isGoogleNewsArticle && article.url) {
+        if (isGoogleNewsArticle) {
           // Try to scrape the actual article image from the article URL
           try {
-            const scrapedImage = await scrapeArticleImage(article.url);
+            let urlToScrape = article.url;
+            
+            // Enhanced Google News redirect resolution
+            if (article.url && article.url.includes('news.google.com')) {
+              try {
+                // Method 1: Try direct redirect following
+                const axios = require('axios');
+                const redirectResponse = await axios.get(article.url, {
+                  maxRedirects: 3,
+                  timeout: 10000,
+                  validateStatus: (status) => status >= 200 && status < 500,
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5'
+                  }
+                });
+                
+                // Check if we got redirected to the actual article
+                if (redirectResponse.request && redirectResponse.request.res && redirectResponse.request.res.responseUrl) {
+                  urlToScrape = redirectResponse.request.res.responseUrl;
+                  logger.info(`Resolved Google News URL to: ${urlToScrape}`);
+                } else if (redirectResponse.headers && redirectResponse.headers.location) {
+                  urlToScrape = redirectResponse.headers.location;
+                  logger.info(`Got redirect location: ${urlToScrape}`);
+                } else {
+                  // Try to extract URL from Google News response body
+                  const googleBody = redirectResponse.data;
+                  const urlMatch = googleBody.match(/url=([^&]+)/) || googleBody.match(/href="([^"]+)"/);
+                  if (urlMatch && urlMatch[1]) {
+                    urlToScrape = decodeURIComponent(urlMatch[1]);
+                    logger.info(`Extracted URL from Google News body: ${urlToScrape}`);
+                  }
+                }
+              } catch (redirectError) {
+                logger.warn(`Google News redirect failed: ${redirectError.message}`);
+                urlToScrape = article.url; // Use original URL as fallback
+              }
+            }
+            
+            const scrapedImage = await scrapeArticleImage(urlToScrape);
             if (scrapedImage) {
               // Use the scraped image
               const optimizedImage = `https://images.weserv.nl/?url=${encodeURIComponent(scrapedImage)}&w=400&h=225&fit=cover&output=jpg&q=85`;
@@ -473,9 +511,13 @@ async function enhanceArticlesWithImages(articles) {
               coverImage = optimizedImage;
               logger.info(`Scraped image for Google News article: ${scrapedImage}`);
             } else {
+              logger.warn(`No image scraped for article: ${article.title.substring(0, 50)}`);
               // Fallback to generated image
               cardImages = await generateCardCoverImage(article);
               coverImage = cardImages.medium;
+              
+              // Mark as generated image
+              article.has_real_image = false;
             }
           } catch (scrapeError) {
             logger.warn(`Failed to scrape image for ${article.url}:`, scrapeError.message);
@@ -613,6 +655,8 @@ async function fetchRealCryptoNews() {
       'https://cryptobriefing.com/feed/',
       'https://beincrypto.com/feed/',
       'https://cryptodaily.co.uk/feed/',
+      'https://www.livebitcoinnews.com/feed/',
+      'https://coincentral.com/feed/',
       
       // Your specific client networks (enhanced for maximum coverage)
       'https://news.google.com/rss/search?q=Hedera+OR+HBAR&hl=en-US&gl=US&ceid=US:en',
@@ -733,7 +777,7 @@ async function fetchRealCryptoNews() {
             'Aave': ['aave', 'aave protocol', 'aave network'],
             'Cronos': ['cronos', 'cro', 'cronos network'],
             'Arbitrum': ['arbitrum', 'arb', 'arbitrum network'],
-            'Optimism': ['optimism', 'op', 'optimism network'],
+            'Optimism': ['op', 'optimism network'],
             'Injective': ['injective', 'inj', 'injective protocol'],
             'Celestia': ['celestia', 'tia', 'celestia network'],
             'Sui': ['sui', 'sui network', 'sui blockchain'],
@@ -810,28 +854,91 @@ async function fetchRealCryptoNews() {
             });
           }
           
-          // Enhanced image extraction prioritizing featured images
-          if (item.enclosure && item.enclosure.url && item.enclosure.type && item.enclosure.type.includes('image')) {
-            imageUrl = item.enclosure.url;
-            console.log('📷 Using enclosure image:', imageUrl);
-          } else if (item['media:content'] && item['media:content'].url) {
-            imageUrl = item['media:content'].url;
-            console.log('📷 Using media:content image:', imageUrl);
-          } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
-            imageUrl = item['media:content'].$.url;
-            console.log('📷 Using media:content.$ image:', imageUrl);
-          } else if (item['media:thumbnail'] && item['media:thumbnail'].url) {
-            imageUrl = item['media:thumbnail'].url;
-            console.log('📷 Using media:thumbnail image:', imageUrl);
-          } else if (item['media:thumbnail'] && item['media:thumbnail'].$ && item['media:thumbnail'].$.url) {
-            imageUrl = item['media:thumbnail'].$.url;
-            console.log('📷 Using media:thumbnail.$ image:', imageUrl);
-          } else if (item.image && item.image.url) {
+          // Enhanced image extraction with more robust checking
+          // Priority order: enclosure, media:content, media:thumbnail, other sources
+          
+          // 1. Enclosure (highest priority for RSS feeds)
+          if (item.enclosure) {
+            if (typeof item.enclosure === 'string') {
+              imageUrl = item.enclosure;
+            } else if (item.enclosure.url && item.enclosure.type && item.enclosure.type.includes('image')) {
+              imageUrl = item.enclosure.url;
+            } else if (Array.isArray(item.enclosure)) {
+              const imageEnclosure = item.enclosure.find(enc => enc.type && enc.type.includes('image'));
+              if (imageEnclosure && imageEnclosure.url) {
+                imageUrl = imageEnclosure.url;
+              }
+            }
+            if (imageUrl) console.log('📷 Using enclosure image:', imageUrl);
+          }
+          
+          // 2. media:content (common in many feeds)
+          if (!imageUrl && item['media:content']) {
+            if (typeof item['media:content'] === 'string') {
+              imageUrl = item['media:content'];
+            } else if (item['media:content'].url) {
+              imageUrl = item['media:content'].url;
+            } else if (item['media:content'].$ && item['media:content'].$.url) {
+              imageUrl = item['media:content'].$.url;
+            } else if (Array.isArray(item['media:content'])) {
+              const imageContent = item['media:content'].find(mc => mc.$ && mc.$.medium === 'image');
+              if (imageContent && imageContent.$.url) {
+                imageUrl = imageContent.$.url;
+              }
+            }
+            if (imageUrl) console.log('📷 Using media:content image:', imageUrl);
+          }
+          
+          // 3. media:thumbnail
+          if (!imageUrl && item['media:thumbnail']) {
+            if (typeof item['media:thumbnail'] === 'string') {
+              imageUrl = item['media:thumbnail'];
+            } else if (item['media:thumbnail'].url) {
+              imageUrl = item['media:thumbnail'].url;
+            } else if (item['media:thumbnail'].$ && item['media:thumbnail'].$.url) {
+              imageUrl = item['media:thumbnail'].$.url;
+            }
+            if (imageUrl) console.log('📷 Using media:thumbnail image:', imageUrl);
+          }
+          
+          // 4. Other image sources
+          if (!imageUrl && item.image && item.image.url) {
             imageUrl = item.image.url;
             console.log('📷 Using item.image.url:', imageUrl);
-          } else if (item['itunes:image'] && item['itunes:image'].href) {
+          }
+          
+          if (!imageUrl && item['itunes:image'] && item['itunes:image'].href) {
             imageUrl = item['itunes:image'].href;
             console.log('📷 Using iTunes image:', imageUrl);
+          }
+          
+          // Debug logging for specific sources
+          if (!imageUrl && (feedUrl.includes('cryptodaily.co.uk') || feedUrl.includes('cryptoslate.com') || feedUrl.includes('cryptonews.com'))) {
+            console.log(`❌ No image extracted for ${new URL(feedUrl).hostname}:`, {
+              title: title.substring(0, 50),
+              enclosure: item.enclosure,
+              mediaContent: item['media:content'],
+              mediaThumbnail: item['media:thumbnail']
+            });
+          }
+          
+          // Validate and clean image URL
+          if (imageUrl) {
+            // Ensure URL is absolute
+            if (imageUrl.startsWith('//')) {
+              imageUrl = 'https:' + imageUrl;
+            } else if (imageUrl.startsWith('/')) {
+              const baseUrl = new URL(feedUrl).origin;
+              imageUrl = baseUrl + imageUrl;
+            }
+            
+            // Validate image URL format - be more permissive for known domains
+            const knownImageDomains = ['cimg.co', 'cryptoslate.com', 'livebitcoinnews.com', 'coincentral.com', 'images.cryptodaily.co.uk'];
+            const hasKnownDomain = knownImageDomains.some(domain => imageUrl.includes(domain));
+            
+            if (!imageUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) && !hasKnownDomain) {
+              console.log(`⚠️ Suspicious image URL (no extension, unknown domain): ${imageUrl}`);
+            }
           }
           
           if (!imageUrl && feedUrl.includes('crypto.news')) {
@@ -923,11 +1030,87 @@ async function fetchRealCryptoNews() {
       }
     }
 
+    // Remove duplicate articles based on URL and title similarity
+    const uniqueArticles = [];
+    const seenUrls = new Set();
+    const seenTitles = new Set();
+    
+    for (const article of allArticles) {
+      // Normalize URL by removing parameters and fragments
+      const normalizedUrl = article.url.split('?')[0].split('#')[0];
+      
+      // Skip if normalized URL is already seen
+      if (seenUrls.has(normalizedUrl)) {
+        console.log(`🔄 Skipping duplicate URL: ${article.title.substring(0, 50)}...`);
+        continue;
+      }
+      
+      // Enhanced duplicate detection: check titles and content similarity
+      const cleanTitle = article.title
+        .replace(/\s-\s[^-]+$/, '') // Remove " - Source Name" suffix
+        .replace(/^[^:]+:\s/, '')   // Remove "Source:" prefix
+        .replace(/BREAKING:/i, '')
+        .replace(/EXCLUSIVE:/i, '')
+        .toLowerCase()
+        .trim();
+        
+      // Check for title similarity
+      const isDuplicateTitle = Array.from(seenTitles).some(existingTitle => {
+        const similarity = calculateStringSimilarity(cleanTitle, existingTitle);
+        return similarity > 0.85; // 85% similarity threshold
+      });
+      
+      if (isDuplicateTitle) {
+        console.log(`🔄 Skipping similar title: ${article.title.substring(0, 50)}...`);
+        continue;
+      }
+      
+      // Enhanced duplicate detection: Google News vs Direct RSS
+      const isGoogleNewsArticle = article.metadata && article.metadata.feedUrl && article.metadata.feedUrl.includes('news.google.com');
+      
+      if (isGoogleNewsArticle) {
+        // For Google News articles, check if we already have the same story from direct RSS
+        // Extract key words from title for comparison
+        const titleWords = cleanTitle.replace(/[^a-z0-9\s]/g, '').split(' ').filter(word => word.length > 3);
+        const titleKeywords = titleWords.slice(0, 4).join(' '); // First 4 significant words
+        
+        // Check against existing unique articles
+        const hasDirectRssVersion = uniqueArticles.some(existingArticle => {
+          const existingTitle = existingArticle.title
+            .replace(/\s-\s[^-]+$/, '')
+            .replace(/^[^:]+:\s/, '')
+            .replace(/BREAKING:/i, '')
+            .toLowerCase()
+            .trim();
+            
+          const existingWords = existingTitle.replace(/[^a-z0-9\s]/g, '').split(' ').filter(word => word.length > 3);
+          const existingKeywords = existingWords.slice(0, 4).join(' ');
+          
+          // Check similarity and ensure the existing one is NOT from Google News
+          const similarity = calculateStringSimilarity(titleKeywords, existingKeywords);
+          const isExistingFromDirectRss = !existingArticle.metadata?.feedUrl?.includes('news.google.com');
+          
+          return similarity > 0.8 && isExistingFromDirectRss;
+        });
+        
+        if (hasDirectRssVersion) {
+          console.log(`🔄 Skipping Google News duplicate of direct RSS article: ${article.title.substring(0, 50)}...`);
+          continue;
+        }
+      }
+      
+      seenUrls.add(normalizedUrl);
+      seenTitles.add(cleanTitle);
+      uniqueArticles.push(article);
+    }
+    
+    console.log(`📊 Deduplication: ${allArticles.length} → ${uniqueArticles.length} articles (removed ${allArticles.length - uniqueArticles.length} duplicates)`);
+    
     // Sort by publication date
-    allArticles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+    uniqueArticles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     
     // Enhance articles with card-optimized images
-    const topArticles = allArticles.slice(0, 50); // Get top 50 newest articles
+    const topArticles = uniqueArticles.slice(0, 50); // Get top 50 newest articles
     const enhancedArticles = await enhanceArticlesWithImages(topArticles);
     
     logger.info(`Successfully fetched and enhanced ${enhancedArticles.length} real crypto news articles`);
@@ -936,21 +1119,9 @@ async function fetchRealCryptoNews() {
   } catch (error) {
     logger.error('Error fetching real crypto news:', error.message);
     
-    // Return fallback sample data
-    return [
-      {
-        id: '1',
-        title: 'Bitcoin Reaches New Heights (Live Data Unavailable)',
-        content: 'Bitcoin continues its upward trajectory as institutional adoption grows. This is fallback data.',
-        source: 'Fallback',
-        published_at: new Date().toISOString(),
-        category: 'market',
-        network: 'Bitcoin',
-        is_breaking: true,
-        view_count: 150,
-        tags: ['bitcoin', 'market', 'institutional']
-      }
-    ];
+    // Return empty array instead of fallback sample data to prevent example articles
+    logger.error('RSS aggregation failed, returning empty array to prevent example articles');
+    return [];
   }
 }
 

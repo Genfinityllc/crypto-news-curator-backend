@@ -72,7 +72,7 @@ router.get('/', async (req, res) => {
       const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
       filteredNews = filteredNews.filter(article => 
         article.network && clientNetworks.some(client => 
-          article.network.toLowerCase().includes(client.toLowerCase())
+          article.network === client
         )
       );
     }

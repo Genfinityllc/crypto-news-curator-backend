@@ -120,50 +120,153 @@ function extractMetaImages($, articleUrl) {
 function extractContentImages($, articleUrl) {
   const images = [];
   
-  // Bitcoinist-specific high-priority selectors first
-  const bitcoinistSelectors = [
-    // Main featured image (highest priority)
-    '.wp-post-image.background-img',
-    // Large attachment images
-    '.attachment-large:not(.lazyload)',
-    '.size-large:not(.lazyload)',
-    // Content images with good sizes
-    '.entry-content .size-large',
-    '.entry-content .wp-image-*[class*="size-large"]'
-  ];
+  // Site-specific high-priority selectors
+  const domain = new URL(articleUrl).hostname.toLowerCase();
   
-  // Process Bitcoinist-specific selectors first with high priority
-  for (const selector of bitcoinistSelectors) {
-    $(selector).each((i, element) => {
-      const $img = $(element);
-      let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
-      
-      if (!src || src.length < 10) return;
-      
-      const alt = $img.attr('alt') || '';
-      const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
-      
-      if (isValidNewsImage(absoluteUrl, alt, $img)) {
-        const width = parseInt($img.attr('width')) || 0;
-        const height = parseInt($img.attr('height')) || 0;
-        const className = $img.attr('class') || '';
-        const parentClass = $img.parent().attr('class') || '';
+  // Bitcoinist-specific selectors
+  if (domain.includes('bitcoinist.com')) {
+    const bitcoinistSelectors = [
+      // Main featured image (highest priority)
+      '.wp-post-image.background-img',
+      // Large attachment images
+      '.attachment-large:not(.lazyload)',
+      '.size-large:not(.lazyload)',
+      // Content images with good sizes
+      '.entry-content .size-large',
+      '.entry-content .wp-image-*[class*="size-large"]'
+    ];
+    
+    // Process Bitcoinist-specific selectors first with high priority
+    for (const selector of bitcoinistSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || $img.attr('data-lazy-src');
         
-        let priority = calculateImagePriority(className, parentClass, alt, width, height);
-        // Boost priority for Bitcoinist main images
-        if (className.includes('background-img')) priority += 5;
+        if (!src || src.length < 10) return;
         
-        images.push({
-          url: absoluteUrl,
-          alt: alt,
-          width: width,
-          height: height,
-          source: 'bitcoinist-featured',
-          className: className,
-          priority: priority
-        });
-      }
-    });
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for Bitcoinist main images
+          if (className.includes('background-img')) priority += 5;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'bitcoinist-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // CryptoSlate-specific selectors
+  if (domain.includes('cryptoslate.com')) {
+    const cryptoslateSelectors = [
+      // Featured image in article header
+      '.post-hero img, .article-hero img',
+      // Main content images
+      '.post-content img[src*="cryptoslate"], .article-content img[src*="cryptoslate"]',
+      // WordPress attachment images
+      '.wp-post-image, .attachment-full',
+      // Figure elements with high-res images
+      'figure.wp-block-image img, figure img',
+      // Post thumbnail
+      '.post-thumbnail img'
+    ];
+    
+    for (const selector of cryptoslateSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for CryptoSlate hero/featured images
+          if (className.includes('wp-post-image') || parentClass.includes('post-hero')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'cryptoslate-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
+  }
+  
+  // CryptoNews.com-specific selectors  
+  if (domain.includes('cryptonews.com') || domain.includes('crypto.news')) {
+    const cryptonewsSelectors = [
+      // Article featured image
+      '.post-featured-image img, .article-featured img',
+      // Content images with good resolution
+      '.post-content img[width], .article-content img[width]',
+      // WordPress and CMS images
+      '.wp-post-image, .post-image img',
+      // Figure and media elements
+      'figure img, .media img',
+      // High-resolution images in content
+      '.content img[src*="cryptonews"], .post-body img[src*="crypto.news"]'
+    ];
+    
+    for (const selector of cryptonewsSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          const width = parseInt($img.attr('width')) || 0;
+          const height = parseInt($img.attr('height')) || 0;
+          const className = $img.attr('class') || '';
+          const parentClass = $img.parent().attr('class') || '';
+          
+          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          // Boost priority for CryptoNews featured images
+          if (className.includes('wp-post-image') || parentClass.includes('post-featured')) priority += 4;
+          
+          images.push({
+            url: absoluteUrl,
+            alt: alt,
+            width: width,
+            height: height,
+            source: 'cryptonews-featured',
+            className: className,
+            priority: priority
+          });
+        }
+      });
+    }
   }
   
   // Common news site image selectors (in order of priority)
@@ -353,6 +456,117 @@ function extractRSSContentImages(content, articleUrl) {
 }
 
 /**
+ * Handle Google News URLs and extract the actual source URL
+ */
+async function resolveGoogleNewsUrl(googleNewsUrl) {
+  try {
+    if (!googleNewsUrl.includes('news.google.com')) {
+      return googleNewsUrl; // Not a Google News URL
+    }
+    
+    logger.info(`Resolving Google News URL: ${googleNewsUrl}`);
+    
+    // For Google News RSS feeds, the actual URL is usually in the link
+    // But we need to follow redirects to get the final destination
+    const response = await axios.get(googleNewsUrl, {
+      timeout: 10000,
+      maxRedirects: 5,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    
+    // The final URL after redirects is what we want
+    const finalUrl = response.request.res.responseUrl || response.config.url;
+    logger.info(`Google News URL resolved to: ${finalUrl}`);
+    return finalUrl;
+    
+  } catch (error) {
+    logger.warn(`Failed to resolve Google News URL ${googleNewsUrl}:`, error.message);
+    return googleNewsUrl; // Return original URL as fallback
+  }
+}
+
+/**
+ * Enhanced image extraction for Google News articles
+ */
+async function extractGoogleNewsImages(articleUrl, rssContent = null) {
+  try {
+    logger.info(`Extracting images from Google News article: ${articleUrl}`);
+    
+    // First, resolve the actual article URL if it's a Google News URL
+    const actualUrl = await resolveGoogleNewsUrl(articleUrl);
+    
+    // If we got a different URL, extract images from the actual source
+    if (actualUrl !== articleUrl) {
+      logger.info(`Following redirect to source: ${actualUrl}`);
+      return await extractArticleImages(actualUrl, rssContent);
+    }
+    
+    // If it's still a Google News URL, try to extract what we can
+    let allImages = [];
+    
+    // Try RSS content first for Google News
+    if (rssContent) {
+      const rssImages = extractRSSContentImages(rssContent, articleUrl);
+      allImages.push(...rssImages);
+      logger.info(`Found ${rssImages.length} images in Google News RSS content`);
+    }
+    
+    // For Google News articles, look for specific patterns
+    const response = await axios.get(articleUrl, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
+      maxRedirects: 5
+    });
+    
+    const $ = cheerio.load(response.data);
+    
+    // Google News specific selectors
+    const googleNewsSelectors = [
+      // Article images in Google News layout
+      'article img[src*="gstatic.com"]',
+      'article img[src*="googleusercontent.com"]',
+      // Regular content images
+      'img[alt*="image"]',
+      'img[src*="images"]'
+    ];
+    
+    for (const selector of googleNewsSelectors) {
+      $(selector).each((i, element) => {
+        const $img = $(element);
+        let src = $img.attr('src') || $img.attr('data-src');
+        
+        if (!src || src.length < 10) return;
+        
+        const alt = $img.attr('alt') || '';
+        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        if (isValidNewsImage(absoluteUrl, alt, $img)) {
+          allImages.push({
+            url: absoluteUrl,
+            alt: alt,
+            source: 'google-news',
+            priority: 6
+          });
+        }
+      });
+    }
+    
+    logger.info(`Extracted ${allImages.length} images from Google News article`);
+    return allImages;
+    
+  } catch (error) {
+    logger.warn(`Failed to extract images from Google News article ${articleUrl}:`, error.message);
+    return [];
+  }
+}
+
+/**
  * Extract images from article URL with comprehensive approach
  */
 async function extractArticleImages(articleUrl, rssContent = null) {
@@ -360,6 +574,17 @@ async function extractArticleImages(articleUrl, rssContent = null) {
     logger.info(`Extracting images from: ${articleUrl}`);
     
     let allImages = [];
+    
+    // Special handling for Google News URLs
+    if (articleUrl.includes('news.google.com')) {
+      const googleImages = await extractGoogleNewsImages(articleUrl, rssContent);
+      allImages.push(...googleImages);
+      
+      // If we got good results from Google News extraction, return those
+      if (googleImages.length > 0) {
+        return googleImages.slice(0, 8);
+      }
+    }
     
     // First, try to extract from RSS content if available
     if (rssContent) {
@@ -378,7 +603,7 @@ async function extractArticleImages(articleUrl, rssContent = null) {
         'Accept-Encoding': 'gzip, deflate, br',
         'Cache-Control': 'no-cache'
       },
-      maxRedirects: 3
+      maxRedirects: 5 // Increased redirect limit for better Google News handling
     });
     
     const $ = cheerio.load(response.data);
@@ -811,6 +1036,8 @@ module.exports = {
   optimizeImage,
   fetchAndResizeImage,
   extractArticleImages,
+  extractGoogleNewsImages,
+  resolveGoogleNewsUrl,
   extractRSSItemImages,
   isImageUrl
 };
