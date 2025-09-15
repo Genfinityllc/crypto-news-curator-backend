@@ -365,6 +365,13 @@ async function triggerJob(jobName) {
   
   try {
     switch (jobName) {
+      case 'rssAggregation':
+        const { fetchRealCryptoNews } = require('./newsService');
+        const { insertArticlesBatch } = require('../config/supabase');
+        const realNews = await fetchRealCryptoNews();
+        const insertedArticles = await insertArticlesBatch(realNews);
+        logger.info(`RSS aggregation completed: ${insertedArticles.length} articles inserted`);
+        break;
       case 'updateScores':
         await updateNewsScores();
         break;
@@ -402,6 +409,12 @@ async function triggerJob(jobName) {
 function getCronJobStatus() {
   return {
     jobs: [
+      {
+        name: 'rssAggregation',
+        schedule: '*/2 * * * *',
+        description: 'RSS aggregation and database population every 2 minutes',
+        lastRun: new Date().toISOString()
+      },
       {
         name: 'updateScores',
         schedule: '0 * * * *',
