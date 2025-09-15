@@ -604,17 +604,33 @@ async function fetchRealCryptoNews() {
       'https://beincrypto.com/feed/',
       'https://cryptodaily.co.uk/feed/',
       
-      // Your specific client networks (enhanced for better client news coverage)
+      // Your specific client networks (enhanced for maximum coverage)
       'https://news.google.com/rss/search?q=Hedera+OR+HBAR&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Hedera+Hashgraph&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=HBAR+price+OR+HBAR+news&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Hedera+ETF+OR+HBAR+ETF&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Hedera+Grayscale&hl=en-US&gl=US&ceid=US:en',
+      
       'https://news.google.com/rss/search?q=XDC+Network+OR+XinFin&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=XDC+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=XDC+cryptocurrency&hl=en-US&gl=US&ceid=US:en', 
+      'https://news.google.com/rss/search?q=XDC+Network+outpacing+Bitcoin&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=XDC+Network+RWA+altcoins&hl=en-US&gl=US&ceid=US:en',
+      
       'https://news.google.com/rss/search?q=Algorand+OR+ALGO&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Algorand+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Constellation+Network+OR+DAG&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Algorand+humanitarian+aid&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Algorand+price+prediction&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=ALGO+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
+      
+      'https://news.google.com/rss/search?q=Constellation+Network+crypto&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Constellation+DAG+crypto&hl=en-US&gl=US&ceid=US:en',
+      
       'https://news.google.com/rss/search?q=HashPack+wallet&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency&hl=en-US&gl=US&ceid=US:en'
+      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
+      
+      // Additional comprehensive coverage for all major crypto sources
+      'https://news.google.com/rss/search?q=crypto+AND+(Hedera+OR+Algorand+OR+"XDC+Network"+OR+Constellation)&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="blockchain+news"+AND+(HBAR+OR+ALGO+OR+XDC+OR+DAG)&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];
