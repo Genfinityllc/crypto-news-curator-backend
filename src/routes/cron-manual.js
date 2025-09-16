@@ -541,6 +541,116 @@ router.post('/cleanup-wsj-and-purge', async (req, res) => {
 });
 
 /**
+ * NUCLEAR OPTION: Complete cache clear and WSJ cleanup
+ */
+router.post('/nuclear-wsj-cleanup', async (req, res) => {
+  try {
+    logger.info('💣 NUCLEAR WSJ CLEANUP: Complete cache and database purge...');
+    
+    const { getSupabaseClient } = require('../config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase client not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    let totalRemoved = 0;
+    const removedArticles = [];
+    
+    // 1. Search and destroy ANY article with "Optimism" and "Lower Rates" in title
+    const { data: optimismArticles, error: error1 } = await supabase
+      .from('articles')
+      .delete()
+      .ilike('title', '%Optimism%Lower%Rates%')
+      .select('id, title, source, network');
+    
+    if (!error1 && optimismArticles) {
+      totalRemoved += optimismArticles.length;
+      removedArticles.push(...optimismArticles);
+      logger.info(`💥 Removed ${optimismArticles.length} articles with 'Optimism Lower Rates'`);
+    }
+    
+    // 2. Search for the exact title pattern
+    const { data: exactMatch, error: error2 } = await supabase
+      .from('articles')
+      .delete()
+      .ilike('title', '%Investors%Optimism%Lower%Rates%Lifts%Nasdaq%')
+      .select('id, title, source, network');
+    
+    if (!error2 && exactMatch) {
+      totalRemoved += exactMatch.length;
+      removedArticles.push(...exactMatch);
+      logger.info(`💥 Removed ${exactMatch.length} articles with exact WSJ title pattern`);
+    }
+    
+    // 3. Remove any article with "Nasdaq" and "Record" (likely WSJ financial content)
+    const { data: nasdaqArticles, error: error3 } = await supabase
+      .from('articles')
+      .delete()
+      .and('title.ilike.%Nasdaq%,title.ilike.%Record%')
+      .select('id, title, source, network');
+    
+    if (!error3 && nasdaqArticles) {
+      totalRemoved += nasdaqArticles.length;
+      removedArticles.push(...nasdaqArticles);
+      logger.info(`💥 Removed ${nasdaqArticles.length} Nasdaq/Record articles`);
+    }
+    
+    // 4. Clear ALL caches
+    try {
+      const cacheService = require('../services/cacheService');
+      if (cacheService && cacheService.clearAll) {
+        cacheService.clearAll();
+        logger.info('💥 Cleared main cache service');
+      }
+      if (cacheService && cacheService.clearArticlesCache) {
+        const cleared = cacheService.clearArticlesCache();
+        logger.info(`💥 Cleared ${cleared} article cache entries`);
+      }
+    } catch (cacheError) {
+      logger.info('Cache service not available or error clearing:', cacheError.message);
+    }
+    
+    // 5. Clear simple cache service if available
+    try {
+      const simpleCacheService = require('../services/simpleCacheService');
+      if (simpleCacheService && simpleCacheService.clearAll) {
+        simpleCacheService.clearAll();
+        logger.info('💥 Cleared simple cache service');
+      }
+    } catch (simpleError) {
+      logger.info('Simple cache service not available');
+    }
+    
+    logger.info(`💣 NUCLEAR CLEANUP COMPLETE: Removed ${totalRemoved} articles`);
+    
+    res.json({
+      success: true,
+      message: `NUCLEAR CLEANUP: Removed ${totalRemoved} articles and cleared all caches`,
+      removedCount: totalRemoved,
+      removedArticles: removedArticles.map(a => ({ 
+        title: a.title.substring(0, 80), 
+        source: a.source,
+        network: a.network 
+      })),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('💣 Error in nuclear WSJ cleanup:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
  * Get article statistics and limits
  */
 router.get('/article-stats', async (req, res) => {
