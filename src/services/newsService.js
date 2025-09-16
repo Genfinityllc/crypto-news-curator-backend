@@ -1,3 +1,25 @@
+/**
+ * Enhanced News Service with Crypto Content Validation
+ * 
+ * VALIDATION FEATURES:
+ * - Comprehensive crypto content validation with blacklist filtering
+ * - Enhanced Google News filtering with stricter confidence requirements
+ * - Rejection logging for monitoring and system improvement
+ * - Multi-layered validation: blacklist → crypto indicators → confidence scoring
+ * - Special handling for ambiguous terms like "optimism" vs Optimism network
+ * 
+ * BLACKLIST CATEGORIES:
+ * - Traditional finance (stocks, rates, fed, nasdaq, etc.)
+ * - Non-financial topics (sports, entertainment, politics, etc.)
+ * - General business terms without crypto context
+ * 
+ * VALIDATION LEVELS:
+ * - Strong (>= 0.95): Multiple crypto indicators or network-specific terms
+ * - Medium (>= 0.8): Single strong crypto indicator
+ * - Weak (>= 0.6): Multiple weak terms with crypto context
+ * - Google News requires >= 0.8 confidence minimum
+ */
+
 const axios = require('axios');
 const cheerio = require('cheerio');
 const Parser = require('rss-parser');
@@ -21,6 +43,251 @@ const parser = new Parser({
     ]
   }
 });
+
+/**
+ * Validate if content is genuinely crypto-related
+ * Returns { isValid: boolean, reason: string, confidence: number }
+ */
+function validateCryptoContent(title, content, source = '') {
+  const searchText = `${title} ${content}`.toLowerCase();
+  const fullText = `${title} ${content} ${source}`.toLowerCase();
+  
+  // BLACKLIST: Non-crypto terms that should immediately reject articles
+  const nonCryptoBlacklist = [
+    // Traditional Finance
+    'nasdaq', 'dow jones', 'dow industrial', 's&p 500', 'russell 2000', 'ftse', 'nikkei',
+    'federal reserve', 'fed rate', 'interest rate', 'fed meeting', 'fomc', 'fed chair',
+    'wall street', 'stock market', 'equity market', 'bond market', 'treasury',
+    'inflation rate', 'consumer price index', 'cpi', 'gdp growth', 'unemployment',
+    'mortgage rate', 'housing market', 'real estate', 'commercial property',
+    
+    // Non-Financial Topics
+    'immigration', 'supreme court', 'school board', 'education policy', 'politics',
+    'election', 'voting', 'campaign', 'healthcare', 'climate change', 'environment',
+    'sports', 'entertainment', 'celebrity', 'movie', 'music', 'fashion', 'food',
+    'travel', 'tourism', 'insurance', 'automotive', 'manufacturing',
+    
+    // General Business (non-crypto)
+    'quarterly earnings', 'corporate earnings', 'merger acquisition', 'ipo filing',
+    'dividend', 'stock split', 'shareholder meeting', 'board of directors',
+    
+    // Sports & Entertainment
+    'volleyball', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf',
+    'athletics', 'university', 'college', 'school', 'student', 'team', 'game', 'match',
+    'tournament', 'championship', 'league', 'coach', 'player'
+  ];
+  
+  // Check for blacklisted terms
+  for (const blacklistTerm of nonCryptoBlacklist) {
+    if (searchText.includes(blacklistTerm)) {
+      return {
+        isValid: false,
+        reason: `Contains non-crypto blacklisted term: "${blacklistTerm}"`,
+        confidence: 0.95
+      };
+    }
+  }
+  
+  // CRYPTO INDICATORS: Strong signals this is crypto-related
+  const strongCryptoIndicators = [
+    // Core Crypto Terms
+    'cryptocurrency', 'blockchain', 'crypto', 'digital currency',
+    'smart contract', 'defi', 'decentralized finance', 'yield farming', 'liquidity mining',
+    'staking', 'mining', 'hash rate', 'consensus', 'validator', 'node',
+    'wallet', 'private key', 'public key', 'seed phrase', 'cold storage',
+    
+    // Trading & Markets
+    'crypto exchange', 'trading pair', 'market cap', 'price prediction',
+    'technical analysis', 'bull market', 'bear market', 'altcoin', 'memecoin',
+    'airdrop', 'token sale', 'ico', 'ido', 'ieo',
+    
+    // Technology
+    'layer 1', 'layer 2', 'scaling solution', 'sharding', 'proof of stake',
+    'proof of work', 'consensus mechanism', 'fork', 'mainnet', 'testnet',
+    'dapp', 'web3', 'metaverse', 'nft', 'dao', 'governance token',
+    
+    // Major Cryptocurrencies
+    'bitcoin', 'ethereum', 'binance coin', 'cardano', 'solana', 'polkadot',
+    'chainlink', 'litecoin', 'dogecoin', 'shiba inu', 'polygon', 'avalanche'
+  ];
+  
+  // MEDIUM CRYPTO INDICATORS: Need additional context to be strong
+  const mediumCryptoIndicators = [
+    'digital asset', 'volume', 'token price', 'crypto market', 'blockchain technology'
+  ];
+  
+  // NETWORK-SPECIFIC TERMS: These count as crypto indicators
+  const networkTerms = [
+    'hedera', 'hbar', 'hashgraph', 'xdc network', 'xinfin', 'algorand', 'algo',
+    'constellation network', 'dag', 'hashpack', 'swap token'
+  ];
+  
+  // WEAK CRYPTO TERMS: Need additional context to be valid
+  const weakCryptoTerms = [
+    'optimism', 'network', 'token', 'coin', 'digital', 'virtual', 'chain'
+  ];
+  
+  // Count strong crypto indicators
+  let strongIndicatorCount = 0;
+  let foundStrongIndicators = [];
+  
+  for (const indicator of strongCryptoIndicators) {
+    if (searchText.includes(indicator)) {
+      strongIndicatorCount++;
+      foundStrongIndicators.push(indicator);
+    }
+  }
+  
+  // Count medium crypto indicators
+  let mediumIndicatorCount = 0;
+  let foundMediumIndicators = [];
+  
+  for (const indicator of mediumCryptoIndicators) {
+    if (searchText.includes(indicator)) {
+      mediumIndicatorCount++;
+      foundMediumIndicators.push(indicator);
+    }
+  }
+  
+  // Count network-specific terms
+  let networkTermCount = 0;
+  let foundNetworkTerms = [];
+  
+  for (const networkTerm of networkTerms) {
+    if (searchText.includes(networkTerm)) {
+      networkTermCount++;
+      foundNetworkTerms.push(networkTerm);
+    }
+  }
+  
+  // Count weak crypto terms
+  let weakTermCount = 0;
+  let foundWeakTerms = [];
+  
+  for (const weakTerm of weakCryptoTerms) {
+    if (searchText.includes(weakTerm)) {
+      weakTermCount++;
+      foundWeakTerms.push(weakTerm);
+    }
+  }
+  
+  // VALIDATION LOGIC
+  
+  // Strong validation: Multiple strong indicators OR network terms
+  if (strongIndicatorCount >= 2 || networkTermCount >= 1) {
+    return {
+      isValid: true,
+      reason: `Strong crypto context: ${[...foundStrongIndicators, ...foundNetworkTerms].join(', ')}`,
+      confidence: 0.95
+    };
+  }
+  
+  // Medium-high validation: Strong indicator + medium indicator OR strong + multiple weak
+  if (strongIndicatorCount >= 1 && (mediumIndicatorCount >= 1 || weakTermCount >= 2)) {
+    return {
+      isValid: true,
+      reason: `Crypto context found: ${[...foundStrongIndicators, ...foundMediumIndicators, ...foundWeakTerms].join(', ')}`,
+      confidence: 0.85
+    };
+  }
+  
+  // Medium validation: At least one strong indicator
+  if (strongIndicatorCount >= 1) {
+    return {
+      isValid: true,
+      reason: `Crypto context found: ${foundStrongIndicators.join(', ')}`,
+      confidence: 0.8
+    };
+  }
+  
+  // Medium-weak validation: Multiple medium indicators with crypto context
+  if (mediumIndicatorCount >= 2) {
+    const hasCryptoContext = searchText.includes('crypto') || 
+                           searchText.includes('blockchain') || 
+                           searchText.includes('trading') ||
+                           searchText.includes('exchange');
+    
+    if (hasCryptoContext) {
+      return {
+        isValid: true,
+        reason: `Medium crypto terms with context: ${foundMediumIndicators.join(', ')}`,
+        confidence: 0.75
+      };
+    }
+  }
+  
+  // Weak validation: Multiple weak terms with crypto context
+  if (weakTermCount >= 2) {
+    // Check if the weak terms appear in a crypto context
+    const hasCryptoContext = searchText.includes('crypto') || 
+                           searchText.includes('blockchain') || 
+                           searchText.includes('digital asset') ||
+                           searchText.includes('trading') ||
+                           searchText.includes('exchange');
+    
+    if (hasCryptoContext) {
+      return {
+        isValid: true,
+        reason: `Weak crypto terms with context: ${foundWeakTerms.join(', ')}`,
+        confidence: 0.6
+      };
+    }
+  }
+  
+  // SPECIFIC REJECTION PATTERNS
+  
+  // Reject articles about traditional "Optimism" that aren't about OP network
+  if (searchText.includes('optimism') && !searchText.includes('op network') && 
+      !searchText.includes('optimistic rollup') && !searchText.includes('layer 2')) {
+    // Check if it's about market optimism, investor sentiment, etc.
+    if (searchText.includes('investor') || searchText.includes('market sentiment') || 
+        searchText.includes('economic') || searchText.includes('stock')) {
+      return {
+        isValid: false,
+        reason: 'References general market optimism, not Optimism crypto network',
+        confidence: 0.9
+      };
+    }
+  }
+  
+  // Reject general financial articles that mention crypto tangentially
+  if ((searchText.includes('stock') || searchText.includes('equity') || 
+       searchText.includes('share price') || searchText.includes('earnings')) &&
+      strongIndicatorCount === 0 && networkTermCount === 0) {
+    return {
+      isValid: false,
+      reason: 'Traditional finance article with no strong crypto context',
+      confidence: 0.85
+    };
+  }
+  
+  // If we get here, insufficient crypto context
+  return {
+    isValid: false,
+    reason: `Insufficient crypto context. Found: ${[...foundStrongIndicators, ...foundMediumIndicators, ...foundNetworkTerms, ...foundWeakTerms].join(', ') || 'none'}`,
+    confidence: 0.7
+  };
+}
+
+/**
+ * Log rejected articles for monitoring and improvement
+ */
+function logRejectedArticle(article, validation) {
+  const logData = {
+    timestamp: new Date().toISOString(),
+    title: article.title?.substring(0, 100),
+    source: article.source || 'Unknown',
+    url: article.url,
+    rejection_reason: validation.reason,
+    confidence: validation.confidence,
+    feed_url: article.metadata?.feedUrl
+  };
+  
+  logger.info('🚫 REJECTED ARTICLE:', logData);
+  
+  // Could optionally write to a separate rejection log file
+  // fs.appendFileSync('./logs/rejected_articles.json', JSON.stringify(logData) + '\n');
+}
 
 /**
  * Calculate string similarity using Levenshtein distance
@@ -667,33 +934,30 @@ async function fetchRealCryptoNews() {
       'https://www.livebitcoinnews.com/feed/',
       'https://coincentral.com/feed/',
       
-      // Your specific client networks (enhanced for maximum coverage)
-      'https://news.google.com/rss/search?q=Hedera+OR+HBAR&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Hedera+Hashgraph&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=HBAR+price+OR+HBAR+news&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Hedera+ETF+OR+HBAR+ETF&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Hedera+Grayscale&hl=en-US&gl=US&ceid=US:en',
+      // Your specific client networks (enhanced for maximum coverage with safety filters)
+      'https://news.google.com/rss/search?q=Hedera+cryptocurrency+OR+HBAR+crypto&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Hedera+Hashgraph+blockchain&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=HBAR+price+crypto+OR+HBAR+blockchain&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Hedera+crypto+ETF+OR+HBAR+ETF&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Hedera+Grayscale+crypto&hl=en-US&gl=US&ceid=US:en',
       
-      'https://news.google.com/rss/search?q=XDC+Network+OR+XinFin&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=XDC+cryptocurrency&hl=en-US&gl=US&ceid=US:en', 
-      'https://news.google.com/rss/search?q=XDC+Network+outpacing+Bitcoin&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=XDC+Network+RWA+altcoins&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="XDC+Network"+cryptocurrency+OR+XinFin+blockchain&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=XDC+token+crypto+OR+XDC+blockchain&hl=en-US&gl=US&ceid=US:en', 
+      'https://news.google.com/rss/search?q="XDC+Network"+crypto+altcoin&hl=en-US&gl=US&ceid=US:en',
       
-      'https://news.google.com/rss/search?q=Algorand+OR+ALGO&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+humanitarian+aid&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+price+prediction&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=ALGO+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Algorand+cryptocurrency+OR+ALGO+crypto&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Algorand+blockchain+crypto&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=ALGO+cryptocurrency+token&hl=en-US&gl=US&ceid=US:en',
       
-      'https://news.google.com/rss/search?q=Constellation+Network+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Constellation+DAG+crypto&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="Constellation+Network"+cryptocurrency+DAG&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Constellation+DAG+blockchain+crypto&hl=en-US&gl=US&ceid=US:en',
       
-      'https://news.google.com/rss/search?q=HashPack+wallet&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=HashPack+wallet+crypto+Hedera&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency+crypto&hl=en-US&gl=US&ceid=US:en',
       
-      // Additional comprehensive coverage for all major crypto sources
-      'https://news.google.com/rss/search?q=crypto+AND+(Hedera+OR+Algorand+OR+"XDC+Network"+OR+Constellation)&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="blockchain+news"+AND+(HBAR+OR+ALGO+OR+XDC+OR+DAG)&hl=en-US&gl=US&ceid=US:en'
+      // Additional comprehensive coverage with crypto context filters
+      'https://news.google.com/rss/search?q=cryptocurrency+AND+(Hedera+OR+Algorand+OR+"XDC+Network"+OR+Constellation)&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=blockchain+crypto+AND+(HBAR+OR+ALGO+OR+XDC+OR+DAG)&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];
@@ -704,52 +968,75 @@ async function fetchRealCryptoNews() {
         const feed = await parser.parseURL(feedUrl);
         
         const articles = feed.items.slice(0, 10).filter(item => {
-          // Pre-filter to remove non-crypto content early
+          // Enhanced crypto content validation using new validateCryptoContent function
           const title = item.title || '';
           const content = item.content || item.summary || item.description || '';
-          const searchText = `${title} ${content}`.toLowerCase();
+          const source = item.source || feedUrl;
           
-          // Check for non-crypto content first
-          const nonCryptoKeywords = [
-            'immigration', 'supreme court', 'school board', 'education', 'politics', 'election',
-            'healthcare', 'climate change', 'environment', 'sports', 'entertainment', 'celebrity',
-            'movie', 'music', 'fashion', 'food', 'travel', 'real estate', 'mortgage', 'insurance',
-            'op-ed', 'opinion', 'editorial', 'commentary', 'dreams to nightmares',
-            'volleyball', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf',
-            'athletics', 'university', 'college', 'school', 'student', 'team', 'game', 'match'
-          ];
+          // Use the comprehensive validation function
+          const validation = validateCryptoContent(title, content, source);
           
-          const hasNonCryptoContent = nonCryptoKeywords.some(keyword => 
-            searchText.includes(keyword.toLowerCase())
-          );
-          
-          // Enhanced crypto context validation
-          const cryptoContextKeywords = [
-            'crypto', 'cryptocurrency', 'blockchain', 'token', 'coin', 'defi', 'nft', 
-            'trading', 'price', 'market', 'exchange', 'wallet', 'mining', 'staking',
-            'protocol', 'network', 'ethereum', 'bitcoin', 'altcoin', 'digital currency',
-            'smart contract', 'dapp', 'web3', 'yield', 'liquidity', 'governance',
-            'consensus', 'validator', 'node', 'hash', 'ledger', 'decentralized',
-            'btc', 'eth', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'hbar',
-            'xdc', 'algorand', 'constellation', 'dag', 'hashpack', 'swap'
-          ];
-          
-          const hasCryptoContext = cryptoContextKeywords.some(cryptoKeyword => 
-            searchText.includes(cryptoKeyword)
-          );
-          
-          // Skip if non-crypto content (regardless of crypto context)
-          if (hasNonCryptoContent) {
-            console.log(`❌ Filtering out non-crypto article: "${title.substring(0, 50)}..."`);
+          if (!validation.isValid) {
+            // Log rejected article with detailed reason
+            logRejectedArticle({
+              title,
+              source: source,
+              url: item.link,
+              metadata: { feedUrl }
+            }, validation);
+            
+            console.log(`🚫 REJECTED: "${title.substring(0, 50)}..." - ${validation.reason}`);
             return false; // Skip this article
           }
           
-          // Must have crypto context
-          if (!hasCryptoContext) {
-            console.log(`❌ Filtering out article without crypto context: "${title.substring(0, 50)}..."`);
-            return false; // Skip this article
+          // Additional validation for Google News articles (stricter requirements)
+          if (feedUrl.includes('news.google.com')) {
+            // Google News articles need higher confidence or multiple crypto indicators
+            if (validation.confidence < 0.8) {
+              logRejectedArticle({
+                title,
+                source: source,
+                url: item.link,
+                metadata: { feedUrl }
+              }, {
+                ...validation,
+                reason: `Google News: ${validation.reason} (confidence too low: ${validation.confidence})`
+              });
+              
+              console.log(`🚫 GOOGLE NEWS REJECTED: "${title.substring(0, 50)}..." - Low confidence (${validation.confidence})`);
+              return false;
+            }
+            
+            // Extra validation for "optimism" articles from Google News
+            const searchText = `${title} ${content}`.toLowerCase();
+            if (searchText.includes('optimism') && !searchText.includes('op network') && 
+                !searchText.includes('optimistic rollup') && !searchText.includes('layer 2')) {
+              // For Google News, be extra strict about optimism articles
+              const hasTraditionalFinanceContext = searchText.includes('investor') || 
+                                                 searchText.includes('market') || 
+                                                 searchText.includes('rate') ||
+                                                 searchText.includes('stock') ||
+                                                 searchText.includes('nasdaq');
+              
+              if (hasTraditionalFinanceContext) {
+                logRejectedArticle({
+                  title,
+                  source: source,
+                  url: item.link,
+                  metadata: { feedUrl }
+                }, {
+                  isValid: false,
+                  reason: 'Google News: Traditional finance "optimism" article, not Optimism network',
+                  confidence: 0.95
+                });
+                
+                console.log(`🚫 GOOGLE NEWS OPTIMISM REJECTED: "${title.substring(0, 50)}..." - Traditional finance context`);
+                return false;
+              }
+            }
           }
           
+          console.log(`✅ APPROVED: "${title.substring(0, 50)}..." - ${validation.reason} (confidence: ${validation.confidence})`);
           return true; // Keep this article
         }).map(item => {
           // Extract network from title/content
@@ -1142,5 +1429,7 @@ module.exports = {
   updateNewsScores,
   fetchRealCryptoNews,
   enhanceArticlesWithImages,
-  scrapeArticleImage
+  scrapeArticleImage,
+  validateCryptoContent,
+  logRejectedArticle
 };
