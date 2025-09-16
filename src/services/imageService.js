@@ -153,7 +153,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for Bitcoinist main images
           if (className.includes('background-img')) priority += 5;
           
@@ -208,7 +208,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for CryptoSlate hero/featured images
           if (className.includes('wp-post-image') || parentClass.includes('post-hero') ||
               parentClass.includes('article-hero') || className.includes('featured')) priority += 4;
@@ -258,7 +258,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for 99Bitcoins featured images
           if (className.includes('featured') || parentClass.includes('featured')) priority += 4;
           
@@ -305,7 +305,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for openPR main images
           if (className.includes('main') || parentClass.includes('press-release')) priority += 4;
           
@@ -354,7 +354,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for CoinDesk lead/featured images
           if (className.includes('lead') || parentClass.includes('lead') || 
               className.includes('hero') || parentClass.includes('hero')) priority += 5;
@@ -404,7 +404,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for Yahoo Finance lead/hero images
           if (className.includes('caas-lead') || parentClass.includes('caas-lead') || 
               className.includes('caas-hero') || parentClass.includes('caas-hero')) priority += 5;
@@ -456,7 +456,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for Brave New Coin hero/featured images
           if (className.includes('wp-post-image') || parentClass.includes('article-hero') ||
               parentClass.includes('featured')) priority += 4;
@@ -512,7 +512,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for CryptoNews featured images
           if (className.includes('wp-post-image') || parentClass.includes('post-featured') ||
               parentClass.includes('hero') || className.includes('featured')) priority += 4;
@@ -564,7 +564,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for CoinCentral hero/featured images
           if (className.includes('wp-post-image') || parentClass.includes('post-hero') ||
               className.includes('featured') || parentClass.includes('featured')) priority += 4;
@@ -618,7 +618,7 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
           // Boost priority for U.Today hero/featured images
           if (className.includes('wp-post-image') || parentClass.includes('article-hero') ||
               parentClass.includes('news-hero') || className.includes('featured')) priority += 4;
@@ -637,23 +637,93 @@ function extractContentImages($, articleUrl) {
     }
   }
   
-  // Crypto Daily-specific selectors
+  // Crypto Daily-specific selectors (enhanced with JSON-LD support)
   if (domain.includes('cryptodaily.co.uk')) {
+    // First extract images from JSON-LD structured data (highest priority)
+    $('script[type="application/ld+json"]').each((i, element) => {
+      try {
+        const jsonData = JSON.parse($(element).html());
+        const extractImagesFromJsonLD = (obj) => {
+          if (typeof obj === 'object' && obj !== null) {
+            // Look for image properties in NewsArticle structured data
+            if (obj.image) {
+              let imgUrl;
+              if (typeof obj.image === 'string') {
+                imgUrl = obj.image;
+              } else if (obj.image.url) {
+                imgUrl = obj.image.url;
+              } else if (obj.image.contentUrl) {
+                imgUrl = obj.image.contentUrl;
+              } else if (obj.image['@id']) {
+                imgUrl = obj.image['@id'];
+              } else if (Array.isArray(obj.image) && obj.image.length > 0) {
+                // Take the first image from array
+                const firstImg = obj.image[0];
+                imgUrl = typeof firstImg === 'string' ? firstImg : (firstImg.url || firstImg.contentUrl);
+              }
+              
+              if (imgUrl && imgUrl.startsWith('http')) {
+                // Handle URL encoding for CryptoDaily images
+                const decodedUrl = decodeURIComponent(imgUrl);
+                
+                let priority = 15; // Base JSON-LD priority
+                // Special boost for main article images (not chart images)
+                if (decodedUrl.includes('photo_') || !decodedUrl.includes('/images/')) {
+                  priority = 25; // Highest priority for main featured images
+                } else if (decodedUrl.includes('images.cryptodaily.co.uk')) {
+                  priority = 20; // High priority for CryptoDaily domain images
+                }
+                
+                images.push({
+                  url: decodedUrl,
+                  alt: obj.headline || obj.name || 'CryptoDaily featured image',
+                  width: 1200, // CryptoDaily typically uses 1200x630
+                  height: 630,
+                  source: 'cryptodaily-json-ld',
+                  priority: priority
+                });
+                
+                logger.info(`Found CryptoDaily JSON-LD image: ${decodedUrl}`);
+              }
+            }
+            
+            // Recursively search for more image properties
+            for (const key in obj) {
+              extractImagesFromJsonLD(obj[key]);
+            }
+          } else if (Array.isArray(obj)) {
+            obj.forEach(extractImagesFromJsonLD);
+          }
+        };
+        extractImagesFromJsonLD(jsonData);
+      } catch (jsonError) {
+        // Skip invalid JSON
+        logger.warn('CryptoDaily JSON-LD parsing error:', jsonError.message);
+      }
+    });
+    
     const cryptodailySelectors = [
       // Article featured/hero image
       '.article-hero img, .post-hero img, .featured-image img',
+      // Text content images (mentioned in the requirements)
+      '.text-content img',
       // Main content images with good resolution
       '.article-content img[width], .post-content img[width]',
       // WordPress and CMS images
       '.wp-post-image, .attachment-large, .attachment-full',
-      // Content images from Crypto Daily domain
+      // Content images from Crypto Daily domain (prioritize images.cryptodaily.co.uk)
+      '.content img[src*="images.cryptodaily.co.uk"], .article img[src*="images.cryptodaily.co.uk"]',
+      // General content images from Crypto Daily domain
       '.content img[src*="cryptodaily"], .article img[src*="cryptodaily"]',
       // Figure and media elements
       'figure img, .media img, .image-container img',
       // Post thumbnail and lead images
       '.post-thumbnail img, .lead-image img, .main-image img',
       // News specific containers
-      '.news-image img, .story-image img'
+      '.news-image img, .story-image img',
+      // Handle lazy loading and data URI placeholders
+      'img[data-src*="images.cryptodaily.co.uk"], img[data-original*="images.cryptodaily.co.uk"]',
+      'img[data-lazy-src*="images.cryptodaily.co.uk"]'
     ];
     
     for (const selector of cryptodailySelectors) {
@@ -664,7 +734,15 @@ function extractContentImages($, articleUrl) {
         if (!src || src.length < 10) return;
         
         const alt = $img.attr('alt') || '';
-        const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        let absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+        
+        // Handle URL encoding for CryptoDaily images (spaces become %20, etc.)
+        if (absoluteUrl.includes('images.cryptodaily.co.uk')) {
+          absoluteUrl = decodeURIComponent(absoluteUrl);
+        }
+        
+        // Skip if we already have this URL
+        if (images.some(img => img.url === absoluteUrl)) return;
         
         if (isValidNewsImage(absoluteUrl, alt, $img)) {
           const width = parseInt($img.attr('width')) || 0;
@@ -672,17 +750,34 @@ function extractContentImages($, articleUrl) {
           const className = $img.attr('class') || '';
           const parentClass = $img.parent().attr('class') || '';
           
-          let priority = calculateImagePriority(className, parentClass, alt, width, height);
-          // Boost priority for Crypto Daily hero/featured images
+          let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
+          
+          // Boost priority for Crypto Daily specific patterns
           if (className.includes('wp-post-image') || parentClass.includes('article-hero') ||
               className.includes('featured') || parentClass.includes('featured')) priority += 4;
+          
+          // Special boost for images.cryptodaily.co.uk domain
+          if (absoluteUrl.includes('images.cryptodaily.co.uk')) {
+            priority += 6;
+            logger.info(`Found high-priority CryptoDaily image: ${absoluteUrl}`);
+          }
+          
+          // Boost priority for .text-content images
+          if (parentClass.includes('text-content') || $img.closest('.text-content').length > 0) {
+            priority += 3;
+          }
+          
+          // Handle dimensions (CryptoDaily often uses 1200x630 from metadata)
+          if (width === 1200 && height === 630) {
+            priority += 2;
+          }
           
           images.push({
             url: absoluteUrl,
             alt: alt,
             width: width,
             height: height,
-            source: 'cryptodaily-featured',
+            source: 'cryptodaily-enhanced',
             className: className,
             priority: priority
           });
@@ -731,7 +826,7 @@ function extractContentImages($, articleUrl) {
         const parentClass = $img.parent().attr('class') || '';
         
         // Calculate priority based on context
-        let priority = calculateImagePriority(className, parentClass, alt, width, height);
+        let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
         
         images.push({
           url: absoluteUrl,
@@ -795,6 +890,11 @@ function isValidNewsImage(url, alt, $img) {
     }
   }
   
+  // Special handling for CryptoDaily images - always allow images.cryptodaily.co.uk domain
+  if (urlLower.includes('images.cryptodaily.co.uk')) {
+    return true; // CryptoDaily uses encoded URLs that might not have clear extensions
+  }
+  
   // Must be a reasonable image format
   const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
   const hasValidExtension = validExtensions.some(ext => urlLower.includes(ext)) || 
@@ -806,23 +906,30 @@ function isValidNewsImage(url, alt, $img) {
 /**
  * Calculate image priority based on context clues
  */
-function calculateImagePriority(className, parentClass, alt, width, height) {
+function calculateImagePriority(className, parentClass, alt, width, height, url = '') {
   let priority = 5; // Base priority
   
   const classNames = `${className} ${parentClass}`.toLowerCase();
   const altLower = alt.toLowerCase();
+  const urlLower = url.toLowerCase();
   
   // High priority indicators
   if (classNames.includes('featured') || classNames.includes('hero') || classNames.includes('main')) priority += 3;
   if (classNames.includes('article') || classNames.includes('story') || classNames.includes('news')) priority += 2;
   if (altLower.includes('featured') || altLower.includes('main') || altLower.includes('hero')) priority += 2;
   
+  // CryptoDaily-specific high priority
+  if (urlLower.includes('images.cryptodaily.co.uk')) priority += 6;
+  if (classNames.includes('text-content')) priority += 3;
+  
   // Bitcoinist-specific high priority
   if (classNames.includes('background-img')) priority += 5;
   if (classNames.includes('wp-post-image') && !classNames.includes('lazyload')) priority += 3;
   
   // Size-based priority (larger images likely more important)
-  if (width > 800 && height > 600) priority += 4;
+  // Special handling for CryptoDaily's common 1200x630 dimension
+  if (width === 1200 && height === 630) priority += 5;
+  else if (width > 800 && height > 600) priority += 4;
   else if (width > 500 && height > 300) priority += 3;
   else if (width > 300 && height > 200) priority += 2;
   else if (width > 120 && height > 120) priority += 1;
@@ -1089,6 +1196,11 @@ async function secondaryImageExtraction(articleUrl, originalImages = [], attempt
       'script[type="application/ld+json"]',
       // Meta tags (even if we already tried them)
       'meta[property*="image"], meta[name*="image"]',
+      // CryptoDaily specific selectors
+      '.text-content img',
+      'img[src*="images.cryptodaily.co.uk"]',
+      'img[data-src*="images.cryptodaily.co.uk"]',
+      'img[data-original*="images.cryptodaily.co.uk"]',
       // Any img with reasonable size attributes
       'img[width], img[height], img[style*="width"], img[style*="height"]',
       // Images in main content areas regardless of class
@@ -1101,22 +1213,56 @@ async function secondaryImageExtraction(articleUrl, originalImages = [], attempt
       '[style*="background-image"]'
     ];
     
-    // Extract JSON-LD structured data
+    // Extract JSON-LD structured data (enhanced for CryptoDaily)
     $('script[type="application/ld+json"]').each((i, element) => {
       try {
         const jsonData = JSON.parse($(element).html());
         const extractImagesFromJson = (obj) => {
           if (typeof obj === 'object' && obj !== null) {
             if (obj.image) {
-              const imgUrl = typeof obj.image === 'string' ? obj.image : 
-                           obj.image.url || obj.image.contentUrl || obj.image['@id'];
+              let imgUrl;
+              if (typeof obj.image === 'string') {
+                imgUrl = obj.image;
+              } else if (obj.image.url) {
+                imgUrl = obj.image.url;
+              } else if (obj.image.contentUrl) {
+                imgUrl = obj.image.contentUrl;
+              } else if (obj.image['@id']) {
+                imgUrl = obj.image['@id'];
+              } else if (Array.isArray(obj.image) && obj.image.length > 0) {
+                // Take the first image from array
+                const firstImg = obj.image[0];
+                imgUrl = typeof firstImg === 'string' ? firstImg : (firstImg.url || firstImg.contentUrl);
+              }
+              
               if (imgUrl && imgUrl.startsWith('http')) {
+                // Handle URL encoding for CryptoDaily images
+                let decodedUrl = imgUrl;
+                if (imgUrl.includes('images.cryptodaily.co.uk')) {
+                  decodedUrl = decodeURIComponent(imgUrl);
+                }
+                
+                let priority = 15; // Higher base JSON-LD priority for main articles
+                // Extra boost for CryptoDaily domain images - these are typically the main featured images
+                if (decodedUrl.includes('images.cryptodaily.co.uk')) {
+                  priority = 20; // Much higher priority for CryptoDaily JSON-LD images
+                  
+                  // Special boost for main article images (not chart images)
+                  if (decodedUrl.includes('photo_') || !decodedUrl.includes('/images/')) {
+                    priority = 25; // Highest priority for main featured images
+                  }
+                }
+                
                 images.push({
-                  url: imgUrl,
+                  url: decodedUrl,
                   alt: obj.headline || obj.name || 'Structured data image',
-                  source: 'json-ld',
-                  priority: 9
+                  source: 'json-ld-secondary',
+                  priority: priority,
+                  width: 1200, // CryptoDaily typically uses 1200x630
+                  height: 630
                 });
+                
+                logger.info(`Secondary extraction found JSON-LD image: ${decodedUrl}`);
               }
             }
             for (const key in obj) {
@@ -1128,7 +1274,7 @@ async function secondaryImageExtraction(articleUrl, originalImages = [], attempt
         };
         extractImagesFromJson(jsonData);
       } catch (jsonError) {
-        // Skip invalid JSON
+        logger.warn('Secondary JSON-LD parsing error:', jsonError.message);
       }
     });
     
@@ -1160,7 +1306,12 @@ async function secondaryImageExtraction(articleUrl, originalImages = [], attempt
         }
         
         if (src && src.length > 10) {
-          const absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+          let absoluteUrl = src.startsWith('http') ? src : new URL(src, articleUrl).href;
+          
+          // Handle URL encoding for CryptoDaily images
+          if (absoluteUrl.includes('images.cryptodaily.co.uk')) {
+            absoluteUrl = decodeURIComponent(absoluteUrl);
+          }
           
           // Skip if we already have this URL
           if (images.some(img => img.url === absoluteUrl) || 
@@ -1176,7 +1327,7 @@ async function secondaryImageExtraction(articleUrl, originalImages = [], attempt
             const className = $el.attr('class') || '';
             const parentClass = $el.parent().attr('class') || '';
             
-            let priority = calculateImagePriority(className, parentClass, alt, width, height);
+            let priority = calculateImagePriority(className, parentClass, alt, width, height, absoluteUrl);
             // Boost priority for images found in secondary extraction
             priority += 2;
             
