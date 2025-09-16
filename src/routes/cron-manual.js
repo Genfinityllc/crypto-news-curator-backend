@@ -400,6 +400,69 @@ router.post('/cleanup-fake-articles', async (req, res) => {
 });
 
 /**
+ * Remove WSJ articles (simple version)
+ */
+router.post('/cleanup-wsj-simple', async (req, res) => {
+  try {
+    logger.info('🧹 Starting simple WSJ cleanup...');
+    
+    const { getSupabaseClient } = require('../config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase client not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Remove WSJ articles
+    const { data: removed, error } = await supabase
+      .from('crypto_news')
+      .delete()
+      .or(`title.ilike.%Wall Street Journal%,title.ilike.%WSJ%,url.ilike.%wsj.com%,source.ilike.%Wall Street Journal%,title.ilike.%Investors' Optimism for Lower Rates%`)
+      .select('id, title, source');
+    
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+    
+    const removedCount = removed?.length || 0;
+    logger.info(`✅ Removed ${removedCount} WSJ articles`);
+    
+    if (removedCount > 0) {
+      removed.forEach(article => {
+        logger.info(`   - "${article.title.substring(0, 60)}..." from ${article.source}`);
+      });
+    }
+    
+    // Clear cache to refresh frontend
+    const cacheService = require('../services/cacheService');
+    if (cacheService && cacheService.clearArticlesCache) {
+      const cleared = cacheService.clearArticlesCache();
+      logger.info(`🗑️ Cleared ${cleared} cache entries`);
+    }
+    
+    res.json({
+      success: true,
+      message: `Successfully removed ${removedCount} WSJ articles`,
+      removedCount,
+      removedArticles: removed?.map(a => ({ title: a.title.substring(0, 80), source: a.source })) || [],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error in WSJ cleanup:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
  * Remove WSJ articles and enforce article limits (500 max, 4 days retention)
  */
 router.post('/cleanup-wsj-and-purge', async (req, res) => {
