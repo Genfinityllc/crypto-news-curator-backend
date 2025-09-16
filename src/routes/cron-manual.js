@@ -561,11 +561,11 @@ router.post('/nuclear-wsj-cleanup', async (req, res) => {
     let totalRemoved = 0;
     const removedArticles = [];
     
-    // 1. Search and destroy ANY article with "Optimism" and "Lower Rates" in title
+    // 1. Search and destroy ANY article with "Lower Rates" in title (WSJ financial content)
     const { data: optimismArticles, error: error1 } = await supabase
       .from('articles')
       .delete()
-      .ilike('title', '%Optimism%Lower%Rates%')
+      .ilike('title', '%Lower%Rates%')
       .select('id, title, source, network');
     
     if (!error1 && optimismArticles) {
@@ -591,7 +591,7 @@ router.post('/nuclear-wsj-cleanup', async (req, res) => {
     const { data: nasdaqArticles, error: error3 } = await supabase
       .from('articles')
       .delete()
-      .and('title.ilike.%Nasdaq%,title.ilike.%Record%')
+      .ilike('title', '%Nasdaq%')
       .select('id, title, source, network');
     
     if (!error3 && nasdaqArticles) {
