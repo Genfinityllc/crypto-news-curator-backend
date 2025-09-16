@@ -26,7 +26,7 @@ const Parser = require('rss-parser');
 // News model removed - using Supabase instead
 const logger = require('../utils/logger');
 const { calculateViralScore, rewriteArticle, calculateReadabilityScore } = require('./aiService');
-const { generateCardCoverImage, extractArticleImages, isGenericGoogleImage, secondaryImageExtraction, extractGoogleNewsImages } = require('./imageService');
+const { generateCardCoverImage, extractArticleImages, isGenericGoogleImage, secondaryImageExtraction, extractGoogleNewsImages, resolveGoogleNewsUrl } = require('./imageService');
 
 // Initialize RSS parser
 const parser = new Parser({
@@ -61,6 +61,9 @@ function validateCryptoContent(title, content, source = '') {
     'inflation rate', 'consumer price index', 'cpi', 'gdp growth', 'unemployment',
     'mortgage rate', 'housing market', 'real estate', 'commercial property',
     
+    // Specific Sources to Block
+    'wall street journal', 'wsj.com', 'wsj', 'the wall street journal',
+    
     // Non-Financial Topics
     'immigration', 'supreme court', 'school board', 'education policy', 'politics',
     'election', 'voting', 'campaign', 'healthcare', 'climate change', 'environment',
@@ -77,9 +80,9 @@ function validateCryptoContent(title, content, source = '') {
     'tournament', 'championship', 'league', 'coach', 'player'
   ];
   
-  // Check for blacklisted terms
+  // Check for blacklisted terms in title, content, and source
   for (const blacklistTerm of nonCryptoBlacklist) {
-    if (searchText.includes(blacklistTerm)) {
+    if (searchText.includes(blacklistTerm) || fullText.includes(blacklistTerm)) {
       return {
         isValid: false,
         reason: `Contains non-crypto blacklisted term: "${blacklistTerm}"`,
@@ -967,14 +970,62 @@ async function fetchRealCryptoNews() {
         logger.info(`Parsing RSS feed: ${feedUrl}`);
         const feed = await parser.parseURL(feedUrl);
         
-        const articles = feed.items.slice(0, 10).filter(item => {
-          // Enhanced crypto content validation using new validateCryptoContent function
-          const title = item.title || '';
-          const content = item.content || item.summary || item.description || '';
-          const source = item.source || feedUrl;
-          
-          // Use the comprehensive validation function
-          const validation = validateCryptoContent(title, content, source);
+        const articles = await Promise.all(feed.items.slice(0, 10).map(async (item) => {
+          try {
+            // Enhanced crypto content validation using new validateCryptoContent function
+            const title = item.title || '';
+            const content = item.content || item.summary || item.description || '';
+            const source = item.source || feedUrl;
+            
+            // Get the original URL
+            let articleUrl = item.link || item.url || '';
+            let originalUrl = articleUrl;
+            let resolvedSource = source;
+            
+            // If this is a Google News URL, resolve it to the original source
+            if (articleUrl.includes('news.google.com')) {
+              try {
+                console.log(`🔗 Resolving Google News URL: ${articleUrl.substring(0, 80)}...`);
+                originalUrl = await resolveGoogleNewsUrl(articleUrl);
+                
+                if (originalUrl !== articleUrl) {
+                  console.log(`✅ Resolved to source: ${new URL(originalUrl).hostname}`);
+                  
+                  // Extract the source domain from resolved URL
+                  const resolvedDomain = new URL(originalUrl).hostname;
+                  resolvedSource = `${resolvedDomain} (via Google News)`;
+                  
+                  // Update the article URL to use the resolved source
+                  articleUrl = originalUrl;
+                } else {
+                  console.log(`⚠️ Could not resolve Google News URL, using original`);
+                }
+              } catch (error) {
+                console.log(`❌ Error resolving Google News URL: ${error.message}`);
+                // Continue with original URL if resolution fails
+              }
+            }
+            
+            // Check resolved URL for WSJ content (now this will catch WSJ sources!)
+            if (articleUrl.includes('wsj.com') || articleUrl.includes('wall-street-journal') || 
+                title.toLowerCase().includes('wall street journal') ||
+                resolvedSource.toLowerCase().includes('wall street journal')) {
+              logRejectedArticle({
+                title,
+                url: articleUrl,
+                source: resolvedSource,
+                content: content.substring(0, 200)
+              }, {
+                isValid: false,
+                reason: 'WSJ article blocked - no WSJ content allowed',
+                confidence: 1.0
+              });
+              console.log(`🚫 WSJ BLOCKED: "${title.substring(0, 50)}..." - No WSJ articles allowed`);
+              return null; // Mark for filtering
+            }
+            
+            // Use the comprehensive validation function
+            const validation = validateCryptoContent(title, content, resolvedSource);
           
           if (!validation.isValid) {
             // Log rejected article with detailed reason
@@ -1037,8 +1088,23 @@ async function fetchRealCryptoNews() {
           }
           
           console.log(`✅ APPROVED: "${title.substring(0, 50)}..." - ${validation.reason} (confidence: ${validation.confidence})`);
-          return true; // Keep this article
-        }).map(item => {
+          
+          // Return the processed item with resolved URL
+          return {
+            ...item,
+            link: articleUrl, // Use resolved URL
+            originalLink: item.link, // Keep original for reference
+            resolvedSource: resolvedSource,
+            isGoogleNewsResolved: originalUrl !== (item.link || item.url || '')
+          };
+        } catch (error) {
+          console.log(`❌ Error processing article: ${error.message}`);
+          return null;
+        }
+      }));
+      
+      // Filter out null results and map to final article format
+      const validArticles = articles.filter(item => item !== null).map(item => {
           // Extract network from title/content
           const title = item.title || '';
           const content = item.content || item.summary || item.description || '';
@@ -1241,30 +1307,29 @@ async function fetchRealCryptoNews() {
             console.log('❌ No image found for crypto.news article:', title.substring(0, 50));
           }
 
-          // Enhanced source extraction for Google News
-          let sourceExtraction = feed.title || new URL(feedUrl).hostname;
-          let originalUrl = item.link;
+          // Enhanced source extraction - use resolved data if available
+          let sourceExtraction = item.resolvedSource || feed.title || new URL(feedUrl).hostname;
+          let originalUrl = item.link; // This is now the resolved URL
           let cleanTitle = title;
           
           // Extract original source from Google News titles and URLs
           if (feedUrl.includes('news.google.com')) {
-            // Extract source from title (format: "Article Title - Original Source")
-            const titleMatch = title.match(/^(.+)\s-\s([^-]+)$/);
-            if (titleMatch && titleMatch[2]) {
-              sourceExtraction = titleMatch[2].trim();
-              // Clean up title by removing source
-              cleanTitle = titleMatch[1].trim();
+            // If we have resolved source data, use it
+            if (item.resolvedSource && item.isGoogleNewsResolved) {
+              sourceExtraction = item.resolvedSource;
+              console.log(`🎯 Using resolved source: ${sourceExtraction}`);
+            } else {
+              // Fallback to title extraction
+              const titleMatch = title.match(/^(.+)\s-\s([^-]+)$/);
+              if (titleMatch && titleMatch[2]) {
+                sourceExtraction = titleMatch[2].trim();
+                // Clean up title by removing source
+                cleanTitle = titleMatch[1].trim();
+              }
             }
             
-            // Try to extract original URL from Google News URL
-            try {
-              const googleUrl = new URL(item.link);
-              if (googleUrl.searchParams.get('url')) {
-                originalUrl = decodeURIComponent(googleUrl.searchParams.get('url'));
-              }
-            } catch (urlError) {
-              logger.warn('Could not extract original URL from Google News link');
-            }
+            // originalUrl is already resolved, no need to extract again
+            console.log(`✅ Using resolved URL: ${originalUrl.substring(0, 80)}...`);
           }
 
           // Create base article object
