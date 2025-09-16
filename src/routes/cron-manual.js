@@ -419,7 +419,7 @@ router.post('/cleanup-wsj-simple', async (req, res) => {
     
     // Remove WSJ articles
     const { data: removed, error } = await supabase
-      .from('crypto_news')
+      .from('articles')
       .delete()
       .or(`title.ilike.%Wall Street Journal%,title.ilike.%WSJ%,url.ilike.%wsj.com%,source.ilike.%Wall Street Journal%,title.ilike.%Investors' Optimism for Lower Rates%`)
       .select('id, title, source');

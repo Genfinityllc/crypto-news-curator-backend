@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+const { getSupabaseClient } = require('../config/supabase');
 const logger = require('../utils/logger');
 
 class ArticlePurgeService {
@@ -16,6 +16,14 @@ class ArticlePurgeService {
     };
   }
 
+  getSupabase() {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+    return supabase;
+  }
+
   /**
    * Remove WSJ articles that might have been stored before blocking was implemented
    */
@@ -23,8 +31,9 @@ class ArticlePurgeService {
     try {
       logger.info('🚫 Removing WSJ articles from database...');
       
+      const supabase = this.getSupabase();
       const { data: wsjArticles, error: wsjError } = await supabase
-        .from('crypto_news')
+        .from('articles')
         .delete()
         .or(`title.ilike.%Wall Street Journal%,title.ilike.%WSJ%,url.ilike.%wsj.com%,source.ilike.%Wall Street Journal%,title.ilike.%Investors' Optimism for Lower Rates%`)
         .select('id, title, source');
@@ -58,6 +67,7 @@ class ArticlePurgeService {
     try {
       logger.info('🗑️ Starting article purge process...');
       
+      const supabase = this.getSupabase();
       const fourDaysAgo = new Date();
       fourDaysAgo.setDate(fourDaysAgo.getDate() - this.PURGE_DAYS);
       
@@ -66,7 +76,7 @@ class ArticlePurgeService {
       
       // Delete articles older than 4 days
       const { data: deletedArticles, error: deleteError } = await supabase
-        .from('crypto_news')
+        .from('articles')
         .delete()
         .lt('published_at', fourDaysAgo.toISOString())
         .select('id, title, network, published_at');
@@ -105,7 +115,7 @@ class ArticlePurgeService {
 
       // Get article counts by network/category
       const { data: articleCounts } = await supabase
-        .from('crypto_news')
+        .from('articles')
         .select('network, count(*)')
         .group('network');
 
@@ -137,7 +147,7 @@ class ArticlePurgeService {
         }
 
         // Get current count for this category
-        let query = supabase.from('crypto_news').select('id', { count: 'exact' });
+        let query = supabase.from('articles').select('id', { count: 'exact' });
         
         if (category === 'breaking') {
           query = query.eq('is_breaking', true);
@@ -162,7 +172,7 @@ class ArticlePurgeService {
 
           // Delete oldest articles in this category
           let deleteQuery = supabase
-            .from('crypto_news')
+            .from('articles')
             .delete()
             .order('published_at', { ascending: true })
             .limit(excessCount);
@@ -207,20 +217,20 @@ class ArticlePurgeService {
       
       // Total articles
       const { count: totalCount } = await supabase
-        .from('crypto_news')
+        .from('articles')
         .select('id', { count: 'exact' });
       counts.total = totalCount;
 
       // Breaking news
       const { count: breakingCount } = await supabase
-        .from('crypto_news')
+        .from('articles')
         .select('id', { count: 'exact' })
         .eq('is_breaking', true);
       counts.breaking = breakingCount;
 
       // Client articles
       const { count: clientCount } = await supabase
-        .from('crypto_news')  
+        .from('articles')  
         .select('id', { count: 'exact' })
         .in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']);
       counts.client = clientCount;
@@ -229,7 +239,7 @@ class ArticlePurgeService {
       const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
       for (const network of clientNetworks) {
         const { count } = await supabase
-          .from('crypto_news')
+          .from('articles')
           .select('id', { count: 'exact' })
           .eq('network', network);
         counts[network.toLowerCase().replace(' ', '_')] = count;
@@ -256,7 +266,7 @@ class ArticlePurgeService {
       fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
       
       const { count: recentCount } = await supabase
-        .from('crypto_news')
+        .from('articles')
         .select('id', { count: 'exact' })
         .gte('published_at', fourDaysAgo.toISOString());
       
