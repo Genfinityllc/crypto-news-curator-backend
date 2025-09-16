@@ -417,22 +417,62 @@ router.post('/cleanup-wsj-simple', async (req, res) => {
       });
     }
     
-    // Remove WSJ articles
-    const { data: removed, error } = await supabase
+    // Remove WSJ articles - try individual queries
+    let totalRemoved = 0;
+    const removedArticles = [];
+    
+    // 1. Remove by title containing Wall Street Journal
+    const { data: wsjTitle, error: error1 } = await supabase
       .from('articles')
       .delete()
-      .or(`title.ilike.%Wall Street Journal%,title.ilike.%WSJ%,url.ilike.%wsj.com%,source.ilike.%Wall Street Journal%,title.ilike.%Investors' Optimism for Lower Rates%`)
+      .ilike('title', '%Wall Street Journal%')
       .select('id, title, source');
     
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
+    if (error1) {
+      logger.error('Error removing WSJ by title:', error1.message);
+    } else {
+      const count1 = wsjTitle?.length || 0;
+      totalRemoved += count1;
+      removedArticles.push(...(wsjTitle || []));
+      logger.info(`Removed ${count1} articles by title containing 'Wall Street Journal'`);
     }
     
-    const removedCount = removed?.length || 0;
-    logger.info(`✅ Removed ${removedCount} WSJ articles`);
+    // 2. Remove by URL containing wsj.com
+    const { data: wsjUrl, error: error2 } = await supabase
+      .from('articles')
+      .delete()
+      .ilike('url', '%wsj.com%')
+      .select('id, title, source');
     
-    if (removedCount > 0) {
-      removed.forEach(article => {
+    if (error2) {
+      logger.error('Error removing WSJ by URL:', error2.message);
+    } else {
+      const count2 = wsjUrl?.length || 0;
+      totalRemoved += count2;
+      removedArticles.push(...(wsjUrl || []));
+      logger.info(`Removed ${count2} articles by URL containing 'wsj.com'`);
+    }
+    
+    // 3. Remove specific article title
+    const { data: wsjSpecific, error: error3 } = await supabase
+      .from('articles')
+      .delete()
+      .ilike('title', '%Investors\' Optimism for Lower Rates%')
+      .select('id, title, source');
+    
+    if (error3) {
+      logger.error('Error removing specific WSJ article:', error3.message);
+    } else {
+      const count3 = wsjSpecific?.length || 0;
+      totalRemoved += count3;
+      removedArticles.push(...(wsjSpecific || []));
+      logger.info(`Removed ${count3} articles with specific WSJ title`);
+    }
+    
+    logger.info(`✅ Total WSJ articles removed: ${totalRemoved}`);
+    
+    if (totalRemoved > 0) {
+      removedArticles.forEach(article => {
         logger.info(`   - "${article.title.substring(0, 60)}..." from ${article.source}`);
       });
     }
@@ -446,9 +486,9 @@ router.post('/cleanup-wsj-simple', async (req, res) => {
     
     res.json({
       success: true,
-      message: `Successfully removed ${removedCount} WSJ articles`,
-      removedCount,
-      removedArticles: removed?.map(a => ({ title: a.title.substring(0, 80), source: a.source })) || [],
+      message: `Successfully removed ${totalRemoved} WSJ articles`,
+      removedCount: totalRemoved,
+      removedArticles: removedArticles.map(a => ({ title: a.title.substring(0, 80), source: a.source })),
       timestamp: new Date().toISOString()
     });
     
