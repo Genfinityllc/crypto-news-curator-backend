@@ -982,29 +982,29 @@ async function fetchRealCryptoNews() {
             let originalUrl = articleUrl;
             let resolvedSource = source;
             
-            // If this is a Google News URL, resolve it to the original source
-            if (articleUrl.includes('news.google.com')) {
-              try {
-                console.log(`🔗 Resolving Google News URL: ${articleUrl.substring(0, 80)}...`);
-                originalUrl = await resolveGoogleNewsUrl(articleUrl);
-                
-                if (originalUrl !== articleUrl) {
-                  console.log(`✅ Resolved to source: ${new URL(originalUrl).hostname}`);
-                  
-                  // Extract the source domain from resolved URL
-                  const resolvedDomain = new URL(originalUrl).hostname;
-                  resolvedSource = `${resolvedDomain} (via Google News)`;
-                  
-                  // Update the article URL to use the resolved source
-                  articleUrl = originalUrl;
-                } else {
-                  console.log(`⚠️ Could not resolve Google News URL, using original`);
-                }
-              } catch (error) {
-                console.log(`❌ Error resolving Google News URL: ${error.message}`);
-                // Continue with original URL if resolution fails
-              }
-            }
+            // TEMPORARILY DISABLED: Google News URL resolution (debugging empty results)
+            // if (articleUrl.includes('news.google.com')) {
+            //   try {
+            //     console.log(`🔗 Resolving Google News URL: ${articleUrl.substring(0, 80)}...`);
+            //     originalUrl = await resolveGoogleNewsUrl(articleUrl);
+            //     
+            //     if (originalUrl !== articleUrl) {
+            //       console.log(`✅ Resolved to source: ${new URL(originalUrl).hostname}`);
+            //       
+            //       // Extract the source domain from resolved URL
+            //       const resolvedDomain = new URL(originalUrl).hostname;
+            //       resolvedSource = `${resolvedDomain} (via Google News)`;
+            //       
+            //       // Update the article URL to use the resolved source
+            //       articleUrl = originalUrl;
+            //     } else {
+            //       console.log(`⚠️ Could not resolve Google News URL, using original`);
+            //     }
+            //   } catch (error) {
+            //     console.log(`❌ Error resolving Google News URL: ${error.message}`);
+            //     // Continue with original URL if resolution fails
+            //   }
+            // }
             
             // Check resolved URL for WSJ content (now this will catch WSJ sources!)
             if (articleUrl.includes('wsj.com') || articleUrl.includes('wall-street-journal') || 
