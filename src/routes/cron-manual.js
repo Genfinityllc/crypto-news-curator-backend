@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const { fetchRealCryptoNews } = require('../services/newsService');
 const { insertArticlesBatch } = require('../config/supabase');
 const { triggerJob, getCronJobStatus } = require('../services/cronService');
+const articlePurgeService = require('../services/articlePurgeService');
 
 /**
  * Manual trigger for RSS aggregation
@@ -302,6 +303,155 @@ router.get('/test-network/:networkName', async (req, res) => {
     
   } catch (error) {
     logger.error('❌ Error testing network filtering:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Cleanup fake/example articles from database
+ */
+router.post('/cleanup-fake-articles', async (req, res) => {
+  try {
+    const { deleteArticlesByQuery } = require('../config/supabase');
+    
+    logger.info('🧹 Starting cleanup of fake/example articles');
+    
+    // Delete articles with example URLs or fake content
+    const fakeUrlPatterns = [
+      "url LIKE '%example.com%'",
+      "url = '#'",
+      "url LIKE '%example%'",
+      "content LIKE '%fallback%'",
+      "content LIKE '%demo purposes%'",
+      "content LIKE '%This is fallback data%'",
+      "title LIKE '%Live Data Unavailable%'",
+      "source = 'Fallback'",
+      "source LIKE '%Web Search%'"
+    ];
+    
+    const whereClause = fakeUrlPatterns.join(' OR ');
+    
+    // Use direct Supabase query
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY
+    );
+    
+    // First count the fake articles
+    const { data: countData, error: countError } = await supabase
+      .from('articles')
+      .select('count(*)', { count: 'exact' })
+      .or(whereClause);
+    
+    if (countError) {
+      throw new Error(`Error counting fake articles: ${countError.message}`);
+    }
+    
+    const fakeCount = countData?.[0]?.count || 0;
+    
+    if (fakeCount === 0) {
+      return res.json({
+        success: true,
+        message: 'No fake articles found to clean up',
+        deletedCount: 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Delete the fake articles
+    const { data, error } = await supabase
+      .from('articles')
+      .delete()
+      .or(whereClause);
+    
+    if (error) {
+      throw new Error(`Error deleting fake articles: ${error.message}`);
+    }
+    
+    logger.info(`✅ Deleted ${fakeCount} fake/example articles`);
+    
+    // Clear cache to refresh frontend
+    const cacheService = require('../services/cacheService');
+    if (cacheService && cacheService.clearArticlesCache) {
+      const cleared = cacheService.clearArticlesCache();
+      logger.info(`🗑️ Cleared ${cleared} cache entries`);
+    }
+    
+    res.json({
+      success: true,
+      message: `Successfully deleted ${fakeCount} fake/example articles`,
+      deletedCount: fakeCount,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error cleaning up fake articles:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Remove WSJ articles and enforce article limits (500 max, 4 days retention)
+ */
+router.post('/cleanup-wsj-and-purge', async (req, res) => {
+  try {
+    logger.info('🧹 Starting WSJ cleanup and article purge...');
+    
+    // First, remove WSJ articles specifically
+    const wsjRemoved = await articlePurgeService.removeWSJArticles();
+    
+    // Then run the full purge process
+    const purgeResults = await articlePurgeService.purgeOldArticles();
+    
+    // Clear cache to refresh frontend
+    const cacheService = require('../services/cacheService');
+    if (cacheService && cacheService.clearArticlesCache) {
+      const cleared = cacheService.clearArticlesCache();
+      logger.info(`🗑️ Cleared ${cleared} cache entries`);
+    }
+    
+    res.json({
+      success: true,
+      message: 'WSJ cleanup and article purge completed successfully',
+      wsjRemoved,
+      purgeResults,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error in WSJ cleanup and purge:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Get article statistics and limits
+ */
+router.get('/article-stats', async (req, res) => {
+  try {
+    const stats = await articlePurgeService.getArticleStats();
+    
+    res.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error getting article stats:', error.message);
     res.status(500).json({
       success: false,
       error: error.message,

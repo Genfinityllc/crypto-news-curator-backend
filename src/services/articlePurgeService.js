@@ -5,7 +5,7 @@ class ArticlePurgeService {
   constructor() {
     this.PURGE_DAYS = 4;
     this.MAX_ARTICLES_PER_CATEGORY = {
-      'all': 1000,        // General articles limit
+      'all': 500,         // Max 500 articles total for "All News" as requested
       'breaking': 200,    // Breaking news limit  
       'client': 500,      // Client articles limit (100 per client × 5 clients)
       'hedera': 100,      // Individual client limits
@@ -14,6 +14,41 @@ class ArticlePurgeService {
       'constellation': 100,
       'hashpack': 100
     };
+  }
+
+  /**
+   * Remove WSJ articles that might have been stored before blocking was implemented
+   */
+  async removeWSJArticles() {
+    try {
+      logger.info('🚫 Removing WSJ articles from database...');
+      
+      const { data: wsjArticles, error: wsjError } = await supabase
+        .from('crypto_news')
+        .delete()
+        .or(`title.ilike.%Wall Street Journal%,title.ilike.%WSJ%,url.ilike.%wsj.com%,source.ilike.%Wall Street Journal%,title.ilike.%Investors' Optimism for Lower Rates%`)
+        .select('id, title, source');
+      
+      if (wsjError) {
+        logger.error('❌ Error removing WSJ articles:', wsjError.message);
+        return 0;
+      }
+      
+      const removedCount = wsjArticles?.length || 0;
+      if (removedCount > 0) {
+        logger.info(`🚫 Removed ${removedCount} WSJ articles from database`);
+        wsjArticles.forEach(article => {
+          logger.info(`   - "${article.title.substring(0, 60)}..." from ${article.source}`);
+        });
+      } else {
+        logger.info('✅ No WSJ articles found in database');
+      }
+      
+      return removedCount;
+    } catch (error) {
+      logger.error('❌ Error removing WSJ articles:', error.message);
+      return 0;
+    }
   }
 
   /**
@@ -26,9 +61,12 @@ class ArticlePurgeService {
       const fourDaysAgo = new Date();
       fourDaysAgo.setDate(fourDaysAgo.getDate() - this.PURGE_DAYS);
       
+      // First, remove any WSJ articles that might have been stored before blocking
+      await this.removeWSJArticles();
+      
       // Delete articles older than 4 days
       const { data: deletedArticles, error: deleteError } = await supabase
-        .from('articles')
+        .from('crypto_news')
         .delete()
         .lt('published_at', fourDaysAgo.toISOString())
         .select('id, title, network, published_at');
@@ -67,7 +105,7 @@ class ArticlePurgeService {
 
       // Get article counts by network/category
       const { data: articleCounts } = await supabase
-        .from('articles')
+        .from('crypto_news')
         .select('network, count(*)')
         .group('network');
 
@@ -99,7 +137,7 @@ class ArticlePurgeService {
         }
 
         // Get current count for this category
-        let query = supabase.from('articles').select('id', { count: 'exact' });
+        let query = supabase.from('crypto_news').select('id', { count: 'exact' });
         
         if (category === 'breaking') {
           query = query.eq('is_breaking', true);
@@ -124,7 +162,7 @@ class ArticlePurgeService {
 
           // Delete oldest articles in this category
           let deleteQuery = supabase
-            .from('articles')
+            .from('crypto_news')
             .delete()
             .order('published_at', { ascending: true })
             .limit(excessCount);
@@ -169,20 +207,20 @@ class ArticlePurgeService {
       
       // Total articles
       const { count: totalCount } = await supabase
-        .from('articles')
+        .from('crypto_news')
         .select('id', { count: 'exact' });
       counts.total = totalCount;
 
       // Breaking news
       const { count: breakingCount } = await supabase
-        .from('articles')
+        .from('crypto_news')
         .select('id', { count: 'exact' })
         .eq('is_breaking', true);
       counts.breaking = breakingCount;
 
       // Client articles
       const { count: clientCount } = await supabase
-        .from('articles')  
+        .from('crypto_news')  
         .select('id', { count: 'exact' })
         .in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']);
       counts.client = clientCount;
@@ -191,7 +229,7 @@ class ArticlePurgeService {
       const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
       for (const network of clientNetworks) {
         const { count } = await supabase
-          .from('articles')
+          .from('crypto_news')
           .select('id', { count: 'exact' })
           .eq('network', network);
         counts[network.toLowerCase().replace(' ', '_')] = count;
@@ -218,7 +256,7 @@ class ArticlePurgeService {
       fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
       
       const { count: recentCount } = await supabase
-        .from('articles')
+        .from('crypto_news')
         .select('id', { count: 'exact' })
         .gte('published_at', fourDaysAgo.toISOString());
       
