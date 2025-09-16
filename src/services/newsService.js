@@ -1105,6 +1105,7 @@ async function fetchRealCryptoNews() {
       }));
       
       // Filter out null results and map to final article format
+      console.log(`🔍 DEBUG: Feed ${feedUrl} - Raw articles: ${articles.length}, Non-null: ${articles.filter(item => item !== null).length}`);
       const validArticles = articles.filter(item => item !== null).map(item => {
           // Extract network from title/content
           const title = item.title || '';
@@ -1384,8 +1385,8 @@ async function fetchRealCryptoNews() {
           return enhancedArticle;
         });
 
-        allArticles.push(...articles);
-        logger.info(`Parsed ${articles.length} articles from ${feed.title || feedUrl}`);
+        allArticles.push(...validArticles);
+        logger.info(`Parsed ${validArticles.length} articles from ${feed.title || feedUrl}`);
         
       } catch (feedError) {
         logger.error(`Error parsing RSS feed ${feedUrl}:`, feedError.message);
