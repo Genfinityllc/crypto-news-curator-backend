@@ -1024,8 +1024,9 @@ async function fetchRealCryptoNews() {
               return null; // Mark for filtering
             }
             
-            // Use the comprehensive validation function
-            const validation = validateCryptoContent(title, content, resolvedSource);
+            // TEMPORARILY DISABLED: Crypto content validation (debugging empty results)
+            // const validation = validateCryptoContent(title, content, resolvedSource);
+            const validation = { isValid: true, reason: 'Temporarily bypassed for debugging', confidence: 1.0 };
           
           if (!validation.isValid) {
             // Log rejected article with detailed reason
