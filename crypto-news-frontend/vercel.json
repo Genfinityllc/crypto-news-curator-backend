@@ -7,5 +7,10 @@
     "REACT_APP_API_URL": "https://crypto-news-curator-backend-production.up.railway.app",
     "REACT_APP_DEBUG": "false",
     "REACT_APP_CACHE_REFRESH_INTERVAL": "300000"
+  },
+  "functions": {
+    "app/**/*.js": {
+      "maxDuration": 10
+    }
   }
 }
