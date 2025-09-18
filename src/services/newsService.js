@@ -80,9 +80,36 @@ function validateCryptoContent(title, content, source = '') {
     'tournament', 'championship', 'league', 'coach', 'player'
   ];
   
+  // NETWORK-SPECIFIC TERMS: These count as crypto indicators
+  const networkTerms = [
+    'hedera', 'hbar', 'hashgraph', 'xdc network', 'xinfin', 'algorand', 'algo',
+    'constellation network', 'dag', 'hashpack', 'swap token',
+    'bitcoin', 'ethereum', 'binance coin', 'cardano', 'solana', 'polkadot',
+    'chainlink', 'litecoin', 'dogecoin', 'shiba inu', 'polygon', 'avalanche',
+    'xrp', 'ripple', 'bnb', 'matic', 'avax', 'dot', 'cosmos', 'atom', 'near',
+    'stellar', 'xlm', 'ada', 'btc', 'eth', 'sol', 'doge', 'vet', 'neo', 'icp'
+  ];
+
+  // Check if article has crypto network terms
+  const hasNetworkTerms = networkTerms.some(term => searchText.includes(term));
+
   // Check for blacklisted terms in title, content, and source
   for (const blacklistTerm of nonCryptoBlacklist) {
     if (searchText.includes(blacklistTerm) || fullText.includes(blacklistTerm)) {
+      // If article has crypto network terms, allow some traditionally blacklisted terms in crypto context
+      const allowedInCryptoContext = [
+        'treasury', 'team', 'federal reserve', 'fed rate', 'wall street', 
+        'nasdaq', 'dow jones', 'dow industrial', 's&p 500', 'russell 2000', 'ftse', 'nikkei',
+        'interest rate', 'fed meeting', 'fomc', 'fed chair', 'player', 'game', 'match', 
+        'university', 'basketball', 'football', 'soccer', 'sports', 'entertainment',
+        'movie', 'film', 'music', 'art', 'fashion', 'luxury'
+      ];
+      
+      if (hasNetworkTerms && allowedInCryptoContext.includes(blacklistTerm)) {
+        // Allow this blacklisted term since article has crypto network context
+        continue;
+      }
+      
       return {
         isValid: false,
         reason: `Contains non-crypto blacklisted term: "${blacklistTerm}"`,
@@ -120,10 +147,7 @@ function validateCryptoContent(title, content, source = '') {
   ];
   
   // NETWORK-SPECIFIC TERMS: These count as crypto indicators
-  const networkTerms = [
-    'hedera', 'hbar', 'hashgraph', 'xdc network', 'xinfin', 'algorand', 'algo',
-    'constellation network', 'dag', 'hashpack', 'swap token'
-  ];
+  // (networkTerms already defined above)
   
   // WEAK CRYPTO TERMS: Need additional context to be valid
   const weakCryptoTerms = [

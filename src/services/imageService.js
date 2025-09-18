@@ -2063,7 +2063,48 @@ async function extractArticleImages(articleUrl, rssContent = null) {
       logger.info(`Found ${rssImages.length} images in RSS content`);
     }
     
-    // Then fetch and parse the full article
+    // Check if this is a problematic domain that needs Playwright
+    const domain = new URL(articleUrl).hostname.toLowerCase();
+    const needsPlaywright = domain.includes('cryptonews.com') || domain.includes('beincrypto.com');
+    
+    if (needsPlaywright && playwright) {
+      logger.info(`Using Playwright for problematic domain: ${domain}`);
+      try {
+        const playwrightImages = await extractImagesWithPlaywright(articleUrl, {
+          timeout: 15000,
+          waitForImages: true,
+          handleGoogleRedirects: false
+        });
+        
+        if (playwrightImages.length > 0) {
+          logger.info(`Playwright found ${playwrightImages.length} images for ${domain}`);
+          allImages.push(...playwrightImages);
+        }
+      } catch (playwrightError) {
+        logger.warn('Playwright extraction failed, falling back to axios:', playwrightError.message);
+      }
+    }
+    
+    // If we got good Playwright results, we can skip axios and use those images
+    if (needsPlaywright && allImages.length > 0) {
+      logger.info(`Using ${allImages.length} Playwright images, skipping axios extraction`);
+      
+      // Remove duplicates by URL
+      const seenUrls = new Set();
+      const uniqueImages = allImages.filter(img => {
+        if (seenUrls.has(img.url)) return false;
+        seenUrls.add(img.url);
+        return true;
+      });
+      
+      // Sort by priority
+      uniqueImages.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      
+      logger.info(`Returning ${uniqueImages.length} unique images with top priority: ${uniqueImages[0]?.priority}`);
+      return uniqueImages.slice(0, 8);
+    }
+    
+    // Then fetch and parse the full article with axios (fallback or non-problematic domains)
     const response = await axios.get(articleUrl, {
       timeout: 15000, // Increased timeout
       headers: {
@@ -2615,10 +2656,12 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
         'img[src*="livebitcoinnews"]',
         '.entry-content img[width]',
         
-        // CryptoNews.com selectors (XPath converted)
+        // CryptoNews.com selectors (enhanced)
+        '.wp-post-image, .attachment-post-thumbnail',
+        '.featured-frame img, .featured-image img',
         'main div:nth-child(8) img',
         '.article-content img, .post-content img',
-        'img[src*="media.crypto.news"]',
+        'img[src*="cimg.co"]',
         'img[src*="cryptonews.com"]',
         
         // Digital Journal selectors  
@@ -2651,16 +2694,17 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
         else if (width > 300 && height > 150) priority += 5;
         else if (width > 200 && height > 100) priority += 3;
         
-        // Source-based priority
+        // Source-based priority (enhanced)
         if (src.includes('_next/image') || src.includes('assets.beincrypto.com')) priority += 10;
-        if (src.includes('media.crypto.news') || src.includes('cryptonews.com')) priority += 10;
+        if (src.includes('cimg.co') || src.includes('cryptonews.com')) priority += 10;
         if (src.includes('livebitcoinnews') || src.includes('digitaljournal')) priority += 8;
         if (src.includes('featured') || src.includes('hero') || src.includes('main')) priority += 6;
         
-        // Class-based priority
+        // Class-based priority (enhanced for WordPress)
+        if (className.includes('wp-post-image') || className.includes('attachment-post-thumbnail')) priority += 12;
         if (className.includes('featured') || className.includes('hero') || className.includes('main')) priority += 6;
         if (className.includes('article') || className.includes('post')) priority += 4;
-        if (parentClass.includes('featured') || parentClass.includes('hero')) priority += 5;
+        if (parentClass.includes('featured-frame') || parentClass.includes('featured') || parentClass.includes('hero')) priority += 5;
         
         // Alt text priority
         if (alt.includes('featured') || alt.includes('main') || alt.includes('hero')) priority += 4;
@@ -2712,7 +2756,48 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
         }
       }
       
-      return foundImages;
+      // Also extract meta tag images
+      const metaImages = [];
+      
+      // Extract og:image
+      const ogImage = document.querySelector('meta[property="og:image"]')?.content || 
+                     document.querySelector('meta[name="og:image"]')?.content;
+      if (ogImage) {
+        const absoluteUrl = getAbsoluteUrl(ogImage);
+        if (absoluteUrl) {
+          metaImages.push({
+            url: absoluteUrl,
+            alt: 'Featured image (og:image)',
+            width: 0,
+            height: 0,
+            className: '',
+            parentClass: '',
+            priority: 15, // High priority for meta tags
+            source: 'og:image'
+          });
+        }
+      }
+      
+      // Extract twitter:image
+      const twitterImage = document.querySelector('meta[name="twitter:image"]')?.content || 
+                          document.querySelector('meta[property="twitter:image"]')?.content;
+      if (twitterImage) {
+        const absoluteUrl = getAbsoluteUrl(twitterImage);
+        if (absoluteUrl && !metaImages.some(img => img.url === absoluteUrl)) {
+          metaImages.push({
+            url: absoluteUrl,
+            alt: 'Featured image (twitter:image)',
+            width: 0,
+            height: 0,
+            className: '',
+            parentClass: '',
+            priority: 14, // High priority for meta tags
+            source: 'twitter:image'
+          });
+        }
+      }
+      
+      return [...metaImages, ...foundImages];
     }, finalUrl);
     
     logger.info(`Playwright extracted ${images.length} images from ${finalUrl}`);
@@ -2766,5 +2851,60 @@ module.exports = {
   isImageUrl,
   isGenericGoogleImage,
   decodeGoogleNewsUrl,
-  secondaryImageExtraction
+  secondaryImageExtraction,
+  generateCryptoPlaceholder
 };
+
+/**
+ * Generate a themed placeholder image for crypto articles
+ */
+function generateCryptoPlaceholder(article, size = '400x225') {
+  if (!article.title) {
+    return `https://images.weserv.nl/?url=https%3A%2F%2Fvia.placeholder.com%2F${size}%2F1a1a2e%2Fffffff%3Ftext%3DCrypto%2BNews&w=400&h=225&fit=cover&output=jpg&q=85`;
+  }
+  
+  // Determine color theme based on network
+  let accentColor = '627eea'; // Default blue
+  let cryptoIcon = '⟠'; // Default crypto symbol
+  
+  if (article.network) {
+    const networkInfo = {
+      'Bitcoin': { color: 'f7931a', icon: '₿' },
+      'Ethereum': { color: '627eea', icon: 'Ξ' }, 
+      'Solana': { color: '9945ff', icon: '◎' },
+      'Cardano': { color: '0033ad', icon: '₳' },
+      'Polygon': { color: '8247e5', icon: '⬟' },
+      'BNB Chain': { color: 'f3ba2f', icon: 'B' },
+      'Avalanche': { color: 'e84142', icon: '🔺' },
+      'Polkadot': { color: 'e6007a', icon: '●' },
+      'Chainlink': { color: '375bd2', icon: '🔗' },
+      'XRP': { color: '25a768', icon: 'X' },
+      'Dogecoin': { color: 'c2a633', icon: 'Ð' },
+      'Shiba Inu': { color: 'ffa409', icon: '🐕' },
+      'Near Protocol': { color: '00c08b', icon: 'N' },
+      'Hedera': { color: '82ca9c', icon: 'H' },
+      'Algorand': { color: '000000', icon: 'A' },
+      'Stellar': { color: '08b5e5', icon: '*' },
+      'Litecoin': { color: 'bfbbbb', icon: 'Ł' },
+      'Cosmos': { color: '2e3148', icon: '⚛' },
+      'Uniswap': { color: 'ff007a', icon: '🦄' }
+    };
+    
+    const info = networkInfo[article.network];
+    if (info) {
+      accentColor = info.color;
+      cryptoIcon = info.icon;
+    }
+  }
+  
+  // Create descriptive title with crypto context
+  const maxLength = size === '300x169' ? 15 : size === '400x225' ? 20 : 25;
+  const title = article.title.substring(0, maxLength).replace(/[^\w\s]/g, '');
+  const placeholderText = `${cryptoIcon} ${title}`;
+  
+  // Parse size for proper dimensions
+  const [width, height] = size.split('x');
+  
+  // Use optimized image service for better quality
+  return `https://images.weserv.nl/?url=https%3A%2F%2Fvia.placeholder.com%2F${size}%2F${accentColor}%2Fffffff%3Ftext%3D${encodeURIComponent(placeholderText)}&w=${width}&h=${height}&fit=cover&output=jpg&q=85`;
+}
