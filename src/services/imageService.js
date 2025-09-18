@@ -2863,6 +2863,18 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
         // Alt text priority
         if (alt.includes('featured') || alt.includes('main') || alt.includes('hero')) priority += 4;
         
+        // NEGATIVE priority for unwanted images (logos, ads, generic)
+        if (src.includes('logo') || className.includes('logo') || alt.toLowerCase().includes('logo')) priority -= 15;
+        if (src.includes('adserver') || src.includes('/ads/') || className.includes('ad-')) priority -= 20;
+        if (src.includes('banner') || className.includes('banner') || alt.toLowerCase().includes('banner')) priority -= 10;
+        if (src.includes('icon') || src.includes('favicon') || className.includes('icon')) priority -= 12;
+        if (src.includes('placeholder') || src.includes('loading') || src.includes('spinner')) priority -= 25;
+        if (alt.toLowerCase().includes('advertisement') || alt.toLowerCase().includes('sponsor')) priority -= 20;
+        if (src.includes('gif') && (width < 100 || height < 100)) priority -= 8; // Small GIFs usually ads
+        
+        // Reject extremely low priority images
+        if (priority < 0) return 0;
+        
         return priority;
       }
       
@@ -2893,6 +2905,9 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
             const parentClass = img.parentElement ? (img.parentElement.className || '') : '';
             
             const priority = calculatePriority(img, className, parentClass, alt, width, height, absoluteUrl);
+            
+            // Skip images with zero or negative priority (filtered out)
+            if (priority <= 0) return;
             
             foundImages.push({
               url: absoluteUrl,
