@@ -712,8 +712,19 @@ async function enhanceArticlesWithImages(articles) {
         let cardImages;
         let coverImage = article.cover_image;
         
+        // Check if article has good RSS image from reliable sources
+        const hasGoodRSSImage = article.cover_image && 
+          (article.cover_image.includes('cimg.co') || 
+           article.cover_image.includes('media.crypto.news') ||
+           article.cover_image.includes('cryptonews.com') ||
+           article.cover_image.includes('assets.beincrypto.com') ||
+           article.cover_image.includes('static.cryptobriefing.com') ||
+           article.cover_image.includes('cryptoslate.com') ||
+           article.cover_image.includes('images.cointelegraph.com'));
+
         // Enhanced Google News article detection for image scraping
-        const isGoogleNewsArticle = (article.metadata && article.metadata.feedUrl && article.metadata.feedUrl.includes('news.google.com')) ||
+        const isGoogleNewsArticle = !hasGoodRSSImage && (
+          (article.metadata && article.metadata.feedUrl && article.metadata.feedUrl.includes('news.google.com')) ||
           (article.google_news_url && article.google_news_url.includes('news.google.com')) ||
           (article.source && 
            (article.source.includes('Google News') || 
@@ -722,7 +733,9 @@ async function enhanceArticlesWithImages(articles) {
           (article.cover_image && (
            article.cover_image.includes('placeholder') || 
            article.cover_image.includes('via.placeholder') ||
-           isGenericGoogleImage(article.cover_image)));
+           isGenericGoogleImage(article.cover_image))));
+
+        // CryptoNews.com images should work from RSS enclosure - no URL extraction needed
 
         if (isGoogleNewsArticle) {
           // Use enhanced Google News image extraction
@@ -1399,7 +1412,7 @@ async function fetchRealCryptoNews() {
     
     for (const article of allArticles) {
       // Normalize URL by removing parameters and fragments
-      const normalizedUrl = article.url.split('?')[0].split('#')[0];
+      const normalizedUrl = article.url ? article.url.split('?')[0].split('#')[0] : '';
       
       // Skip if normalized URL is already seen
       if (seenUrls.has(normalizedUrl)) {
@@ -1480,6 +1493,7 @@ async function fetchRealCryptoNews() {
     
   } catch (error) {
     logger.error('Error fetching real crypto news:', error.message);
+    logger.error('Full error details:', error);
     
     // Return empty array instead of fallback sample data to prevent example articles
     logger.error('RSS aggregation failed, returning empty array to prevent example articles');
