@@ -2,7 +2,10 @@
 node = "20"
 
 [phases.setup]
-aptPkgs = ["wget", "gnupg", "ca-certificates", "procps", "libxss1", "libgconf-2-4", "libxrandr2", "libasound2", "libpangocairo-1.0-0", "libatk1.0-0", "libcairo-gobject2", "libgtk-3-0", "libgdk-pixbuf2.0-0", "libxcomposite1", "libxcursor1", "libxdamage1", "libxext6", "libxfixes3", "libxi6", "libxrender1", "libxtst6", "libglib2.0-0", "libnss3"]
+aptPkgs = ["wget", "gnupg", "ca-certificates", "procps", "libxss1", "libgconf-2-4", "libxrandr2", "libasound2", "libpangocairo-1.0-0", "libatk1.0-0", "libcairo-gobject2", "libgtk-3-0", "libgdk-pixbuf2.0-0", "libxcomposite1", "libxcursor1", "libxdamage1", "libxext6", "libxfixes3", "libxi6", "libxrender1", "libxtst6", "libglib2.0-0", "libnss3", "fonts-liberation", "libappindicator3-1", "libasound2", "libatk-bridge2.0-0", "libdrm2", "libgtk-3-0", "libnspr4", "libnss3", "libxcomposite1", "libxdamage1", "libxrandr2", "xdg-utils"]
+
+[phases.build]
+cmds = ["npx playwright install chromium --with-deps || echo 'Playwright install failed, continuing...'"]
 
 [start]
-cmd = "npm start"
+cmd = "bash start-production.sh"
