@@ -2082,6 +2082,20 @@ async function extractArticleImages(articleUrl, rssContent = null) {
         }
       } catch (playwrightError) {
         logger.warn('Playwright extraction failed, falling back to axios:', playwrightError.message);
+        
+        // On Railway, if Playwright fails, try a simplified direct extraction
+        if (isRailway) {
+          logger.info('Attempting Railway fallback extraction for CryptoNews.com');
+          try {
+            const fallbackImages = await extractCryptoNewsFallback(articleUrl);
+            if (fallbackImages.length > 0) {
+              logger.info(`Railway fallback found ${fallbackImages.length} images`);
+              allImages.push(...fallbackImages);
+            }
+          } catch (fallbackError) {
+            logger.warn('Railway fallback also failed:', fallbackError.message);
+          }
+        }
       }
     }
     
@@ -2574,6 +2588,83 @@ async function generateImage(article, width, height, platform) {
 }
 
 /**
+ * Railway fallback for CryptoNews.com when Playwright fails
+ */
+async function extractCryptoNewsFallback(articleUrl) {
+  try {
+    logger.info(`Attempting fallback extraction for: ${articleUrl}`);
+    
+    const response = await axios.get(articleUrl, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      }
+    });
+
+    const $ = cheerio.load(response.data);
+    const images = [];
+
+    // Try to extract featured image using known CryptoNews.com patterns
+    const selectors = [
+      'img[src*="cimg.co"]',
+      '.wp-post-image',
+      '.attachment-post-thumbnail',
+      'img[class*="featured"]',
+      'img[class*="hero"]',
+      'meta[property="og:image"]',
+      'meta[name="twitter:image"]'
+    ];
+
+    for (const selector of selectors) {
+      if (selector.startsWith('meta')) {
+        const metaContent = $(selector).attr('content');
+        if (metaContent && metaContent.includes('cimg.co')) {
+          images.push({
+            url: metaContent,
+            alt: 'Featured image',
+            width: 0,
+            height: 0,
+            priority: 45,
+            source: 'meta-fallback'
+          });
+          break;
+        }
+      } else {
+        $(selector).each((i, img) => {
+          const src = $(img).attr('src') || $(img).attr('data-src');
+          if (src && src.includes('cimg.co')) {
+            images.push({
+              url: src,
+              alt: $(img).attr('alt') || '',
+              width: parseInt($(img).attr('width')) || 0,
+              height: parseInt($(img).attr('height')) || 0,
+              priority: 40,
+              source: 'css-fallback'
+            });
+            return false; // Break on first match
+          }
+        });
+        
+        if (images.length > 0) break;
+      }
+    }
+
+    logger.info(`Fallback extraction found ${images.length} images`);
+    return images;
+
+  } catch (error) {
+    logger.warn('Fallback extraction failed:', error.message);
+    return [];
+  }
+}
+
+/**
  * Enhanced image extraction using Playwright for JavaScript-heavy sites
  */
 async function extractImagesWithPlaywright(articleUrl, options = {}) {
@@ -2619,18 +2710,46 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
       handleGoogleRedirects = true 
     } = options;
 
-    browser = await playwright.chromium.launch({ 
+    // Enhanced browser launch options for Railway/Docker environments
+    const launchOptions = {
       headless: true,
       args: [
-        '--no-sandbox', 
+        '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--single-process' // For Railway environment
       ]
-    });
+    };
+
+    // Set explicit executable path if on Railway
+    if (isRailway && process.env.PLAYWRIGHT_BROWSERS_PATH) {
+      const fs = require('fs');
+      const path = require('path');
+      
+      try {
+        const chromiumPath = path.join(process.env.PLAYWRIGHT_BROWSERS_PATH, 'chromium-*/chrome-linux/chrome');
+        const { execSync } = require('child_process');
+        const foundPath = execSync(`ls ${chromiumPath} 2>/dev/null | head -1`).toString().trim();
+        
+        if (foundPath && fs.existsSync(foundPath)) {
+          launchOptions.executablePath = foundPath;
+          logger.info(`Using explicit Chromium path: ${foundPath}`);
+        }
+      } catch (pathError) {
+        logger.warn('Could not find explicit Chromium path:', pathError.message);
+      }
+    }
+
+    browser = await playwright.chromium.launch(launchOptions);
     
     const context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
