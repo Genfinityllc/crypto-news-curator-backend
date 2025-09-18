@@ -2587,9 +2587,14 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
     logger.info(`Using Playwright to extract images from: ${articleUrl}`);
     
     // Railway environment detection and extra logging
-    const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_DEPLOYMENT_ID;
+    const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_DEPLOYMENT_ID || process.env.RAILWAY_DOCKERFILE_BUILD;
     if (isRailway) {
       logger.info('Running on Railway environment, checking Playwright setup...');
+      logger.info('Railway env vars:', {
+        RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
+        RAILWAY_DEPLOYMENT_ID: process.env.RAILWAY_DEPLOYMENT_ID,
+        RAILWAY_DOCKERFILE_BUILD: process.env.RAILWAY_DOCKERFILE_BUILD
+      });
       try {
         const fs = require('fs');
         const os = require('os');

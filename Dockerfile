@@ -38,14 +38,21 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
-# Install Playwright browsers
-RUN npx playwright install chromium --with-deps
+# Install Playwright browsers with extensive debugging
+RUN echo "Installing Playwright browsers..." && \
+    npx playwright install chromium --with-deps && \
+    echo "Playwright installation completed" && \
+    ls -la ~/.cache/ms-playwright/ || echo "No playwright cache found" && \
+    which chromium-browser || which google-chrome || echo "No chrome binary found"
 
 # Copy the rest of the application code
 COPY . .
 
+# Set environment variables for Railway detection
+ENV RAILWAY_DOCKERFILE_BUILD=true
+
 # Expose the port the app runs on
 EXPOSE 3001
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application with debugging
+CMD ["sh", "-c", "echo 'Starting with Dockerfile...' && ls -la ~/.cache/ms-playwright/ || echo 'No playwright cache at startup' && npm start"]
