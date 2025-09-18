@@ -98,8 +98,20 @@ router.get('/', async (req, res) => {
     const startIndex = (parseInt(page) - 1) * parseInt(limit);
     const paginatedNews = filteredNews.slice(startIndex, startIndex + parseInt(limit));
     
-    // Enhance articles with images if they don't have them
-    const enhancedNews = await enhanceArticlesWithImages(paginatedNews);
+    // Use existing images or create simple placeholders (no slow enhancement)
+    const enhancedNews = paginatedNews.map(article => ({
+      ...article,
+      // Use existing cover_image or create a placeholder
+      cover_image: article.cover_image || `https://via.placeholder.com/400x225/627eea/ffffff?text=${encodeURIComponent(article.title.substring(0, 25))}`,
+      image_optimized: !!article.cover_image,
+      // Ensure card_images exist for frontend compatibility
+      card_images: article.card_images || {
+        small: article.cover_image || `https://via.placeholder.com/300x169/627eea/ffffff?text=${encodeURIComponent(article.title.substring(0, 20))}`,
+        medium: article.cover_image || `https://via.placeholder.com/400x225/627eea/ffffff?text=${encodeURIComponent(article.title.substring(0, 25))}`,
+        large: article.cover_image || `https://via.placeholder.com/500x281/627eea/ffffff?text=${encodeURIComponent(article.title.substring(0, 30))}`,
+        square: article.cover_image || `https://via.placeholder.com/300x300/627eea/ffffff?text=${encodeURIComponent(article.title.substring(0, 20))}`
+      }
+    }));
     
     const result = {
       articles: enhancedNews,

@@ -121,7 +121,22 @@
       "Read(/Users/valorkopeny/crypto-news-frontend/**)",
       "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_E3lMyM/**)",
       "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_27pRJz/**)",
-      "Read(/Users/valorkopeny/**)"
+      "Read(/Users/valorkopeny/**)",
+      "Bash(/dev/null)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_t53qsm/**)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_INjjPq/**)",
+      "Read(/Users/valorkopeny/**)",
+      "Read(/Users/valorkopeny/**)",
+      "Read(/Users/valorkopeny/**)",
+      "WebFetch(domain:cryptodaily.co.uk)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_wAEQ3T/**)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_zMqcDx/**)",
+      "Read(/var/folders/qy/2vnjq6h10hzg7d66p1g315r80000gn/T/TemporaryItems/NSIRD_screencaptureui_zMqcDx/**)",
+      "Bash(timeout:*)",
+      "Bash(git restore:*)",
+      "Bash(crontab:*)",
+      "Bash(git fetch:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
