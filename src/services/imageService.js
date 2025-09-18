@@ -2586,6 +2586,28 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
   try {
     logger.info(`Using Playwright to extract images from: ${articleUrl}`);
     
+    // Railway environment detection and extra logging
+    const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_DEPLOYMENT_ID;
+    if (isRailway) {
+      logger.info('Running on Railway environment, checking Playwright setup...');
+      try {
+        const fs = require('fs');
+        const os = require('os');
+        
+        // Check if Playwright browsers are installed
+        const playwrightCache = `${os.homedir()}/.cache/ms-playwright`;
+        if (fs.existsSync(playwrightCache)) {
+          logger.info(`Playwright cache found at: ${playwrightCache}`);
+          const files = fs.readdirSync(playwrightCache);
+          logger.info(`Playwright cache contents: ${files.join(', ')}`);
+        } else {
+          logger.warn('Playwright cache directory not found');
+        }
+      } catch (envError) {
+        logger.warn('Error checking Railway environment:', envError.message);
+      }
+    }
+    
     const { 
       timeout = 10000, 
       waitForImages = true,
@@ -2594,7 +2616,15 @@ async function extractImagesWithPlaywright(articleUrl, options = {}) {
 
     browser = await playwright.chromium.launch({ 
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     });
     
     const context = await browser.newContext({
