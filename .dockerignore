@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.env.local
+.env.*.local
+temp/
+*.log
+.git
+.gitignore
+README.md
+docs/
+.claude/
+test-*.js
+quick-test.js
