@@ -329,7 +329,7 @@ async function insertArticlesBatch(articlesData) {
       .from('articles')
       .upsert(transformedArticles, {
         onConflict: 'url',
-        ignoreDuplicates: true
+        ignoreDuplicates: false // Allow updates to existing articles
       })
       .select();
 
@@ -338,7 +338,20 @@ async function insertArticlesBatch(articlesData) {
       return [];
     }
 
-    logger.info(`Batch inserted ${data.length} articles successfully`);
+    logger.info(`Batch inserted/updated ${data.length} articles successfully`);
+    
+    // After successful insertion, trigger article purging to enforce limits
+    if (data.length > 0) {
+      try {
+        const articlePurgeService = require('../services/articlePurgeService');
+        await articlePurgeService.purgeOldArticles();
+        logger.info('✅ Article limits enforced after insertion');
+      } catch (purgeError) {
+        logger.error('⚠️ Error enforcing article limits after insertion:', purgeError.message);
+        // Don't fail the insertion if purging fails
+      }
+    }
+    
     return data;
   } catch (error) {
     logger.error('Error in batch insertion:', error.message);

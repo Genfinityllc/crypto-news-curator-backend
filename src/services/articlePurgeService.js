@@ -112,13 +112,8 @@ class ArticlePurgeService {
   async enforceCategoryLimits() {
     try {
       logger.info('📊 Enforcing category limits...');
-
-      // Get article counts by network/category
-      const { data: articleCounts } = await supabase
-        .from('articles')
-        .select('network, count(*)')
-        .group('network');
-
+      
+      const supabase = this.getSupabase();
       const limits = this.MAX_ARTICLES_PER_CATEGORY;
       
       for (const category of Object.keys(limits)) {
@@ -213,6 +208,7 @@ class ArticlePurgeService {
    */
   async logArticleCounts() {
     try {
+      const supabase = this.getSupabase();
       const counts = {};
       
       // Total articles
@@ -259,6 +255,7 @@ class ArticlePurgeService {
    */
   async getArticleStats() {
     try {
+      const supabase = this.getSupabase();
       const stats = await this.logArticleCounts();
       
       // Add age distribution

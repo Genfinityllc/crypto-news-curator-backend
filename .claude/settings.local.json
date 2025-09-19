@@ -137,7 +137,12 @@
       "Bash(crontab:*)",
       "Bash(git fetch:*)",
       "WebSearch",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Read(/Users/valorkopeny/**)",
+      "Read(/Users/valorkopeny/crypto-news-frontend/**)",
+      "Read(/Users/valorkopeny/crypto-news-frontend/**)",
+      "Read(/Users/valorkopeny/crypto-news-frontend/**)",
+      "Read(/Users/valorkopeny/crypto-news-frontend/**)"
     ],
     "deny": [],
     "ask": []
