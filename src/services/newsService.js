@@ -69,16 +69,17 @@ function validateCryptoContent(title, content, source = '') {
   
   // For trusted crypto sources, use very relaxed validation
   if (isTrustedSource) {
-    // Still reject if it contains obvious non-crypto blacklisted terms
+    // Only reject if it contains VERY obvious non-crypto content
     const hardBlacklist = [
-      'sports', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf',
-      'volleyball', 'athletics', 'team', 'game', 'match', 'tournament', 'championship',
-      'league', 'coach', 'player', 'university', 'college', 'school', 'student',
-      'immigration', 'supreme court', 'school board', 'education policy', 'politics',
-      'election', 'voting', 'campaign', 'healthcare', 'climate change', 'environment',
-      'entertainment', 'celebrity', 'movie', 'music', 'fashion', 'food', 'travel', 'tourism'
+      'sports team', 'football team', 'basketball team', 'baseball team', 'soccer team', 
+      'university sports', 'college sports', 'school sports', 'athletics team',
+      'nfl', 'nba', 'mlb', 'premier league', 'champions league',
+      'immigration policy', 'school board', 'education policy', 'healthcare policy',
+      'climate change policy', 'food and drug', 'automotive industry', 'travel industry',
+      'tourism industry', 'fashion industry', 'movie industry', 'music industry'
     ];
     
+    // Only reject if article is CLEARLY about non-crypto topics
     for (const blacklistTerm of hardBlacklist) {
       if (searchText.includes(blacklistTerm)) {
         return {
@@ -89,11 +90,11 @@ function validateCryptoContent(title, content, source = '') {
       }
     }
     
-    // For trusted sources, accept most content
+    // For trusted crypto sources, accept virtually all content
     return {
       isValid: true,
       reason: `From trusted crypto source: ${source}`,
-      confidence: 0.9
+      confidence: 0.95
     };
   }
   
