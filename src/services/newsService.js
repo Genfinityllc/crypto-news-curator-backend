@@ -52,6 +52,51 @@ function validateCryptoContent(title, content, source = '') {
   const searchText = `${title} ${content}`.toLowerCase();
   const fullText = `${title} ${content} ${source}`.toLowerCase();
   
+  // TRUSTED CRYPTO SOURCES: Articles from these sources should have relaxed validation
+  const trustedCryptoSources = [
+    'coindesk.com', 'cointelegraph.com', 'decrypt.co', 'cryptoslate.com',
+    'crypto.news', 'cryptopotato.com', 'news.bitcoin.com', 'bitcoinist.com',
+    'u.today', 'coingape.com', 'ambcrypto.com', 'cryptonews.com',
+    'cryptobriefing.com', 'beincrypto.com', 'cryptodaily.co.uk',
+    'livebitcoinnews.com', 'coincentral.com'
+  ];
+  
+  // Check if this article comes from a trusted crypto source
+  const isTrustedSource = trustedCryptoSources.some(trustedSource => 
+    source.toLowerCase().includes(trustedSource) || 
+    fullText.includes(trustedSource)
+  );
+  
+  // For trusted crypto sources, use very relaxed validation
+  if (isTrustedSource) {
+    // Still reject if it contains obvious non-crypto blacklisted terms
+    const hardBlacklist = [
+      'sports', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf',
+      'volleyball', 'athletics', 'team', 'game', 'match', 'tournament', 'championship',
+      'league', 'coach', 'player', 'university', 'college', 'school', 'student',
+      'immigration', 'supreme court', 'school board', 'education policy', 'politics',
+      'election', 'voting', 'campaign', 'healthcare', 'climate change', 'environment',
+      'entertainment', 'celebrity', 'movie', 'music', 'fashion', 'food', 'travel', 'tourism'
+    ];
+    
+    for (const blacklistTerm of hardBlacklist) {
+      if (searchText.includes(blacklistTerm)) {
+        return {
+          isValid: false,
+          reason: `Trusted source but contains non-crypto content: "${blacklistTerm}"`,
+          confidence: 0.9
+        };
+      }
+    }
+    
+    // For trusted sources, accept most content
+    return {
+      isValid: true,
+      reason: `From trusted crypto source: ${source}`,
+      confidence: 0.9
+    };
+  }
+  
   // BLACKLIST: Non-crypto terms that should immediately reject articles
   const nonCryptoBlacklist = [
     // Traditional Finance
