@@ -1001,45 +1001,21 @@ async function fetchRealCryptoNews() {
     logger.info('Fetching real crypto news from RSS feeds');
     
     const rssFeeds = [
-      // Dedicated crypto news sources (primary sources for quality crypto content)
+      // Top crypto news sources (reduced to prevent timeouts)
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
       'https://cryptoslate.com/feed/',
       'https://crypto.news/feed/',
-      'https://cryptopotato.com/feed/',
       'https://news.bitcoin.com/feed/',
-      'https://u.today/rss',
-      'https://ambcrypto.com/feed/',
-      'https://cryptonews.com/news/feed/',
-      'https://cryptobriefing.com/feed/',
       'https://beincrypto.com/feed/',
       'https://cryptodaily.co.uk/feed/',
       'https://coincentral.com/feed/',
       
-      // Your specific client networks (enhanced for maximum coverage with safety filters)
+      // Essential client network searches (reduced to most important)
       'https://news.google.com/rss/search?q=Hedera+cryptocurrency+OR+HBAR+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Hedera+Hashgraph+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=HBAR+price+crypto+OR+HBAR+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Hedera+crypto+ETF+OR+HBAR+ETF&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Hedera+Grayscale+crypto&hl=en-US&gl=US&ceid=US:en',
-      
-      'https://news.google.com/rss/search?q="XDC+Network"+cryptocurrency+OR+XinFin+blockchain&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=XDC+token+crypto+OR+XDC+blockchain&hl=en-US&gl=US&ceid=US:en', 
-      'https://news.google.com/rss/search?q="XDC+Network"+crypto+altcoin&hl=en-US&gl=US&ceid=US:en',
-      
+      'https://news.google.com/rss/search?q="XDC+Network"+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Algorand+cryptocurrency+OR+ALGO+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+blockchain+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=ALGO+cryptocurrency+token&hl=en-US&gl=US&ceid=US:en',
-      
-      'https://news.google.com/rss/search?q="Constellation+Network"+cryptocurrency+DAG&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Constellation+DAG+blockchain+crypto&hl=en-US&gl=US&ceid=US:en',
-      
-      'https://news.google.com/rss/search?q=HashPack+wallet+crypto+Hedera&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="SWAP+token"+cryptocurrency+crypto&hl=en-US&gl=US&ceid=US:en',
-      
-      // Additional comprehensive coverage with crypto context filters
-      'https://news.google.com/rss/search?q=cryptocurrency+AND+(Hedera+OR+Algorand+OR+"XDC+Network"+OR+Constellation)&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=blockchain+crypto+AND+(HBAR+OR+ALGO+OR+XDC+OR+DAG)&hl=en-US&gl=US&ceid=US:en'
+      'https://news.google.com/rss/search?q="Constellation+Network"+cryptocurrency+DAG&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];
@@ -1444,7 +1420,6 @@ async function fetchRealCryptoNews() {
             rssItem: item // Pass the full RSS item for image extraction
           };
 
-          // Calculate viral score
           const viralScore = calculateViralScore(baseArticle);
           
           // Add enhanced fields
