@@ -54,11 +54,11 @@ function validateCryptoContent(title, content, source = '') {
   
   // TRUSTED CRYPTO SOURCES: Articles from these sources should have relaxed validation
   const trustedCryptoSources = [
-    'coindesk.com', 'cointelegraph.com', 'decrypt.co', 'cryptoslate.com',
-    'crypto.news', 'cryptopotato.com', 'news.bitcoin.com', 'bitcoinist.com',
-    'u.today', 'coingape.com', 'ambcrypto.com', 'cryptonews.com',
+    'coindesk.com', 'cointelegraph.com', 'cryptoslate.com',
+    'crypto.news', 'cryptopotato.com', 'news.bitcoin.com',
+    'u.today', 'ambcrypto.com', 'cryptonews.com',
     'cryptobriefing.com', 'beincrypto.com', 'cryptodaily.co.uk',
-    'livebitcoinnews.com', 'coincentral.com'
+    'coincentral.com'
   ];
   
   // Check if this article comes from a trusted crypto source
@@ -1004,20 +1004,16 @@ async function fetchRealCryptoNews() {
       // Dedicated crypto news sources (primary sources for quality crypto content)
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
-      'https://decrypt.co/feed',
       'https://cryptoslate.com/feed/',
       'https://crypto.news/feed/',
       'https://cryptopotato.com/feed/',
       'https://news.bitcoin.com/feed/',
-      'https://bitcoinist.com/feed/',
       'https://u.today/rss',
-      'https://coingape.com/feed/',
       'https://ambcrypto.com/feed/',
       'https://cryptonews.com/news/feed/',
       'https://cryptobriefing.com/feed/',
       'https://beincrypto.com/feed/',
       'https://cryptodaily.co.uk/feed/',
-      'https://www.livebitcoinnews.com/feed/',
       'https://coincentral.com/feed/',
       
       // Your specific client networks (enhanced for maximum coverage with safety filters)
