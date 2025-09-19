@@ -1001,21 +1001,16 @@ async function fetchRealCryptoNews() {
     logger.info('Fetching real crypto news from RSS feeds');
     
     const rssFeeds = [
-      // Top crypto news sources (reduced to prevent timeouts)
+      // Top crypto news sources (minimal set for reliable deployment)
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
       'https://cryptoslate.com/feed/',
-      'https://crypto.news/feed/',
-      'https://news.bitcoin.com/feed/',
       'https://beincrypto.com/feed/',
       'https://cryptodaily.co.uk/feed/',
-      'https://coincentral.com/feed/',
       
-      // Essential client network searches (reduced to most important)
+      // Key client network searches
       'https://news.google.com/rss/search?q=Hedera+cryptocurrency+OR+HBAR+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="XDC+Network"+cryptocurrency&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+cryptocurrency+OR+ALGO+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="Constellation+Network"+cryptocurrency+DAG&hl=en-US&gl=US&ceid=US:en'
+      'https://news.google.com/rss/search?q="XDC+Network"+cryptocurrency&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];

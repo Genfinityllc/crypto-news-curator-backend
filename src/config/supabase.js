@@ -343,12 +343,18 @@ async function insertArticlesBatch(articlesData) {
     // After successful insertion, trigger article purging to enforce limits
     if (data.length > 0) {
       try {
-        const articlePurgeService = require('../services/articlePurgeService');
-        await articlePurgeService.purgeOldArticles();
-        logger.info('✅ Article limits enforced after insertion');
+        // Use setTimeout to avoid blocking the insertion and prevent circular dependency issues
+        setTimeout(async () => {
+          try {
+            const articlePurgeService = require('../services/articlePurgeService');
+            await articlePurgeService.purgeOldArticles();
+            logger.info('✅ Article limits enforced after insertion');
+          } catch (purgeError) {
+            logger.error('⚠️ Error enforcing article limits after insertion:', purgeError.message);
+          }
+        }, 1000); // Run purging 1 second after insertion
       } catch (purgeError) {
-        logger.error('⚠️ Error enforcing article limits after insertion:', purgeError.message);
-        // Don't fail the insertion if purging fails
+        logger.error('⚠️ Error scheduling article purging:', purgeError.message);
       }
     }
     
