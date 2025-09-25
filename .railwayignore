@@ -1,0 +1,52 @@
+# Railway deployment ignore file
+# Exclude heavy files that cause timeouts
+
+# Temp files (will be recreated) - EXCLUDE ENTIRE DIRECTORY
+temp/
+
+# Large log files - EXCLUDE ENTIRE DIRECTORY
+logs/
+
+# Development files
+node_modules/
+.env.local
+.env.development
+
+# Backup files
+*.backup
+package-full.json.backup
+package-minimal.json
+
+# Screenshots and large assets
+*.png
+*.jpg
+*.jpeg
+frontend-*.png
+screenshot-*.js
+
+# Development tools
+.vscode/
+.idea/
+*.log
+
+# Database files
+database/*.db
+*.sqlite
+*.sqlite3
+
+# Documentation (deploy docs separately)
+docs/
+README.md
+
+# Cleanup and fix scripts (not needed in production)
+cleanup-*.js
+ultra-*.js
+fix-*.js
+
+# Git files
+.git/
+.gitignore
+
+# macOS
+.DS_Store
+Thumbs.db

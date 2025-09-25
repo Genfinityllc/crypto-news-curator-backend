@@ -1,0 +1,38 @@
+{
+  "name": "crypto-news-curator-backend",
+  "version": "1.0.2",
+  "description": "Backend service for curating and managing cryptocurrency news",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.56.1",
+    "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "firebase-admin": "^12.0.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
+    "rss-parser": "^3.13.0",
+    "uuid": "^8.3.2",
+    "winston": "^3.11.0",
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.55.0",
+    "sharp": "^0.34.4"
+  }
+}

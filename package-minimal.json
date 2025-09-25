@@ -1,0 +1,17 @@
+{
+  "name": "crypto-news-curator-backend",
+  "version": "1.0.0",
+  "description": "Backend service for curating and managing cryptocurrency news",
+  "main": "minimal-server.js",
+  "scripts": {
+    "start": "node minimal-server.js",
+    "dev": "node minimal-server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}
