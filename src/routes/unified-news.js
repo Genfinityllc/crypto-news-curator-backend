@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { getArticles, getBreakingNews } = require('../config/supabase');
 const simpleCache = require('../services/simpleCacheService');
-const imageValidationService = require('../services/imageValidationService');
+// Use lightweight service for Railway deployment compatibility
+const lightweightImageService = require('../services/lightweightImageService');
 const logger = require('../utils/logger');
 
 /**
@@ -143,17 +144,14 @@ router.get('/', async (req, res) => {
         filteredArticles = filteredArticles.filter(article => article.category === category);
       }
       
-      // 🎯 PROFESSIONAL IMAGE VALIDATION - GUARANTEE 100% IMAGE SUCCESS
+      // 🚀 LIGHTWEIGHT IMAGE VALIDATION - RAILWAY-OPTIMIZED
       if (options.onlyWithImages) {
-        logger.info('🔄 Starting professional image validation...');
+        logger.info('🔄 Starting lightweight image validation for Railway...');
         
-        // Initialize image validation service
-        await imageValidationService.initialize();
+        // Process articles through lightweight validation pipeline
+        filteredArticles = await lightweightImageService.processArticlesWithImageValidation(filteredArticles);
         
-        // Process articles through image validation pipeline
-        filteredArticles = await imageValidationService.processArticlesWithImageGuarantee(filteredArticles);
-        
-        logger.info(`✅ Image validation complete: ${filteredArticles.length} articles with confirmed images`);
+        logger.info(`✅ Lightweight image validation complete: ${filteredArticles.length} articles with confirmed images`);
       }
       
       // Apply search filter
@@ -303,16 +301,15 @@ router.get('/counts', async (req, res) => {
       const { fetchRealCryptoNews } = require('../services/newsService');
       const rssArticles = await fetchRealCryptoNews();
       
-      // Filter by images using same validation as main endpoint
+      // Filter by images using lightweight validation
       let filteredArticles = rssArticles;
       if (onlyWithImages === 'true') {
-        logger.info('🔄 Validating images for counts...');
+        logger.info('🔄 Lightweight validation for counts...');
         
-        // Use same image validation service for consistency
-        await imageValidationService.initialize();
-        filteredArticles = await imageValidationService.processArticlesWithImageGuarantee(rssArticles);
+        // Use lightweight validation for consistent counting
+        filteredArticles = await lightweightImageService.processArticlesWithImageValidation(rssArticles);
         
-        logger.info(`✅ Image validation for counts complete: ${filteredArticles.length} articles`);
+        logger.info(`✅ Lightweight validation for counts complete: ${filteredArticles.length} articles`);
       }
       
       counts.all = filteredArticles.length;

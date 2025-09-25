@@ -1,11 +1,21 @@
-# Railway deployment ignore file
-# Exclude heavy files that cause timeouts
+# Railway deployment ignore file  
+# 🚀 OPTIMIZED FOR DEPLOYMENT SUCCESS - Excludes all heavy files
 
-# Temp files (will be recreated) - EXCLUDE ENTIRE DIRECTORY
+# 🧹 TEMP FILES - EXCLUDE ALL (will be recreated automatically)
 temp/
+screenshots/
+*.jpg
+*.png  
+*.jpeg
+*.gif
+*.webp
 
-# Large log files - EXCLUDE ENTIRE DIRECTORY
+# 📁 LOG FILES - EXCLUDE ALL (prevent bloat)
 logs/
+*.log
+
+# 🖼️ IMAGE SERVICES - EXCLUDE HEAVY DEPENDENCIES  
+src/services/imageValidationService.js
 
 # Development files
 node_modules/

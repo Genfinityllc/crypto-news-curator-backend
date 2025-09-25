@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const { autoUpdateService } = require('./services/autoUpdateService');
 const { websocketService } = require('./services/websocketService');
 const cleanupService = require('./services/cleanupService');
+const tempCleanupService = require('./services/tempCleanupService');
 
 // Load environment variables
 dotenv.config(); // Force Railway redeploy - Nano Banana integration complete
@@ -111,6 +112,7 @@ app.use('/api/enhanced-client-news', require('./routes/enhanced-client-news'));
 app.use('/api/article-management', require('./routes/article-management'));
 app.use('/api/cron-manual', require('./routes/cron-manual'));
 app.use('/api/auto-update', require('./routes/auto-update'));
+app.use('/api/temp-cleanup', require('./routes/temp-cleanup')); // Temp file management for Railway
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
 
 // Conditionally add Firebase auth routes if available
@@ -161,6 +163,15 @@ server.listen(PORT, () => {
     cleanupService.startScheduledCleanup();
     // Run initial cleanup
     cleanupService.runCleanup();
+    
+    // 🧹 START TEMP FILE CLEANUP - PREVENTS RAILWAY DEPLOYMENT FAILURES
+    tempCleanupService.startScheduledCleanup();
+    tempCleanupService.runCleanup().then(stats => {
+      logger.info(`🎉 Initial temp cleanup: ${stats.filesDeleted} files, ${(stats.spaceFreed / 1024 / 1024).toFixed(1)}MB freed`);
+    }).catch(error => {
+      logger.error('Initial temp cleanup failed:', error);
+    });
+    
   }, 7000); // Wait 7 seconds for other services to initialize
 });
 
@@ -169,6 +180,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   simpleCronService.stop();
   autoUpdateService.stop();
+  tempCleanupService.stop();
   websocketService.shutdown();
   server.close(() => {
     process.exit(0);
@@ -179,6 +191,7 @@ process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
   simpleCronService.stop();
   autoUpdateService.stop();
+  tempCleanupService.stop();
   websocketService.shutdown();
   server.close(() => {
     process.exit(0);
