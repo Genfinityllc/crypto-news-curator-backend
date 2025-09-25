@@ -83,6 +83,9 @@ app.use(limiter);
 // Serve temporary images  
 app.use('/temp', express.static(path.join(__dirname, '..', 'temp')));
 
+// Serve screenshot images for fallback cases
+app.use('/screenshots', express.static(path.join(__dirname, '..', 'screenshots')));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({

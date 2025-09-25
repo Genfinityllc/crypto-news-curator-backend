@@ -29,7 +29,8 @@
     "rss-parser": "^3.13.0",
     "uuid": "^8.3.2",
     "winston": "^3.11.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "puppeteer": "^21.0.0"
   },
   "optionalDependencies": {
     "playwright": "^1.55.0",

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getArticles, getBreakingNews } = require('../config/supabase');
 const simpleCache = require('../services/simpleCacheService');
+const imageValidationService = require('../services/imageValidationService');
 const logger = require('../utils/logger');
 
 /**
@@ -142,15 +143,17 @@ router.get('/', async (req, res) => {
         filteredArticles = filteredArticles.filter(article => article.category === category);
       }
       
-      // Filter by images if requested
+      // 🎯 PROFESSIONAL IMAGE VALIDATION - GUARANTEE 100% IMAGE SUCCESS
       if (options.onlyWithImages) {
-        filteredArticles = filteredArticles.filter(article => {
-          const hasImage = article.cover_image && 
-                          !article.cover_image.includes('placeholder') &&
-                          !article.cover_image.includes('placehold.co') &&
-                          !article.cover_image.includes('via.placeholder');
-          return hasImage;
-        });
+        logger.info('🔄 Starting professional image validation...');
+        
+        // Initialize image validation service
+        await imageValidationService.initialize();
+        
+        // Process articles through image validation pipeline
+        filteredArticles = await imageValidationService.processArticlesWithImageGuarantee(filteredArticles);
+        
+        logger.info(`✅ Image validation complete: ${filteredArticles.length} articles with confirmed images`);
       }
       
       // Apply search filter
@@ -300,16 +303,16 @@ router.get('/counts', async (req, res) => {
       const { fetchRealCryptoNews } = require('../services/newsService');
       const rssArticles = await fetchRealCryptoNews();
       
-      // Filter by images if requested
+      // Filter by images using same validation as main endpoint
       let filteredArticles = rssArticles;
       if (onlyWithImages === 'true') {
-        filteredArticles = rssArticles.filter(article => {
-          const hasImage = article.cover_image && 
-                          !article.cover_image.includes('placeholder') &&
-                          !article.cover_image.includes('placehold.co') &&
-                          !article.cover_image.includes('via.placeholder');
-          return hasImage;
-        });
+        logger.info('🔄 Validating images for counts...');
+        
+        // Use same image validation service for consistency
+        await imageValidationService.initialize();
+        filteredArticles = await imageValidationService.processArticlesWithImageGuarantee(rssArticles);
+        
+        logger.info(`✅ Image validation for counts complete: ${filteredArticles.length} articles`);
       }
       
       counts.all = filteredArticles.length;
