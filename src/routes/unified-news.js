@@ -113,42 +113,107 @@ router.get('/', async (req, res) => {
 
     logger.info(`🔍 Unified news query: network=${network}, category=${category}, onlyWithImages=${options.onlyWithImages}, limit=${limit}`);
 
-    // Fetch articles from database
+    // For better images, fetch from RSS when possible, fallback to database
     let articleResult;
     
-    if (network === 'clients') {
-      // Special handling for client networks
-      const clientArticles = [];
+    try {
+      // Try to get fresh RSS data first (has better images)
+      const { fetchRealCryptoNews } = require('../services/newsService');
+      const rssArticles = await fetchRealCryptoNews();
       
-      for (const clientNetwork of CLIENT_NETWORKS) {
-        const result = await getArticles({
-          ...options,
-          network: clientNetwork,
-          limit: 1000 // Get all to filter properly
-        });
-        
-        if (result.data && result.data.length > 0) {
-          clientArticles.push(...result.data);
-        }
+      // Apply filters to RSS data
+      let filteredArticles = rssArticles;
+      
+      // Filter by network
+      if (network === 'clients') {
+        filteredArticles = filteredArticles.filter(article => 
+          CLIENT_NETWORKS.includes(article.network)
+        );
+      } else if (network !== 'all') {
+        filteredArticles = filteredArticles.filter(article => 
+          article.network && article.network.toLowerCase() === network.toLowerCase()
+        );
       }
       
-      // Sort all client articles by date
-      clientArticles.sort((a, b) => 
+      // Filter by category
+      if (category === 'breaking') {
+        filteredArticles = filteredArticles.filter(article => article.is_breaking === true);
+      } else if (category !== 'all') {
+        filteredArticles = filteredArticles.filter(article => article.category === category);
+      }
+      
+      // Filter by images if requested
+      if (options.onlyWithImages) {
+        filteredArticles = filteredArticles.filter(article => {
+          const hasImage = article.cover_image && 
+                          !article.cover_image.includes('placeholder') &&
+                          !article.cover_image.includes('placehold.co') &&
+                          !article.cover_image.includes('via.placeholder');
+          return hasImage;
+        });
+      }
+      
+      // Apply search filter
+      if (options.search) {
+        const searchLower = options.search.toLowerCase();
+        filteredArticles = filteredArticles.filter(article => 
+          article.title.toLowerCase().includes(searchLower) ||
+          (article.content && article.content.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      // Sort articles
+      filteredArticles.sort((a, b) => 
         new Date(b.published_at || b.publishedAt) - new Date(a.published_at || a.publishedAt)
       );
       
-      // Apply pagination to combined results
+      // Apply pagination
       const startIndex = (options.page - 1) * options.limit;
-      const paginatedArticles = clientArticles.slice(startIndex, startIndex + options.limit);
+      const paginatedArticles = filteredArticles.slice(startIndex, startIndex + options.limit);
       
       articleResult = {
         data: paginatedArticles,
-        count: clientArticles.length
+        count: filteredArticles.length
       };
       
-    } else {
-      // Standard network filtering
-      articleResult = await getArticles(options);
+    } catch (rssError) {
+      logger.warn('RSS fetch failed, falling back to database:', rssError.message);
+      
+      // Fallback to database queries
+      if (network === 'clients') {
+        // Special handling for client networks
+        const clientArticles = [];
+        
+        for (const clientNetwork of CLIENT_NETWORKS) {
+          const result = await getArticles({
+            ...options,
+            network: clientNetwork,
+            limit: 1000 // Get all to filter properly
+          });
+          
+          if (result.data && result.data.length > 0) {
+            clientArticles.push(...result.data);
+          }
+        }
+        
+        // Sort all client articles by date
+        clientArticles.sort((a, b) => 
+          new Date(b.published_at || b.publishedAt) - new Date(a.published_at || a.publishedAt)
+        );
+        
+        // Apply pagination to combined results
+        const startIndex = (options.page - 1) * options.limit;
+        const paginatedArticles = clientArticles.slice(startIndex, startIndex + options.limit);
+        
+        articleResult = {
+          data: paginatedArticles,
+          count: clientArticles.length
+        };
+        
+      } else {
+        // Standard network filtering
+        articleResult = await getArticles(options);
+      }
     }
 
     const articles = articleResult.data || [];
@@ -208,7 +273,7 @@ router.get('/', async (req, res) => {
 router.get('/counts', async (req, res) => {
   try {
     const { onlyWithImages = 'true' } = req.query;
-    const cacheKey = `network_counts:${onlyWithImages}`;
+    const cacheKey = `network_counts_rss:${onlyWithImages}`;
     
     // Check cache
     const cached = simpleCache.get(cacheKey);
@@ -230,34 +295,69 @@ router.get('/counts', async (req, res) => {
       networks: {}
     };
 
-    // Get total count
-    const allResult = await getArticles({
-      page: 1,
-      limit: 1,
-      onlyWithImages: onlyWithImages === 'true'
-    });
-    counts.all = allResult.count || 0;
-
-    // Get client network counts
-    let clientTotal = 0;
-    for (const network of CLIENT_NETWORKS) {
-      try {
-        const result = await getArticles({
-          page: 1,
-          limit: 1,
-          network,
-          onlyWithImages: onlyWithImages === 'true'
+    try {
+      // Use RSS data for counts (matches main endpoint)
+      const { fetchRealCryptoNews } = require('../services/newsService');
+      const rssArticles = await fetchRealCryptoNews();
+      
+      // Filter by images if requested
+      let filteredArticles = rssArticles;
+      if (onlyWithImages === 'true') {
+        filteredArticles = rssArticles.filter(article => {
+          const hasImage = article.cover_image && 
+                          !article.cover_image.includes('placeholder') &&
+                          !article.cover_image.includes('placehold.co') &&
+                          !article.cover_image.includes('via.placeholder');
+          return hasImage;
         });
-        const networkCount = result.count || 0;
+      }
+      
+      counts.all = filteredArticles.length;
+      
+      // Count by client networks
+      let clientTotal = 0;
+      for (const network of CLIENT_NETWORKS) {
+        const networkCount = filteredArticles.filter(article => 
+          article.network === network
+        ).length;
         counts.networks[network] = networkCount;
         clientTotal += networkCount;
-      } catch (error) {
-        logger.error(`Error getting count for ${network}:`, error.message);
-        counts.networks[network] = 0;
       }
+      
+      counts.clients = clientTotal;
+      
+    } catch (rssError) {
+      logger.warn('RSS counts failed, falling back to database:', rssError.message);
+      
+      // Fallback to database counts
+      const allResult = await getArticles({
+        page: 1,
+        limit: 1,
+        onlyWithImages: onlyWithImages === 'true'
+      });
+      counts.all = allResult.count || 0;
+
+      // Get client network counts
+      let clientTotal = 0;
+      for (const network of CLIENT_NETWORKS) {
+        try {
+          const result = await getArticles({
+            page: 1,
+            limit: 1,
+            network,
+            onlyWithImages: onlyWithImages === 'true'
+          });
+          const networkCount = result.count || 0;
+          counts.networks[network] = networkCount;
+          clientTotal += networkCount;
+        } catch (error) {
+          logger.error(`Error getting count for ${network}:`, error.message);
+          counts.networks[network] = 0;
+        }
+      }
+      
+      counts.clients = clientTotal;
     }
-    
-    counts.clients = clientTotal;
 
     // Cache result
     simpleCache.set(cacheKey, {
