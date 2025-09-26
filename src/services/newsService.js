@@ -58,7 +58,9 @@ function validateCryptoContent(title, content, source = '') {
     'crypto.news', 'cryptopotato.com', 'news.bitcoin.com',
     'u.today', 'ambcrypto.com', 'cryptonews.com',
     'cryptobriefing.com', 'beincrypto.com', 'cryptodaily.co.uk',
-    'coincentral.com'
+    'coincentral.com',
+    // PHASE 1 ADDITIONS: New trusted sources
+    'bitcoinist.com', 'cryptobriefing.com', 'cryptopotato.com'
   ];
   
   // Check if this article comes from a trusted crypto source
@@ -1001,19 +1003,29 @@ async function fetchRealCryptoNews() {
     logger.info('Fetching real crypto news from RSS feeds');
     
     const rssFeeds = [
-      // Top crypto news sources (minimal set for reliable deployment)
+      // Top crypto news sources (expanded high-quality sources)
       'https://www.coindesk.com/arc/outboundfeeds/rss/',
       'https://cointelegraph.com/rss',
       'https://cryptoslate.com/feed/',
       'https://beincrypto.com/feed/',
       'https://cryptodaily.co.uk/feed/',
       
-      // Client network searches - comprehensive coverage
-      'https://news.google.com/rss/search?q=Hedera+cryptocurrency+OR+HBAR+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="XDC+Network"+cryptocurrency+OR+"XDC+token"&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+cryptocurrency+OR+ALGO+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="Constellation+Network"+cryptocurrency+OR+DAG+crypto&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=HashPack+wallet+OR+"HashPack+Hedera"&hl=en-US&gl=US&ceid=US:en'
+      // PHASE 1 ADDITIONS: High-quality crypto sources with guaranteed images
+      'https://crypto.news/feed/',                    // Crypto.news - confirmed RSS + images ✅
+      'https://bitcoinist.com/feed/',                // Bitcoinist - daily news ✅
+      'https://cryptobriefing.com/feed/',            // CryptoBriefing - analytical content
+      'https://cryptopotato.com/feed/',              // CryptoPotato - market coverage
+      'https://news.bitcoin.com/feed/',              // Bitcoin.com News - established source
+      
+      // Enhanced client network searches with press release keywords
+      'https://news.google.com/rss/search?q=Hedera+Hashgraph+OR+HBAR+OR+"Hedera+press+release"+OR+"HashPack"&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="XDC+Network"+OR+"XinFin"+OR+"XDC+token"+OR+"trade+finance+blockchain"&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=Algorand+OR+ALGO+OR+"Algorand+Foundation"+OR+"Pure+Proof+of+Stake"&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q="Constellation+Network"+OR+"DAG+crypto"+OR+"$DAG"+OR+"Constellation+DAG"&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=HashPack+OR+"PACK+token"+OR+"Hedera+wallet"+OR+"HashPack+Hedera"&hl=en-US&gl=US&ceid=US:en',
+      
+      // PHASE 1 ADDITION: SWAP token coverage
+      'https://news.google.com/rss/search?q="SWAP+token"+OR+"SWAP+DeFi"+OR+"SWAP+protocol"+OR+"SWAP+DEX"&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];
