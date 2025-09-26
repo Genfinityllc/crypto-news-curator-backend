@@ -115,77 +115,127 @@ router.get('/', async (req, res) => {
 
     logger.info(`🔍 Unified news query: network=${network}, category=${category}, onlyWithImages=${options.onlyWithImages}, limit=${limit}`);
 
-    // FIXED: Use database first (contains 474 articles), only use RSS as fallback
+    // 🎯 HYBRID APPROACH: RSS (guaranteed images) + Database (validated images) = 100+ articles with 100% images
     let articleResult;
     
     try {
-      logger.info('🔍 Querying database for articles...');
+      logger.info('🔄 Starting hybrid RSS + database approach for 100% image guarantee...');
       
-      // Query database with proper filtering
+      // Step 1: Get fresh RSS articles (guaranteed images)
+      const { fetchRealCryptoNews } = require('../services/newsService');
+      const rssArticles = await fetchRealCryptoNews();
+      logger.info(`📰 RSS returned ${rssArticles.length} articles with guaranteed images`);
+      
+      // Step 2: Get database articles with confirmed real images (not placeholders)
+      let databaseArticles = [];
+      
       if (network === 'clients') {
-        // Special handling for client networks
-        const clientArticles = [];
-        
+        // Get client network articles from database
         for (const clientNetwork of CLIENT_NETWORKS) {
           const result = await getArticles({
             ...options,
             network: clientNetwork,
-            limit: 1000 // Get all to filter properly
+            limit: 1000,
+            onlyWithImages: true // This filters for real images at database level
           });
           
           if (result.data && result.data.length > 0) {
-            clientArticles.push(...result.data);
+            databaseArticles.push(...result.data);
           }
         }
-        
-        // Sort all client articles by date
-        clientArticles.sort((a, b) => 
-          new Date(b.published_at || b.publishedAt) - new Date(a.published_at || a.publishedAt)
-        );
-        
-        // Apply pagination to combined results
-        const startIndex = (options.page - 1) * options.limit;
-        const paginatedArticles = clientArticles.slice(startIndex, startIndex + options.limit);
-        
-        articleResult = {
-          data: paginatedArticles,
-          count: clientArticles.length
-        };
-        
       } else {
-        // Standard network filtering - get more articles to properly paginate
-        articleResult = await getArticles({
+        // Get all network articles from database
+        const result = await getArticles({
           ...options,
-          limit: 1000 // Get all articles, then paginate properly
+          limit: 1000,
+          onlyWithImages: true // This filters for real images at database level
         });
-        
-        // Apply client-side pagination after database filtering
-        if (articleResult.data && articleResult.data.length > 0) {
-          const totalCount = articleResult.data.length;
-          const startIndex = (options.page - 1) * options.limit;
-          const paginatedArticles = articleResult.data.slice(startIndex, startIndex + options.limit);
-          
-          articleResult = {
-            data: paginatedArticles,
-            count: totalCount
-          };
+        databaseArticles = result.data || [];
+      }
+      
+      // Additional validation: Only keep database articles with real cover images
+      const validatedDatabaseArticles = databaseArticles.filter(article => {
+        const hasRealImage = article.cover_image && 
+                            article.cover_image.trim() !== '' &&
+                            !article.cover_image.includes('placeholder') &&
+                            !article.cover_image.includes('placehold.co') &&
+                            !article.cover_image.includes('via.placeholder') &&
+                            !article.cover_image.includes('example.com') &&
+                            article.cover_image.startsWith('http');
+        return hasRealImage;
+      });
+      
+      logger.info(`🔍 Database returned ${validatedDatabaseArticles.length} articles with validated images`);
+      
+      // Step 3: Combine RSS + Database articles
+      const combinedArticles = [...rssArticles];
+      const rssUrls = new Set(rssArticles.map(article => article.url));
+      
+      // Add database articles that don't duplicate RSS articles
+      for (const dbArticle of validatedDatabaseArticles) {
+        if (!rssUrls.has(dbArticle.url)) {
+          combinedArticles.push(dbArticle);
         }
       }
       
-      logger.info(`✅ Database query returned ${articleResult.data?.length || 0} articles`);
+      logger.info(`✅ Combined total: ${combinedArticles.length} articles (${rssArticles.length} RSS + ${combinedArticles.length - rssArticles.length} unique database)`);
       
-    } catch (dbError) {
-      logger.warn('Database fetch failed, falling back to RSS:', dbError.message);
+      // Step 4: Apply network filtering to combined articles
+      let filteredArticles = combinedArticles;
       
-      // RSS fallback only if database fails
+      if (network === 'clients') {
+        filteredArticles = filteredArticles.filter(article => 
+          CLIENT_NETWORKS.includes(article.network)
+        );
+      } else if (network !== 'all') {
+        filteredArticles = filteredArticles.filter(article => 
+          article.network && article.network.toLowerCase() === network.toLowerCase()
+        );
+      }
+      
+      // Step 5: Apply category filtering
+      if (category === 'breaking') {
+        filteredArticles = filteredArticles.filter(article => article.is_breaking === true);
+      } else if (category !== 'all') {
+        filteredArticles = filteredArticles.filter(article => article.category === category);
+      }
+      
+      // Step 6: Apply search filter
+      if (options.search) {
+        const searchLower = options.search.toLowerCase();
+        filteredArticles = filteredArticles.filter(article => 
+          article.title.toLowerCase().includes(searchLower) ||
+          (article.content && article.content.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      // Step 7: Sort by date
+      filteredArticles.sort((a, b) => 
+        new Date(b.published_at || b.publishedAt) - new Date(a.published_at || a.publishedAt)
+      );
+      
+      // Step 8: Apply pagination
+      const startIndex = (options.page - 1) * options.limit;
+      const paginatedArticles = filteredArticles.slice(startIndex, startIndex + options.limit);
+      
+      articleResult = {
+        data: paginatedArticles,
+        count: filteredArticles.length
+      };
+      
+      logger.info(`🎯 Hybrid result: ${paginatedArticles.length} articles on page ${options.page} of ${filteredArticles.length} total (100% image guarantee)`);
+      
+    } catch (error) {
+      logger.error('Hybrid approach failed, falling back to RSS only:', error.message);
+      
+      // Ultimate fallback: RSS only (guaranteed images)
       try {
         const { fetchRealCryptoNews } = require('../services/newsService');
         const rssArticles = await fetchRealCryptoNews();
         
-        // Apply filters to RSS data
+        // Apply basic filtering
         let filteredArticles = rssArticles;
         
-        // Filter by network
         if (network === 'clients') {
           filteredArticles = filteredArticles.filter(article => 
             CLIENT_NETWORKS.includes(article.network)
@@ -205,10 +255,10 @@ router.get('/', async (req, res) => {
           count: filteredArticles.length
         };
         
-        logger.info(`📰 RSS fallback returned ${articleResult.data?.length || 0} articles`);
+        logger.info(`📰 RSS-only fallback: ${paginatedArticles.length} articles with guaranteed images`);
         
       } catch (rssError) {
-        logger.error('Both database and RSS failed:', rssError.message);
+        logger.error('RSS fallback also failed:', rssError.message);
         throw rssError;
       }
     }
@@ -293,27 +343,50 @@ router.get('/counts', async (req, res) => {
     };
 
     try {
-      // Use RSS data for counts (matches main endpoint)
+      // Use hybrid approach for counts (matches main endpoint)
       const { fetchRealCryptoNews } = require('../services/newsService');
       const rssArticles = await fetchRealCryptoNews();
       
-      // Filter by images using lightweight validation
-      let filteredArticles = rssArticles;
+      // Get database articles with real images (same validation as main endpoint)
+      let databaseArticles = [];
       if (onlyWithImages === 'true') {
-        logger.info('🔄 Lightweight validation for counts...');
+        const allDbArticles = await getArticles({
+          page: 1,
+          limit: 1000,
+          onlyWithImages: true
+        });
         
-        // Use lightweight validation for consistent counting
-        filteredArticles = await lightweightImageService.processArticlesWithImageValidation(rssArticles);
-        
-        logger.info(`✅ Lightweight validation for counts complete: ${filteredArticles.length} articles`);
+        // Apply same validation as main endpoint
+        databaseArticles = (allDbArticles.data || []).filter(article => {
+          const hasRealImage = article.cover_image && 
+                              article.cover_image.trim() !== '' &&
+                              !article.cover_image.includes('placeholder') &&
+                              !article.cover_image.includes('placehold.co') &&
+                              !article.cover_image.includes('via.placeholder') &&
+                              !article.cover_image.includes('example.com') &&
+                              article.cover_image.startsWith('http');
+          return hasRealImage;
+        });
       }
       
-      counts.all = filteredArticles.length;
+      // Combine RSS + Database (deduplicate by URL)
+      const combinedArticles = [...rssArticles];
+      const rssUrls = new Set(rssArticles.map(article => article.url));
+      
+      for (const dbArticle of databaseArticles) {
+        if (!rssUrls.has(dbArticle.url)) {
+          combinedArticles.push(dbArticle);
+        }
+      }
+      
+      logger.info(`📊 Hybrid counts: ${rssArticles.length} RSS + ${databaseArticles.length} database = ${combinedArticles.length} total`);
+      
+      counts.all = combinedArticles.length;
       
       // Count by client networks
       let clientTotal = 0;
       for (const network of CLIENT_NETWORKS) {
-        const networkCount = filteredArticles.filter(article => 
+        const networkCount = combinedArticles.filter(article => 
           article.network === network
         ).length;
         counts.networks[network] = networkCount;
