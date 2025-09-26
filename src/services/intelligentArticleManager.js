@@ -124,48 +124,29 @@ class IntelligentArticleManager {
     const isBreaking = articleData.is_breaking;
     const isClientNetwork = this.CLIENT_NETWORKS.includes(network);
 
-    // Check global limit (500 total) - BUT prioritize 4-day retention
+    // EMERGENCY DEBUGGING: Temporarily disable ALL purging to test accumulation
     const { count: totalCount } = await supabase
       .from('articles')
       .select('id', { count: 'exact' });
 
-    // Only enforce count limit if we MASSIVELY exceed it (prioritize 4-day retention)
-    if (totalCount >= this.LIMITS.all + 150) { // 650 articles before any removal!
-      logger.info(`🗑️ Total articles (${totalCount}) massively exceeds limit (${this.LIMITS.all}), removing very old batch`);
+    logger.info(`🔍 DEBUG: Current article count: ${totalCount}, network: ${network}`);
+
+    // DISABLED: Only enforce count limit if we MASSIVELY exceed it (prioritize 4-day retention)
+    if (totalCount >= 1000) { // Temporarily raised to 1000 to debug the 47-article issue
+      logger.info(`🗑️ Total articles (${totalCount}) exceeds debug limit (1000), removing very old batch`);
       // Remove articles older than 3.5 days first (preserve as much as possible)
       await this.removeOldestArticles(50, {}, 3.5); 
     }
 
-    // Check client network limits if this is a client article (less aggressive)
-    if (isClientNetwork) {
+    // DISABLED: Temporarily disable client network purging for debugging
+    if (isClientNetwork && false) { // Force disabled
       // Check total client articles limit (only when significantly exceeded)
       const { count: clientCount } = await supabase
         .from('articles')
         .select('id', { count: 'exact' })
         .in('network', this.CLIENT_NETWORKS);
 
-      if (clientCount >= this.LIMITS.client + 100) { // 600 client articles before removal
-        logger.info(`🗑️ Client articles (${clientCount}) massively exceed limit (${this.LIMITS.client}), removing oldest batch`);
-        await this.removeOldestArticles(25, { 
-          network: { in: this.CLIENT_NETWORKS }
-        }, 3.5); // Remove articles older than 3.5 days first
-      }
-
-      // Check specific network limit (less aggressive)
-      const networkKey = network.toLowerCase().replace(' network', '').replace(' ', '_');
-      const networkLimit = this.LIMITS[networkKey] || 100;
-      
-      const { count: networkCount } = await supabase
-        .from('articles')
-        .select('id', { count: 'exact' })
-        .eq('network', network);
-
-      if (networkCount >= networkLimit + 50) { // Allow 50 extra before removal (150 total)
-        logger.info(`🗑️ ${network} articles (${networkCount}) massively exceed limit (${networkLimit}), removing oldest batch`);
-        await this.removeOldestArticles(20, { 
-          network: { eq: network }
-        }, 3.5); // Remove articles older than 3.5 days first
-      }
+      logger.info(`🔍 DEBUG: Client count: ${clientCount}, network: ${network}`);
     }
 
     // Check breaking news limit
