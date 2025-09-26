@@ -9,11 +9,11 @@ class AutoUpdateService extends EventEmitter {
     this.isRunning = false;
     this.updateInterval = null;
     this.config = {
-      normalInterval: 2 * 60 * 1000, // 2 minutes
-      intensiveInterval: 30 * 1000, // 30 seconds during high activity
-      marketHoursInterval: 60 * 1000, // 1 minute during market hours
+      normalInterval: 25 * 60 * 1000, // 25 minutes (reduced aggression for 4-day retention)
+      intensiveInterval: 10 * 60 * 1000, // 10 minutes during high activity (was 30 seconds!)
+      marketHoursInterval: 15 * 60 * 1000, // 15 minutes during market hours (was 1 minute!)
       backoffMultiplier: 1.5,
-      maxBackoff: 10 * 60 * 1000, // 10 minutes max
+      maxBackoff: 30 * 60 * 1000, // 30 minutes max (increased from 10)
       retryAttempts: 3
     };
     this.currentInterval = this.config.normalInterval;

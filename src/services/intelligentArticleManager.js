@@ -129,11 +129,11 @@ class IntelligentArticleManager {
       .from('articles')
       .select('id', { count: 'exact' });
 
-    // Only enforce count limit if we SIGNIFICANTLY exceed it (allowing 4-day retention priority)
-    if (totalCount >= this.LIMITS.all + 50) { // 550 articles before aggressive removal
-      logger.info(`🗑️ Total articles (${totalCount}) significantly exceeds limit (${this.LIMITS.all}), removing oldest batch`);
-      // Remove articles older than 3 days first (preserve 4-day retention for new articles)
-      await this.removeOldestArticles(25, {}, 3); 
+    // Only enforce count limit if we MASSIVELY exceed it (prioritize 4-day retention)
+    if (totalCount >= this.LIMITS.all + 150) { // 650 articles before any removal!
+      logger.info(`🗑️ Total articles (${totalCount}) massively exceeds limit (${this.LIMITS.all}), removing very old batch`);
+      // Remove articles older than 3.5 days first (preserve as much as possible)
+      await this.removeOldestArticles(50, {}, 3.5); 
     }
 
     // Check client network limits if this is a client article (less aggressive)
@@ -144,11 +144,11 @@ class IntelligentArticleManager {
         .select('id', { count: 'exact' })
         .in('network', this.CLIENT_NETWORKS);
 
-      if (clientCount >= this.LIMITS.client + 25) { // 525 client articles before removal
-        logger.info(`🗑️ Client articles (${clientCount}) significantly exceed limit (${this.LIMITS.client}), removing oldest batch`);
-        await this.removeOldestArticles(10, { 
+      if (clientCount >= this.LIMITS.client + 100) { // 600 client articles before removal
+        logger.info(`🗑️ Client articles (${clientCount}) massively exceed limit (${this.LIMITS.client}), removing oldest batch`);
+        await this.removeOldestArticles(25, { 
           network: { in: this.CLIENT_NETWORKS }
-        }, 3); // Remove articles older than 3 days first
+        }, 3.5); // Remove articles older than 3.5 days first
       }
 
       // Check specific network limit (less aggressive)
@@ -160,11 +160,11 @@ class IntelligentArticleManager {
         .select('id', { count: 'exact' })
         .eq('network', network);
 
-      if (networkCount >= networkLimit + 10) { // Allow 10 extra before removal
-        logger.info(`🗑️ ${network} articles (${networkCount}) exceed limit (${networkLimit}), removing oldest batch`);
-        await this.removeOldestArticles(5, { 
+      if (networkCount >= networkLimit + 50) { // Allow 50 extra before removal (150 total)
+        logger.info(`🗑️ ${network} articles (${networkCount}) massively exceed limit (${networkLimit}), removing oldest batch`);
+        await this.removeOldestArticles(20, { 
           network: { eq: network }
-        }, 3); // Remove articles older than 3 days first
+        }, 3.5); // Remove articles older than 3.5 days first
       }
     }
 
