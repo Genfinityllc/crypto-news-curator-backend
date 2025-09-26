@@ -124,32 +124,34 @@ class IntelligentArticleManager {
     const isBreaking = articleData.is_breaking;
     const isClientNetwork = this.CLIENT_NETWORKS.includes(network);
 
-    // Check global limit (500 total)
+    // Check global limit (500 total) - BUT prioritize 4-day retention
     const { count: totalCount } = await supabase
       .from('articles')
       .select('id', { count: 'exact' });
 
-    if (totalCount >= this.LIMITS.all) {
-      logger.info(`🗑️ Total articles (${totalCount}) at limit (${this.LIMITS.all}), removing oldest`);
-      await this.removeOldestArticles(1, {});
+    // Only enforce count limit if we SIGNIFICANTLY exceed it (allowing 4-day retention priority)
+    if (totalCount >= this.LIMITS.all + 50) { // 550 articles before aggressive removal
+      logger.info(`🗑️ Total articles (${totalCount}) significantly exceeds limit (${this.LIMITS.all}), removing oldest batch`);
+      // Remove articles older than 3 days first (preserve 4-day retention for new articles)
+      await this.removeOldestArticles(25, {}, 3); 
     }
 
-    // Check client network limits if this is a client article
+    // Check client network limits if this is a client article (less aggressive)
     if (isClientNetwork) {
-      // Check total client articles limit
+      // Check total client articles limit (only when significantly exceeded)
       const { count: clientCount } = await supabase
         .from('articles')
         .select('id', { count: 'exact' })
         .in('network', this.CLIENT_NETWORKS);
 
-      if (clientCount >= this.LIMITS.client) {
-        logger.info(`🗑️ Client articles (${clientCount}) at limit (${this.LIMITS.client}), removing oldest client article`);
-        await this.removeOldestArticles(1, { 
+      if (clientCount >= this.LIMITS.client + 25) { // 525 client articles before removal
+        logger.info(`🗑️ Client articles (${clientCount}) significantly exceed limit (${this.LIMITS.client}), removing oldest batch`);
+        await this.removeOldestArticles(10, { 
           network: { in: this.CLIENT_NETWORKS }
-        });
+        }, 3); // Remove articles older than 3 days first
       }
 
-      // Check specific network limit
+      // Check specific network limit (less aggressive)
       const networkKey = network.toLowerCase().replace(' network', '').replace(' ', '_');
       const networkLimit = this.LIMITS[networkKey] || 100;
       
@@ -158,11 +160,11 @@ class IntelligentArticleManager {
         .select('id', { count: 'exact' })
         .eq('network', network);
 
-      if (networkCount >= networkLimit) {
-        logger.info(`🗑️ ${network} articles (${networkCount}) at limit (${networkLimit}), removing oldest from ${network}`);
-        await this.removeOldestArticles(1, { 
+      if (networkCount >= networkLimit + 10) { // Allow 10 extra before removal
+        logger.info(`🗑️ ${network} articles (${networkCount}) exceed limit (${networkLimit}), removing oldest batch`);
+        await this.removeOldestArticles(5, { 
           network: { eq: network }
-        });
+        }, 3); // Remove articles older than 3 days first
       }
     }
 
@@ -183,9 +185,9 @@ class IntelligentArticleManager {
   }
 
   /**
-   * Remove oldest articles based on filters
+   * Remove oldest articles based on filters and optional age cutoff
    */
-  async removeOldestArticles(count, filters = {}) {
+  async removeOldestArticles(count, filters = {}, maxAgeDays = null) {
     const supabase = this.getSupabase();
     
     try {
@@ -194,6 +196,13 @@ class IntelligentArticleManager {
         .select('id, title, network, published_at')
         .order('published_at', { ascending: true })
         .limit(count);
+
+      // Apply age filter if specified (prioritize removing articles older than X days)
+      if (maxAgeDays) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+        query = query.lt('published_at', cutoffDate.toISOString());
+      }
 
       // Apply filters
       if (filters.network?.in) {

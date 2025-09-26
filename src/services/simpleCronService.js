@@ -19,10 +19,10 @@ class SimpleCronService {
     this.isRunning = true;
     logger.info('🚀 Starting SimpleCronService...');
 
-    // RSS aggregation every 2 minutes
+    // RSS aggregation every 20 minutes (reduced from 2 min to allow proper 4-day retention)
     const rssInterval = setInterval(async () => {
       await this.performRSSUpdate();
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 20 * 60 * 1000); // 20 minutes
 
     // Cache clearing every 4 hours  
     const cacheInterval = setInterval(async () => {
