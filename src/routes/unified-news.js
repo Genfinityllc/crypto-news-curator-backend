@@ -115,74 +115,20 @@ router.get('/', async (req, res) => {
 
     logger.info(`🔍 Unified news query: network=${network}, category=${category}, onlyWithImages=${options.onlyWithImages}, limit=${limit}`);
 
-    // 🎯 HYBRID APPROACH: RSS (guaranteed images) + Database (validated images) = 100+ articles with 100% images
+    // 📰 RSS-ONLY APPROACH: 100% guaranteed images (reverting to working solution)
     let articleResult;
     
     try {
-      logger.info('🔄 Starting hybrid RSS + database approach for 100% image guarantee...');
+      logger.info('📰 Using RSS-only approach for 100% image guarantee...');
       
-      // Step 1: Get fresh RSS articles (guaranteed images)
+      // Get fresh RSS articles (guaranteed images)
       const { fetchRealCryptoNews } = require('../services/newsService');
       const rssArticles = await fetchRealCryptoNews();
-      logger.info(`📰 RSS returned ${rssArticles.length} articles with guaranteed images`);
       
-      // Step 2: Get database articles with confirmed real images (not placeholders)
-      let databaseArticles = [];
+      // Apply filters to RSS data
+      let filteredArticles = rssArticles;
       
-      if (network === 'clients') {
-        // Get client network articles from database
-        for (const clientNetwork of CLIENT_NETWORKS) {
-          const result = await getArticles({
-            ...options,
-            network: clientNetwork,
-            limit: 1000,
-            onlyWithImages: true // This filters for real images at database level
-          });
-          
-          if (result.data && result.data.length > 0) {
-            databaseArticles.push(...result.data);
-          }
-        }
-      } else {
-        // Get all network articles from database
-        const result = await getArticles({
-          ...options,
-          limit: 1000,
-          onlyWithImages: true // This filters for real images at database level
-        });
-        databaseArticles = result.data || [];
-      }
-      
-      // Additional validation: Only keep database articles with real cover images
-      const validatedDatabaseArticles = databaseArticles.filter(article => {
-        const hasRealImage = article.cover_image && 
-                            article.cover_image.trim() !== '' &&
-                            !article.cover_image.includes('placeholder') &&
-                            !article.cover_image.includes('placehold.co') &&
-                            !article.cover_image.includes('via.placeholder') &&
-                            !article.cover_image.includes('example.com') &&
-                            article.cover_image.startsWith('http');
-        return hasRealImage;
-      });
-      
-      logger.info(`🔍 Database returned ${validatedDatabaseArticles.length} articles with validated images`);
-      
-      // Step 3: Combine RSS + Database articles
-      const combinedArticles = [...rssArticles];
-      const rssUrls = new Set(rssArticles.map(article => article.url));
-      
-      // Add database articles that don't duplicate RSS articles
-      for (const dbArticle of validatedDatabaseArticles) {
-        if (!rssUrls.has(dbArticle.url)) {
-          combinedArticles.push(dbArticle);
-        }
-      }
-      
-      logger.info(`✅ Combined total: ${combinedArticles.length} articles (${rssArticles.length} RSS + ${combinedArticles.length - rssArticles.length} unique database)`);
-      
-      // Step 4: Apply network filtering to combined articles
-      let filteredArticles = combinedArticles;
-      
+      // Filter by network
       if (network === 'clients') {
         filteredArticles = filteredArticles.filter(article => 
           CLIENT_NETWORKS.includes(article.network)
@@ -193,14 +139,24 @@ router.get('/', async (req, res) => {
         );
       }
       
-      // Step 5: Apply category filtering
+      // Filter by category
       if (category === 'breaking') {
         filteredArticles = filteredArticles.filter(article => article.is_breaking === true);
       } else if (category !== 'all') {
         filteredArticles = filteredArticles.filter(article => article.category === category);
       }
       
-      // Step 6: Apply search filter
+      // 🚀 LIGHTWEIGHT IMAGE VALIDATION - RAILWAY-OPTIMIZED
+      if (options.onlyWithImages) {
+        logger.info('🔄 Starting lightweight image validation for Railway...');
+        
+        // Process articles through lightweight validation pipeline
+        filteredArticles = await lightweightImageService.processArticlesWithImageValidation(filteredArticles);
+        
+        logger.info(`✅ Lightweight image validation complete: ${filteredArticles.length} articles with confirmed images`);
+      }
+      
+      // Apply search filter
       if (options.search) {
         const searchLower = options.search.toLowerCase();
         filteredArticles = filteredArticles.filter(article => 
@@ -209,12 +165,12 @@ router.get('/', async (req, res) => {
         );
       }
       
-      // Step 7: Sort by date
+      // Sort articles
       filteredArticles.sort((a, b) => 
         new Date(b.published_at || b.publishedAt) - new Date(a.published_at || a.publishedAt)
       );
       
-      // Step 8: Apply pagination
+      // Apply pagination
       const startIndex = (options.page - 1) * options.limit;
       const paginatedArticles = filteredArticles.slice(startIndex, startIndex + options.limit);
       
@@ -223,44 +179,11 @@ router.get('/', async (req, res) => {
         count: filteredArticles.length
       };
       
-      logger.info(`🎯 Hybrid result: ${paginatedArticles.length} articles on page ${options.page} of ${filteredArticles.length} total (100% image guarantee)`);
+      logger.info(`📰 RSS-only result: ${paginatedArticles.length} articles with 100% image guarantee`);
       
-    } catch (error) {
-      logger.error('Hybrid approach failed, falling back to RSS only:', error.message);
-      
-      // Ultimate fallback: RSS only (guaranteed images)
-      try {
-        const { fetchRealCryptoNews } = require('../services/newsService');
-        const rssArticles = await fetchRealCryptoNews();
-        
-        // Apply basic filtering
-        let filteredArticles = rssArticles;
-        
-        if (network === 'clients') {
-          filteredArticles = filteredArticles.filter(article => 
-            CLIENT_NETWORKS.includes(article.network)
-          );
-        } else if (network !== 'all') {
-          filteredArticles = filteredArticles.filter(article => 
-            article.network && article.network.toLowerCase() === network.toLowerCase()
-          );
-        }
-        
-        // Apply pagination
-        const startIndex = (options.page - 1) * options.limit;
-        const paginatedArticles = filteredArticles.slice(startIndex, startIndex + options.limit);
-        
-        articleResult = {
-          data: paginatedArticles,
-          count: filteredArticles.length
-        };
-        
-        logger.info(`📰 RSS-only fallback: ${paginatedArticles.length} articles with guaranteed images`);
-        
-      } catch (rssError) {
-        logger.error('RSS fallback also failed:', rssError.message);
-        throw rssError;
-      }
+    } catch (rssError) {
+      logger.error('RSS approach failed:', rssError.message);
+      throw rssError;
     }
 
     const articles = articleResult.data || [];
@@ -343,50 +266,27 @@ router.get('/counts', async (req, res) => {
     };
 
     try {
-      // Use hybrid approach for counts (matches main endpoint)
+      // Use RSS data for counts (matches main endpoint)
       const { fetchRealCryptoNews } = require('../services/newsService');
       const rssArticles = await fetchRealCryptoNews();
       
-      // Get database articles with real images (same validation as main endpoint)
-      let databaseArticles = [];
+      // Filter by images using lightweight validation
+      let filteredArticles = rssArticles;
       if (onlyWithImages === 'true') {
-        const allDbArticles = await getArticles({
-          page: 1,
-          limit: 1000,
-          onlyWithImages: true
-        });
+        logger.info('🔄 Lightweight validation for counts...');
         
-        // Apply same validation as main endpoint
-        databaseArticles = (allDbArticles.data || []).filter(article => {
-          const hasRealImage = article.cover_image && 
-                              article.cover_image.trim() !== '' &&
-                              !article.cover_image.includes('placeholder') &&
-                              !article.cover_image.includes('placehold.co') &&
-                              !article.cover_image.includes('via.placeholder') &&
-                              !article.cover_image.includes('example.com') &&
-                              article.cover_image.startsWith('http');
-          return hasRealImage;
-        });
+        // Use lightweight validation for consistent counting
+        filteredArticles = await lightweightImageService.processArticlesWithImageValidation(rssArticles);
+        
+        logger.info(`✅ Lightweight validation for counts complete: ${filteredArticles.length} articles`);
       }
       
-      // Combine RSS + Database (deduplicate by URL)
-      const combinedArticles = [...rssArticles];
-      const rssUrls = new Set(rssArticles.map(article => article.url));
-      
-      for (const dbArticle of databaseArticles) {
-        if (!rssUrls.has(dbArticle.url)) {
-          combinedArticles.push(dbArticle);
-        }
-      }
-      
-      logger.info(`📊 Hybrid counts: ${rssArticles.length} RSS + ${databaseArticles.length} database = ${combinedArticles.length} total`);
-      
-      counts.all = combinedArticles.length;
+      counts.all = filteredArticles.length;
       
       // Count by client networks
       let clientTotal = 0;
       for (const network of CLIENT_NETWORKS) {
-        const networkCount = combinedArticles.filter(article => 
+        const networkCount = filteredArticles.filter(article => 
           article.network === network
         ).length;
         counts.networks[network] = networkCount;
