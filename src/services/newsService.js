@@ -1035,7 +1035,7 @@ async function fetchRealCryptoNews() {
         logger.info(`Parsing RSS feed: ${feedUrl}`);
         const feed = await parser.parseURL(feedUrl);
         
-        const articles = await Promise.all(feed.items.slice(0, 10).map(async (item) => {
+        const articles = await Promise.all(feed.items.slice(0, 30).map(async (item) => {
           try {
             // Enhanced crypto content validation using new validateCryptoContent function
             const title = item.title || '';
@@ -1564,8 +1564,8 @@ async function fetchRealCryptoNews() {
     // Sort by publication date
     uniqueArticles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     
-    // Get top 50 newest articles and return immediately for fast database insertion
-    const topArticles = uniqueArticles.slice(0, 50);
+    // Get top 200 newest articles for expanded feed while maintaining 100% image guarantee
+    const topArticles = uniqueArticles.slice(0, 200);
     
     logger.info(`Successfully fetched ${topArticles.length} real crypto news articles (images will be enhanced separately)`);
     
