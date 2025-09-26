@@ -115,72 +115,13 @@ router.get('/', async (req, res) => {
 
     logger.info(`🔍 Unified news query: network=${network}, category=${category}, onlyWithImages=${options.onlyWithImages}, limit=${limit}`);
 
-    // For better images, fetch from RSS when possible, fallback to database
+    // FIXED: Use database first (contains 474 articles), only use RSS as fallback
     let articleResult;
     
     try {
-      // Try to get fresh RSS data first (has better images)
-      const { fetchRealCryptoNews } = require('../services/newsService');
-      const rssArticles = await fetchRealCryptoNews();
+      logger.info('🔍 Querying database for articles...');
       
-      // Apply filters to RSS data
-      let filteredArticles = rssArticles;
-      
-      // Filter by network
-      if (network === 'clients') {
-        filteredArticles = filteredArticles.filter(article => 
-          CLIENT_NETWORKS.includes(article.network)
-        );
-      } else if (network !== 'all') {
-        filteredArticles = filteredArticles.filter(article => 
-          article.network && article.network.toLowerCase() === network.toLowerCase()
-        );
-      }
-      
-      // Filter by category
-      if (category === 'breaking') {
-        filteredArticles = filteredArticles.filter(article => article.is_breaking === true);
-      } else if (category !== 'all') {
-        filteredArticles = filteredArticles.filter(article => article.category === category);
-      }
-      
-      // 🚀 LIGHTWEIGHT IMAGE VALIDATION - RAILWAY-OPTIMIZED
-      if (options.onlyWithImages) {
-        logger.info('🔄 Starting lightweight image validation for Railway...');
-        
-        // Process articles through lightweight validation pipeline
-        filteredArticles = await lightweightImageService.processArticlesWithImageValidation(filteredArticles);
-        
-        logger.info(`✅ Lightweight image validation complete: ${filteredArticles.length} articles with confirmed images`);
-      }
-      
-      // Apply search filter
-      if (options.search) {
-        const searchLower = options.search.toLowerCase();
-        filteredArticles = filteredArticles.filter(article => 
-          article.title.toLowerCase().includes(searchLower) ||
-          (article.content && article.content.toLowerCase().includes(searchLower))
-        );
-      }
-      
-      // Sort articles
-      filteredArticles.sort((a, b) => 
-        new Date(b.published_at || b.publishedAt) - new Date(a.published_at || a.publishedAt)
-      );
-      
-      // Apply pagination
-      const startIndex = (options.page - 1) * options.limit;
-      const paginatedArticles = filteredArticles.slice(startIndex, startIndex + options.limit);
-      
-      articleResult = {
-        data: paginatedArticles,
-        count: filteredArticles.length
-      };
-      
-    } catch (rssError) {
-      logger.warn('RSS fetch failed, falling back to database:', rssError.message);
-      
-      // Fallback to database queries
+      // Query database with proper filtering
       if (network === 'clients') {
         // Special handling for client networks
         const clientArticles = [];
@@ -212,8 +153,63 @@ router.get('/', async (req, res) => {
         };
         
       } else {
-        // Standard network filtering
-        articleResult = await getArticles(options);
+        // Standard network filtering - get more articles to properly paginate
+        articleResult = await getArticles({
+          ...options,
+          limit: 1000 // Get all articles, then paginate properly
+        });
+        
+        // Apply client-side pagination after database filtering
+        if (articleResult.data && articleResult.data.length > 0) {
+          const totalCount = articleResult.data.length;
+          const startIndex = (options.page - 1) * options.limit;
+          const paginatedArticles = articleResult.data.slice(startIndex, startIndex + options.limit);
+          
+          articleResult = {
+            data: paginatedArticles,
+            count: totalCount
+          };
+        }
+      }
+      
+      logger.info(`✅ Database query returned ${articleResult.data?.length || 0} articles`);
+      
+    } catch (dbError) {
+      logger.warn('Database fetch failed, falling back to RSS:', dbError.message);
+      
+      // RSS fallback only if database fails
+      try {
+        const { fetchRealCryptoNews } = require('../services/newsService');
+        const rssArticles = await fetchRealCryptoNews();
+        
+        // Apply filters to RSS data
+        let filteredArticles = rssArticles;
+        
+        // Filter by network
+        if (network === 'clients') {
+          filteredArticles = filteredArticles.filter(article => 
+            CLIENT_NETWORKS.includes(article.network)
+          );
+        } else if (network !== 'all') {
+          filteredArticles = filteredArticles.filter(article => 
+            article.network && article.network.toLowerCase() === network.toLowerCase()
+          );
+        }
+        
+        // Apply pagination
+        const startIndex = (options.page - 1) * options.limit;
+        const paginatedArticles = filteredArticles.slice(startIndex, startIndex + options.limit);
+        
+        articleResult = {
+          data: paginatedArticles,
+          count: filteredArticles.length
+        };
+        
+        logger.info(`📰 RSS fallback returned ${articleResult.data?.length || 0} articles`);
+        
+      } catch (rssError) {
+        logger.error('Both database and RSS failed:', rssError.message);
+        throw rssError;
       }
     }
 
