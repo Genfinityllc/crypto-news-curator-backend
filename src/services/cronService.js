@@ -84,8 +84,8 @@ function initializeCronJobs() {
     }
   });
 
-  // Populate database with real news every 15 minutes (reduced from 2 min to allow 4-day retention)
-  cron.schedule('*/15 * * * *', async () => {
+  // Populate database with real news every 10 minutes (optimized for steady accumulation)
+  cron.schedule('*/10 * * * *', async () => {
     logger.info('Running scheduled database population...');
     try {
       const { fetchRealCryptoNews } = require('./newsService');

@@ -132,12 +132,21 @@ async function insertArticle(articleData) {
     // Transform the data to match Supabase schema
     const transformedData = await transformArticleForSupabase(articleData);
 
+    // FIXED: Check for duplicates first, then insert only if new
+    const { data: existingArticle } = await client
+      .from('articles')
+      .select('id')
+      .eq('url', transformedData.url)
+      .single();
+      
+    if (existingArticle) {
+      logger.info(`Article already exists, skipping: ${transformedData.title?.substring(0, 50)}...`);
+      return null;
+    }
+    
     const { data, error } = await client
       .from('articles')
-      .upsert([transformedData], {
-        onConflict: 'url',
-        ignoreDuplicates: false
-      })
+      .insert([transformedData])
       .select();
 
     if (error) {
@@ -369,12 +378,29 @@ async function insertArticlesBatch(articlesData) {
         articlesData.map(articleData => transformArticleForSupabase(articleData))
       );
 
+      // FIXED: Use INSERT instead of UPSERT to allow article accumulation
+      // Only check for duplicates by selecting first, then insert only new ones
+      const insertableArticles = [];
+      
+      for (const article of transformedArticles) {
+        const { data: existing } = await client
+          .from('articles')
+          .select('id')
+          .eq('url', article.url)
+          .single();
+          
+        if (!existing) {
+          insertableArticles.push(article);
+        }
+      }
+      
+      if (insertableArticles.length === 0) {
+        return [];
+      }
+      
       const { data, error } = await client
         .from('articles')
-        .upsert(transformedArticles, {
-          onConflict: 'url',
-          ignoreDuplicates: false
-        })
+        .insert(insertableArticles)
         .select();
 
       if (error) {

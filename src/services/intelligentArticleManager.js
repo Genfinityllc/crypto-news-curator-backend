@@ -124,29 +124,49 @@ class IntelligentArticleManager {
     const isBreaking = articleData.is_breaking;
     const isClientNetwork = this.CLIENT_NETWORKS.includes(network);
 
-    // EMERGENCY DEBUGGING: Temporarily disable ALL purging to test accumulation
+    // Check total articles and enforce 4-day retention + count limits
     const { count: totalCount } = await supabase
       .from('articles')
       .select('id', { count: 'exact' });
 
-    logger.info(`🔍 DEBUG: Current article count: ${totalCount}, network: ${network}`);
+    logger.info(`📊 Current article count: ${totalCount}, network: ${network}`);
 
-    // DISABLED: Only enforce count limit if we MASSIVELY exceed it (prioritize 4-day retention)
-    if (totalCount >= 1000) { // Temporarily raised to 1000 to debug the 47-article issue
-      logger.info(`🗑️ Total articles (${totalCount}) exceeds debug limit (1000), removing very old batch`);
-      // Remove articles older than 3.5 days first (preserve as much as possible)
-      await this.removeOldestArticles(50, {}, 3.5); 
+    // Enforce total article limit (500 articles max)
+    if (totalCount >= this.LIMITS.all) {
+      logger.info(`🗑️ Total articles (${totalCount}) at limit (${this.LIMITS.all}), removing oldest articles`);
+      await this.removeOldestArticles(50, {}); // Remove 50 oldest articles
     }
 
-    // DISABLED: Temporarily disable client network purging for debugging
-    if (isClientNetwork && false) { // Force disabled
-      // Check total client articles limit (only when significantly exceeded)
+    // Check client network limits
+    if (isClientNetwork) {
+      // Check total client articles limit
       const { count: clientCount } = await supabase
         .from('articles')
         .select('id', { count: 'exact' })
         .in('network', this.CLIENT_NETWORKS);
 
-      logger.info(`🔍 DEBUG: Client count: ${clientCount}, network: ${network}`);
+      if (clientCount >= this.LIMITS.client) {
+        logger.info(`🗑️ Client articles (${clientCount}) at limit (${this.LIMITS.client}), removing oldest client articles`);
+        await this.removeOldestArticles(25, { 
+          network: { in: this.CLIENT_NETWORKS }
+        });
+      }
+
+      // Check individual network limit
+      const networkKey = network.toLowerCase().replace(' network', '').replace(' ', '_');
+      if (this.LIMITS[networkKey]) {
+        const { count: networkCount } = await supabase
+          .from('articles')
+          .select('id', { count: 'exact' })
+          .eq('network', network);
+
+        if (networkCount >= this.LIMITS[networkKey]) {
+          logger.info(`🗑️ ${network} articles (${networkCount}) at limit (${this.LIMITS[networkKey]}), removing oldest for this network`);
+          await this.removeOldestArticles(10, { 
+            network: { eq: network }
+          });
+        }
+      }
     }
 
     // Check breaking news limit
