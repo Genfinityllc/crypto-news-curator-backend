@@ -128,15 +128,86 @@ router.get('/', async (req, res) => {
       // Apply filters to RSS data
       let filteredArticles = rssArticles;
       
-      // Filter by network
+      // Filter by network with special handling for client networks
       if (network === 'clients') {
-        filteredArticles = filteredArticles.filter(article => 
+        // ENHANCED: For client networks, also get older articles from database (2 weeks)
+        logger.info('🔍 Getting additional client articles from database (2-week timeframe)...');
+        
+        try {
+          const dbClientArticles = [];
+          
+          for (const clientNetwork of CLIENT_NETWORKS) {
+            const result = await getArticles({
+              network: clientNetwork,
+              limit: 50,
+              onlyWithImages: true,
+              clientNetworks: CLIENT_NETWORKS // This triggers 2-week timeframe
+            });
+            
+            if (result.data && result.data.length > 0) {
+              dbClientArticles.push(...result.data);
+            }
+          }
+          
+          logger.info(`📊 Found ${dbClientArticles.length} additional client articles from database`);
+          
+          // Combine RSS + database articles for client networks
+          const rssUrls = new Set(rssArticles.map(article => article.url));
+          for (const dbArticle of dbClientArticles) {
+            if (!rssUrls.has(dbArticle.url)) {
+              rssArticles.push(dbArticle);
+            }
+          }
+          
+          logger.info(`✅ Combined total for client networks: ${rssArticles.length} articles (RSS + 2-week database)`);
+          
+        } catch (dbError) {
+          logger.warn('Failed to get additional client articles from database:', dbError.message);
+        }
+        
+        // Filter combined articles for client networks
+        filteredArticles = rssArticles.filter(article => 
           CLIENT_NETWORKS.includes(article.network)
         );
+        
       } else if (network !== 'all') {
-        filteredArticles = filteredArticles.filter(article => 
+        // Single client network - also use 2-week database supplement
+        if (CLIENT_NETWORKS.includes(network)) {
+          logger.info(`🔍 Getting additional ${network} articles from database (2-week timeframe)...`);
+          
+          try {
+            const result = await getArticles({
+              network: network,
+              limit: 50,
+              onlyWithImages: true,
+              clientNetworks: CLIENT_NETWORKS // This triggers 2-week timeframe
+            });
+            
+            if (result.data && result.data.length > 0) {
+              logger.info(`📊 Found ${result.data.length} additional ${network} articles from database`);
+              
+              // Combine RSS + database for this client network
+              const rssUrls = new Set(rssArticles.map(article => article.url));
+              for (const dbArticle of result.data) {
+                if (!rssUrls.has(dbArticle.url)) {
+                  rssArticles.push(dbArticle);
+                }
+              }
+              
+              logger.info(`✅ Combined total for ${network}: ${rssArticles.length} articles (RSS + 2-week database)`);
+            }
+            
+          } catch (dbError) {
+            logger.warn(`Failed to get additional ${network} articles from database:`, dbError.message);
+          }
+        }
+        
+        filteredArticles = rssArticles.filter(article => 
           article.network && article.network.toLowerCase() === network.toLowerCase()
         );
+      } else {
+        // For 'all' networks, keep RSS-only with 4-day freshness
+        filteredArticles = rssArticles;
       }
       
       // Filter by category

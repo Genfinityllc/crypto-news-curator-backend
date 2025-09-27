@@ -180,10 +180,24 @@ async function getArticles(options = {}) {
       .from('articles')
       .select('*', { count: 'exact' });
 
-    // CRITICAL: Always filter articles older than 4 days
-    const fourDaysAgo = new Date();
-    fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
-    query = query.gte('published_at', fourDaysAgo.toISOString());
+    // CRITICAL: Time-based filtering - 2 weeks for client networks, 4 days for general news
+    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
+    const isClientNetwork = options.network && clientNetworks.includes(options.network);
+    const isClientQuery = options.clientNetworks || isClientNetwork;
+    
+    if (isClientQuery) {
+      // CLIENT NETWORKS: Allow 2 weeks of articles for better coverage
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+      query = query.gte('published_at', twoWeeksAgo.toISOString());
+      logger.info(`🗓️ Using 2-week timeframe for client networks`);
+    } else {
+      // GENERAL NEWS: Keep 4-day limit for main feed freshness
+      const fourDaysAgo = new Date();
+      fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
+      query = query.gte('published_at', fourDaysAgo.toISOString());
+      logger.info(`🗓️ Using 4-day timeframe for general news`);
+    }
 
     // Apply filters
     if (options.network && options.network !== 'all') {
