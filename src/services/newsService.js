@@ -45,6 +45,112 @@ const parser = new Parser({
 });
 
 /**
+ * PRECISE CLIENT NETWORK VALIDATION: Ensures articles are actually about specific client networks and tokens
+ * Prevents false positives like "algorithmic" matching Algorand
+ */
+function validateClientNetworkContent(title, content, source = '') {
+  const searchText = `${title} ${content}`.toLowerCase();
+  
+  // CLIENT NETWORK AND TOKEN DEFINITIONS
+  const clientValidation = {
+    'Hedera': {
+      networkNames: ['hedera', 'hedera hashgraph', 'hedera network'],
+      tokenNames: ['hbar', '$hbar', 'ℏ'],
+      companyNames: ['swirlds', 'hashgraph'],
+      positiveIndicators: ['consensus service', 'hashgraph consensus', 'governing council'],
+      falsePositives: [] // Hedera doesn't have common false positives
+    },
+    'XDC Network': {
+      networkNames: ['xdc network', 'xinfin', 'xdc'],
+      tokenNames: ['xdc', '$xdc', 'xinfin'],
+      companyNames: ['xinfin fintech', 'xdc foundation'],
+      positiveIndicators: ['trade finance', 'hybrid blockchain', 'iso 20022'],
+      falsePositives: [] // XDC doesn't have common false positives
+    },
+    'Algorand': {
+      networkNames: ['algorand', 'algorand blockchain', 'algorand network', 'algorand foundation'],
+      tokenNames: ['algo', '$algo', 'algorand token'],
+      companyNames: ['algorand foundation', 'algorand inc', 'silvio micali'],
+      positiveIndicators: ['pure proof of stake', 'ppos', 'silvio micali', 'algorand protocol', 'algorand ecosystem', 'algorand defi'],
+      falsePositives: ['algorithmic', 'algorithm', 'algo trading', 'algorithm trading', 'algo strategies', 'algorithmic trading', 'algorithmic stablecoin'],
+      requireContext: true // Require network name or strong positive indicators for validation
+    },
+    'Constellation': {
+      networkNames: ['constellation network', 'constellation dag', 'constellation blockchain', 'constellation labs'],
+      tokenNames: ['dag', '$dag', 'constellation dag'],
+      companyNames: ['constellation labs', 'constellation network'],
+      positiveIndicators: ['dag technology', 'metagraph', 'hypergraph', 'constellation protocol'],
+      falsePositives: ['directed acyclic graph', 'dag algorithm'],
+      requireContext: true // Require constellation context for DAG mentions
+    },
+    'HashPack': {
+      networkNames: ['hashpack', 'hashpack wallet', 'hashpack app'],
+      tokenNames: ['pack', '$pack', 'pack token', 'hashpack token'],
+      companyNames: ['hashpack', 'hashpack team'],
+      positiveIndicators: ['hedera wallet', 'hbar wallet', 'web3 wallet', 'hedera ecosystem'],
+      falsePositives: ['pack trading', 'pack deal', 'value pack', 'software pack'],
+      requireContext: true // Require Hedera/HashPack context for PACK mentions
+    }
+  };
+  
+  // For each client network, check if the article is genuinely about that network
+  for (const [networkName, validation] of Object.entries(clientValidation)) {
+    const hasFalsePositive = validation.falsePositives.some(falsePos => 
+      searchText.includes(falsePos.toLowerCase())
+    );
+    
+    const hasNetworkMention = validation.networkNames.some(name => 
+      searchText.includes(name.toLowerCase())
+    );
+    const hasTokenMention = validation.tokenNames.some(token => {
+      // Use word boundaries for better token matching
+      const wordBoundaryPattern = new RegExp(`\\b${token.replace(/\$/g, '\\$')}\\b`, 'i');
+      return wordBoundaryPattern.test(searchText);
+    });
+    const hasCompanyMention = validation.companyNames.some(company => 
+      searchText.includes(company.toLowerCase())
+    );
+    const hasPositiveIndicator = validation.positiveIndicators.some(indicator => 
+      searchText.includes(indicator.toLowerCase())
+    );
+    
+    // Enhanced validation logic for networks that require context
+    if (validation.requireContext) {
+      // For context-requiring networks, need network context to avoid false positives
+      if (hasTokenMention && !hasFalsePositive) {
+        if (hasNetworkMention || hasCompanyMention || hasPositiveIndicator) {
+          return networkName;
+        } else {
+          continue; // Token without proper context
+        }
+      }
+      
+      // Check if false positive blocks this match
+      if (hasFalsePositive) {
+        if (hasNetworkMention || hasCompanyMention) {
+          // Allow network/company mentions even with false positives if they're the main subject
+          return networkName;
+        } else {
+          continue; // False positive without sufficient context
+        }
+      }
+      
+      // Standard validation - need network/company mention for context-required networks
+      if (hasNetworkMention || hasCompanyMention) {
+        return networkName;
+      }
+    } else {
+      // For networks that don't require context (like Hedera, XDC)
+      if (hasNetworkMention || hasTokenMention || hasCompanyMention) {
+        return networkName;
+      }
+    }
+  }
+  
+  return null; // No valid client network detected
+}
+
+/**
  * Validate if content is genuinely crypto-related
  * Returns { isValid: boolean, reason: string, confidence: number }
  */
@@ -1186,20 +1292,20 @@ async function fetchRealCryptoNews() {
       // Filter out null results and map to final article format
       console.log(`🔍 DEBUG: Feed ${feedUrl} - Raw articles: ${articles.length}, Non-null: ${articles.filter(item => item !== null).length}`);
       const validArticles = articles.filter(item => item !== null).map(item => {
-          // Extract network from title/content
+          // Extract network from title/content using PRECISE CLIENT VALIDATION
           const title = item.title || '';
           const content = item.content || item.summary || item.description || '';
+          const source = item.metadata?.feedUrl || '';
           
           let network = 'General';
           
-          // Comprehensive network detection with CLIENT NETWORKS PRIORITIZED
-          const networkKeywords = {
-            // 🌟 CLIENT NETWORKS - CHECKED FIRST FOR PRIORITY
-            'Hedera': ['hedera', 'hbar', 'hedera hashgraph', 'hedera network', 'hashgraph'],
-            'XDC Network': ['xdc network', 'xdc token', 'xdc', 'xinfin', 'xinfin network'],
-            'Algorand': ['algorand', 'algo', 'algorand network', 'algorand foundation'],
-            'Constellation': ['constellation network', 'constellation labs', 'dag constellation', '$dag'],
-            'HashPack': ['hashpack', 'hash pack', 'pack token', 'hashpack wallet'],
+          // 🎯 STEP 1: PRECISE CLIENT NETWORK VALIDATION (prevents false positives)
+          const validatedClientNetwork = validateClientNetworkContent(title, content, source);
+          if (validatedClientNetwork) {
+            network = validatedClientNetwork;
+          } else {
+            // 🌟 STEP 2: GENERAL NETWORK DETECTION (for non-client networks)
+            const networkKeywords = {
             
             // Major Networks
             'Bitcoin': ['bitcoin', 'btc', 'bitcoin core', 'bitcoin network'],
@@ -1264,6 +1370,7 @@ async function fetchRealCryptoNews() {
             }
             if (network !== 'General') break;
           }
+          } // Close the else block for general network detection
 
           // Determine category
           let category = 'general';
