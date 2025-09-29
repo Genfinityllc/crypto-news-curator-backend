@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Logo Upload Admin</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .upload-form {
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: #f8f9fa;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f1b0b7;
+        }
+        .logo-list {
+            margin-top: 2rem;
+        }
+        .logo-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            background: white;
+        }
+        .logo-preview {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            margin-right: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .logo-info {
+            flex: 1;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Client Logo Upload Admin</h1>
+        
+        <div class="upload-form">
+            <h3>Upload Client Logo</h3>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="clientName">Client Network:</label>
+                    <select id="clientName" name="clientName" required>
+                        <option value="">Select a client network</option>
+                        <option value="Hedera">Hedera</option>
+                        <option value="XDC Network">XDC Network</option>
+                        <option value="Algorand">Algorand</option>
+                        <option value="Constellation">Constellation</option>
+                        <option value="HashPack">HashPack</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="displayName">Display Name (optional):</label>
+                    <input type="text" id="displayName" name="displayName" placeholder="e.g., Hedera Hashgraph">
+                </div>
+                
+                <div class="form-group">
+                    <label for="color">Brand Color (optional):</label>
+                    <input type="color" id="color" name="color" value="#007bff">
+                </div>
+                
+                <div class="form-group">
+                    <label for="logo">Logo File:</label>
+                    <input type="file" id="logo" name="logo" accept=".png,.jpg,.jpeg,.svg,.gif,.webp" required>
+                </div>
+                
+                <button type="submit">Upload Logo</button>
+            </form>
+            
+            <div id="status" class="status"></div>
+        </div>
+        
+        <div class="logo-list">
+            <h3>📁 Uploaded Logos</h3>
+            <div id="logosList">
+                <p>Loading logos...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        
+        // Upload form handler
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                statusDiv.style.display = 'none';
+                
+                const response = await fetch(`${API_BASE}/logo-upload/client`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = result.message;
+                    statusDiv.style.display = 'block';
+                    
+                    // Reset form
+                    e.target.reset();
+                    
+                    // Refresh logo list
+                    loadLogos();
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'Error: ' + error.message;
+                statusDiv.style.display = 'block';
+            }
+        });
+        
+        // Load and display uploaded logos
+        async function loadLogos() {
+            try {
+                const response = await fetch(`${API_BASE}/logo-upload/list`);
+                const result = await response.json();
+                
+                const logosList = document.getElementById('logosList');
+                
+                if (result.success && result.data.length > 0) {
+                    logosList.innerHTML = result.data.map(logo => `
+                        <div class="logo-item">
+                            <img src="${logo.url}" alt="${logo.filename}" class="logo-preview">
+                            <div class="logo-info">
+                                <strong>${logo.filename}</strong><br>
+                                <small>Size: ${(logo.size / 1024).toFixed(1)} KB | Modified: ${new Date(logo.modified).toLocaleDateString()}</small>
+                            </div>
+                            <button class="delete-btn" onclick="deleteLogo('${logo.filename}')">Delete</button>
+                        </div>
+                    `).join('');
+                } else {
+                    logosList.innerHTML = '<p>No logos uploaded yet.</p>';
+                }
+                
+            } catch (error) {
+                document.getElementById('logosList').innerHTML = '<p>Error loading logos: ' + error.message + '</p>';
+            }
+        }
+        
+        // Delete logo function
+        async function deleteLogo(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/logo-upload/${filename}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    loadLogos(); // Refresh the list
+                } else {
+                    alert('Error deleting logo: ' + result.error);
+                }
+                
+            } catch (error) {
+                alert('Error deleting logo: ' + error.message);
+            }
+        }
+        
+        // Load logos on page load
+        loadLogos();
+    </script>
+</body>
+</html>

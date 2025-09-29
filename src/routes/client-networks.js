@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const logger = require('../utils/logger');
 
@@ -7,8 +9,32 @@ const logger = require('../utils/logger');
  * Provides logos, descriptions, and other metadata for client network buttons
  */
 
-// Client network metadata with official logos and branding
-const CLIENT_NETWORK_METADATA = {
+/**
+ * Helper function to get logo URL (uploaded logo first, then external fallback)
+ */
+function getLogoUrl(networkName, fallbackUrl) {
+  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'logos');
+  const safeName = networkName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  
+  // Check for various logo file extensions
+  const extensions = ['.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp'];
+  
+  for (const ext of extensions) {
+    const logoPath = path.join(uploadsDir, `${safeName}_logo${ext}`);
+    if (fs.existsSync(logoPath)) {
+      const logoUrl = `/uploads/logos/${safeName}_logo${ext}`;
+      logger.info(`📁 Using uploaded logo for ${networkName}: ${logoUrl}`);
+      return logoUrl;
+    }
+  }
+  
+  // Fall back to external URL
+  logger.info(`🌐 Using external logo for ${networkName}: ${fallbackUrl}`);
+  return fallbackUrl;
+}
+
+// Base client network metadata template (logos will be resolved dynamically)
+const CLIENT_NETWORK_BASE_METADATA = {
   'Hedera': {
     name: 'Hedera',
     displayName: 'Hedera Hashgraph',
@@ -97,6 +123,23 @@ const CLIENT_NETWORK_METADATA = {
   }
 };
 
+/**
+ * Generate client network metadata with resolved logo URLs
+ */
+function getClientNetworkMetadata() {
+  const metadata = {};
+  
+  for (const [networkName, baseData] of Object.entries(CLIENT_NETWORK_BASE_METADATA)) {
+    metadata[networkName] = {
+      ...baseData,
+      logo: getLogoUrl(networkName, baseData.logo),
+      logoSquare: getLogoUrl(networkName, baseData.logoSquare)
+    };
+  }
+  
+  return metadata;
+}
+
 // Major cryptocurrency networks for reference
 const MAJOR_NETWORK_METADATA = {
   'Bitcoin': {
@@ -143,6 +186,7 @@ router.get('/', async (req, res) => {
     const { includeAll = 'false', clientsOnly = 'true' } = req.query;
     
     let networks = {};
+    const CLIENT_NETWORK_METADATA = getClientNetworkMetadata();
     
     if (clientsOnly === 'true') {
       // Return only client networks
@@ -187,6 +231,7 @@ router.get('/', async (req, res) => {
 router.get('/:networkName', async (req, res) => {
   try {
     const { networkName } = req.params;
+    const CLIENT_NETWORK_METADATA = getClientNetworkMetadata();
     const allNetworks = { ...CLIENT_NETWORK_METADATA, ...MAJOR_NETWORK_METADATA };
     
     // Find network by exact name or case-insensitive match
@@ -228,6 +273,7 @@ router.get('/:networkName', async (req, res) => {
 router.get('/counts/with-metadata', async (req, res) => {
   try {
     const { getArticles } = require('../config/supabase');
+    const CLIENT_NETWORK_METADATA = getClientNetworkMetadata();
     
     const networksWithCounts = [];
     
@@ -283,6 +329,7 @@ router.get('/counts/with-metadata', async (req, res) => {
 router.get('/buttons/config', async (req, res) => {
   try {
     const { includeArticleCounts = 'false' } = req.query;
+    const CLIENT_NETWORK_METADATA = getClientNetworkMetadata();
     
     const buttonConfigs = Object.values(CLIENT_NETWORK_METADATA).map(network => ({
       id: network.name.toLowerCase(),
