@@ -1019,25 +1019,28 @@ async function fetchRealCryptoNews() {
       
       // CLIENT-SPECIFIC OFFICIAL RSS FEEDS: Maximum coverage with 100% image guarantee
       'https://hedera.com/blog/feed/',               // Hedera official blog - enterprise content with professional images ✅
+      'https://medium.com/feed/xdcnetworknews',      // XDC Network News Medium - exclusive updates with featured images ✅
       'https://medium.com/feed/xdcnetwork',          // XDC Network official Medium - featured images guaranteed ✅
       'https://algorand.co/blog/feed/',              // Algorand Foundation blog - monthly reports with charts ✅
       'https://constellationnetwork.io/blog/feed/',  // Constellation official blog - technical updates with diagrams ✅
       'https://www.hashpack.app/blog/feed/',         // HashPack official blog - wallet updates with screenshots ✅
       
-      // CLIENT-SPECIFIC MAJOR CRYPTO SITE COVERAGE: Targeted tags for increased visibility
-      'https://cointelegraph.com/tags/hedera/rss',   // CoinTelegraph Hedera tag - high-quality journalism ✅
-      'https://crypto.news/algorand/feed/',          // Crypto.news Algorand section - dedicated coverage ✅
-      'https://decrypt.co/tag/hedera/feed',          // Decrypt Hedera coverage - enterprise blockchain focus ✅
+      // CLIENT-SPECIFIC MAJOR CRYPTO SITE COVERAGE: Enhanced targeting for better client visibility
+      'https://cointelegraph.com/tags/hedera/rss',   // CoinTelegraph Hedera tag - enterprise blockchain journalism ✅
+      'https://cointelegraph.com/tags/algorand/rss', // CoinTelegraph Algorand tag - DeFi and staking coverage ✅
+      'https://crypto.news/hedera/feed/',            // Crypto.news Hedera section - dedicated HBAR coverage ✅
+      'https://crypto.news/xdc-network/feed/',       // Crypto.news XDC section - trade finance focus ✅
+      'https://decrypt.co/tag/hedera/feed',          // Decrypt Hedera - enterprise blockchain focus ✅
+      'https://decrypt.co/tag/algorand/feed',        // Decrypt Algorand - DeFi ecosystem coverage ✅
+      'https://beincrypto.com/tag/hedera/feed/',     // BeInCrypto Hedera - technical analysis with charts ✅
+      'https://beincrypto.com/tag/xdc-network/feed/', // BeInCrypto XDC - trade finance blockchain coverage ✅
       
       // Enhanced client network searches with press release keywords
       'https://news.google.com/rss/search?q=Hedera+Hashgraph+OR+HBAR+OR+"Hedera+press+release"+OR+"HashPack"&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q="XDC+Network"+OR+"XinFin"+OR+"XDC+token"+OR+"trade+finance+blockchain"&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q=Algorand+OR+ALGO+OR+"Algorand+Foundation"+OR+"Pure+Proof+of+Stake"&hl=en-US&gl=US&ceid=US:en',
       'https://news.google.com/rss/search?q="Constellation+Network"+OR+"DAG+crypto"+OR+"$DAG"+OR+"Constellation+DAG"&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=HashPack+OR+"PACK+token"+OR+"Hedera+wallet"+OR+"HashPack+Hedera"&hl=en-US&gl=US&ceid=US:en',
-      
-      // PHASE 1 ADDITION: SWAP token coverage
-      'https://news.google.com/rss/search?q="SWAP+token"+OR+"SWAP+DeFi"+OR+"SWAP+protocol"+OR+"SWAP+DEX"&hl=en-US&gl=US&ceid=US:en'
+      'https://news.google.com/rss/search?q=HashPack+OR+"PACK+token"+OR+"Hedera+wallet"+OR+"HashPack+Hedera"&hl=en-US&gl=US&ceid=US:en'
     ];
 
     const allArticles = [];

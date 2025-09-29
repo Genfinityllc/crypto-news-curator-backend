@@ -34,7 +34,7 @@ const logger = require('../utils/logger');
  */
 
 // Client network definitions - single source of truth
-const CLIENT_NETWORKS = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+const CLIENT_NETWORKS = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
 
 /**
  * Main unified news endpoint
