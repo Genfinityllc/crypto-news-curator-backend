@@ -115,6 +115,7 @@ app.use('/api/cron-manual', require('./routes/cron-manual'));
 app.use('/api/auto-update', require('./routes/auto-update'));
 app.use('/api/temp-cleanup', require('./routes/temp-cleanup')); // Temp file management for Railway
 app.use('/api/press-releases', require('./routes/press-releases')); // Legal PRNewswire workaround - keyword extraction
+app.use('/api/client-networks', require('./routes/client-networks')); // Client network metadata with logos
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
 
 // Conditionally add Firebase auth routes if available
