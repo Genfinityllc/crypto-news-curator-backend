@@ -54,17 +54,26 @@ class NanoBananaService {
       logger.info(`🎨 Generating Nano Banana image for: ${articleData.title}`);
 
       // Create sophisticated crypto-themed prompt
+      logger.info('🔧 Creating crypto prompt...');
       const prompt = this.createCryptoPrompt(articleData, { style, includeNetwork, aspectRatio });
       
       logger.info(`📝 Using prompt: ${prompt}`);
 
       // Use Google AI Gemini 2.5 Flash Image (Nano Banana)
       logger.info('🍌 Generating image with Nano Banana (Google Gemini 2.5 Flash Image)');
+      logger.info(`🔑 Using Google AI API Key: ${this.googleApiKey ? 'PRESENT' : 'MISSING'}`);
+      
+      if (!this.genAI) {
+        throw new Error('Google AI client not initialized');
+      }
       
       const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" });
+      logger.info('🤖 Model created, calling generateContent...');
       
       const result = await model.generateContent([prompt]);
+      logger.info('📥 Received response from Google AI');
       const response = await result.response;
+      logger.info('📋 Response parsed successfully');
       
       // Extract image data from response following official Gemini pattern
       const parts = response.candidates[0].content.parts;
@@ -73,9 +82,12 @@ class NanoBananaService {
       for (const part of parts) {
         if (part.text !== null && part.text !== undefined) {
           logger.info(`🍌 Nano Banana response text: ${part.text}`);
-        } else if (part.inline_data !== null && part.inline_data !== undefined) {
-          logger.info('🍌 Found image data in Nano Banana response');
-          imageBuffer = Buffer.from(part.inline_data.data, 'base64');
+        } else if (part.inline_data || part.inlineData) {
+          // Handle both snake_case and camelCase formats
+          const imageData = part.inline_data || part.inlineData;
+          const mimeType = imageData.mime_type || imageData.mimeType;
+          logger.info(`🍌 Found image data in Nano Banana response: ${mimeType}`);
+          imageBuffer = Buffer.from(imageData.data, 'base64');
           break;
         }
       }
@@ -87,21 +99,28 @@ class NanoBananaService {
       // Process with title overlay
       const savedImage = await this.processAndSaveImageWithTitle(imageBuffer, articleData, size);
       
-      logger.info(`✅ Nano Banana image generated successfully: ${savedImage.filename}`);
+      logger.info(`✅ REAL GOOGLE AI NANO BANANA SUCCESS: ${savedImage.filename}`);
+      // Add a marker to indicate this came from real Google AI
+      savedImage.source = 'REAL_GOOGLE_AI_NANO_BANANA';
       return savedImage;
 
     } catch (error) {
-      logger.error('❌ Nano Banana image generation failed:', {
+      logger.error('❌ Nano Banana image generation failed - FULL ERROR DETAILS:', {
         message: error.message,
         status: error.status,
         statusText: error.statusText,
         code: error.code,
-        stack: error.stack?.substring(0, 500),
-        details: error.details || error.response?.data
+        name: error.name,
+        details: error.details,
+        response: error.response,
+        data: error.response?.data,
+        stack: error.stack,
+        fullError: JSON.stringify(error, null, 2)
       });
       
-      // Final fallback to enhanced placeholder with title overlay
+      // Fallback to enhanced placeholder with title overlay when Google AI fails
       try {
+        logger.warn('⚠️ Google AI failed, using enhanced placeholder fallback');
         const fallbackImage = await this.generateEnhancedPlaceholderWithTitle(articleData, options);
         logger.info(`🔄 Using fallback placeholder image with title overlay: ${fallbackImage.filename}`);
         return fallbackImage;
@@ -116,6 +135,7 @@ class NanoBananaService {
    * Call the real Nano Banana API for context-based image generation
    */
   async callNanoBananaAPI(prompt, articleData) {
+    throw new Error('FALLBACK DISABLED FOR TESTING - Only Google AI allowed');
     try {
       logger.info('🍌 Generating Nano Banana style image with context prompt');
       
@@ -150,6 +170,7 @@ class NanoBananaService {
    * Generate Nano Banana style image (simulation until real API is available)
    */
   async generateNanoBananaStyleImage(articleData) {
+    throw new Error('FALLBACK DISABLED FOR TESTING - Only Google AI allowed');
     const networkColors = {
       'Bitcoin': '#f7931a',
       'Ethereum': '#627eea', 
@@ -505,6 +526,7 @@ class NanoBananaService {
    * Generate enhanced placeholder image when API is not available
    */
   async generateEnhancedPlaceholder(articleData, options = {}) {
+    throw new Error('FALLBACK DISABLED FOR TESTING - Only Google AI allowed');
     const { size = 'medium' } = options;
     
     try {
