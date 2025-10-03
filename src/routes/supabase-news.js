@@ -7,6 +7,7 @@ const { generateCoverImage, generateCardCoverImage } = require('../services/imag
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
 const articlesCacheService = require('../services/articlesCacheService');
 const nanoBananaService = require('../services/nanoBananaService');
+const LoRAiService = require('../services/loraAiService');
 const logger = require('../utils/logger');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -15,6 +16,9 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+
+// Initialize LoRA AI service
+const loraAiService = new LoRAiService();
 
 // Get all news articles with filtering and pagination
 router.get('/', async (req, res) => {
@@ -743,6 +747,47 @@ router.get('/top-networks', async (req, res) => {
   }
 });
 
+// Get AI services status
+router.get('/ai-services-status', async (req, res) => {
+  try {
+    const loraStatus = await loraAiService.getStatus();
+    const nanoBananaStatus = nanoBananaService.isAvailable();
+    
+    res.json({
+      success: true,
+      services: {
+        lora: {
+          available: loraStatus.available,
+          service: loraStatus.service,
+          aiCoverGeneratorUrl: loraStatus.aiCoverGeneratorUrl,
+          clientMappings: loraStatus.clientMappings,
+          lastChecked: loraStatus.lastChecked,
+          priority: 1
+        },
+        nanoBanana: {
+          available: nanoBananaStatus,
+          service: 'Nano Banana (Google Gemini)',
+          priority: 2
+        },
+        traditional: {
+          available: true,
+          service: 'Traditional Image Service',
+          priority: 3
+        }
+      },
+      recommendation: loraStatus.available ? 'LoRA' : (nanoBananaStatus ? 'Nano Banana' : 'Traditional'),
+      lastChecked: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error getting AI services status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting AI services status',
+      error: error.message
+    });
+  }
+});
+
 // Get Google AI credits balance
 router.get('/google-ai-credits', async (req, res) => {
   try {
@@ -954,23 +999,40 @@ router.post('/generate-card-image/:id?', async (req, res) => {
     
     logger.info(`Generating card image for article: ${article.title}`);
     
-    // Check if user wants Nano Banana or traditional image generation
+    // Check generation method preference - LoRA (preferred), Nano Banana, or traditional
+    const useLoRA = req.body.useLoRA !== false; // Default to true
     const useNanoBanana = req.body.useNanoBanana || req.query.useNanoBanana;
     
     let cardImages;
+    let generationMethod = 'traditional';
     
-    if (useNanoBanana && nanoBananaService.isAvailable()) {
-      logger.info('🎨 Using Nano Banana AI image generation');
+    if (useLoRA && loraAiService.isAvailable()) {
+      logger.info('🎨 Using LoRA AI cover generation (client-specific)');
       try {
-        const nanoBananaResult = await nanoBananaService.generateCryptoNewsImage(article, { size });
-        cardImages = nanoBananaResult.cardImages;
-      } catch (nanoBananaError) {
-        logger.warn('Nano Banana failed, falling back to traditional generation:', nanoBananaError.message);
-        cardImages = await generateCardCoverImage(article);
+        const loraResult = await loraAiService.generateCryptoNewsImage(article, { size });
+        if (loraResult.success) {
+          cardImages = {
+            small: loraResult.coverUrl,
+            medium: loraResult.coverUrl,
+            large: loraResult.coverUrl,
+            square: loraResult.coverUrl
+          };
+          generationMethod = 'lora';
+        } else {
+          throw new Error('LoRA generation failed');
+        }
+      } catch (loraError) {
+        logger.error('LoRA generation failed:', loraError.message);
+        throw new Error(`LoRA generation failed: ${loraError.message}`);
       }
     } else {
-      // Traditional image generation
-      cardImages = await generateCardCoverImage(article);
+      // LoRA-only mode - return error instead of throwing
+      return res.status(503).json({
+        success: false,
+        message: 'LoRA service is not available and fallbacks are disabled for testing',
+        error: 'LoRA_UNAVAILABLE',
+        service: 'lora'
+      });
     }
     
     res.json({
@@ -979,6 +1041,7 @@ router.post('/generate-card-image/:id?', async (req, res) => {
         coverImage: cardImages[size] || cardImages.medium,
         cardImages: cardImages,
         selectedSize: size,
+        generationMethod: generationMethod,
         article: {
           id: article.id,
           title: article.title,
@@ -997,7 +1060,109 @@ router.post('/generate-card-image/:id?', async (req, res) => {
   }
 });
 
-// Generate AI-powered Nano Banana images for crypto news
+// Generate LoRA-based AI images for crypto news with client-specific branding
+router.post('/generate-lora-image/:id?', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      size = '1792x896', 
+      style = 'professional', 
+      title, 
+      network, 
+      category, 
+      url 
+    } = req.body;
+
+    if (!loraAiService.isAvailable()) {
+      return res.status(503).json({
+        success: false,
+        message: 'LoRA AI service is not available. Please check AI Cover Generator configuration.',
+        fallback: 'Will use Nano Banana or traditional generation'
+      });
+    }
+
+    let article;
+
+    if (id) {
+      // Get article from database
+      const { data: articles } = await getArticles({ limit: 1000 });
+      article = articles?.find(a => a.id === id);
+      
+      if (!article) {
+        return res.status(404).json({
+          success: false,
+          message: 'Article not found'
+        });
+      }
+    } else {
+      // Use provided article data
+      article = {
+        title: title || 'Sample Crypto News',
+        network: network || 'Bitcoin',
+        category: category || 'general',
+        url: url || 'https://example.com'
+      };
+    }
+
+    logger.info(`🎨 Generating LoRA AI image for: ${article.title}`);
+
+    // Generate client-specific branded image using LoRA
+    const loraResult = await loraAiService.generateCryptoNewsImage(article, {
+      size,
+      style,
+      includeWatermark: false
+    });
+
+    if (!loraResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'LoRA image generation failed',
+        error: loraResult.error || 'Unknown error',
+        service: 'lora'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        coverImage: loraResult.coverUrl,
+        cardImages: {
+          small: loraResult.coverUrl,
+          medium: loraResult.coverUrl,
+          large: loraResult.coverUrl,
+          square: loraResult.coverUrl
+        },
+        selectedSize: size,
+        style,
+        service: 'lora',
+        clientId: loraResult.clientId,
+        generationMethod: loraResult.generationMethod,
+        article: {
+          id: article.id,
+          title: article.title,
+          network: article.network
+        },
+        generation: {
+          timestamp: loraResult.generatedAt,
+          model: 'LoRA-SDXL',
+          quality: 'high',
+          metadata: loraResult.metadata
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error generating LoRA image:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating AI image with LoRA',
+      error: error.message,
+      service: 'lora'
+    });
+  }
+});
+
+// Generate AI-powered Nano Banana images for crypto news (fallback)
 router.post('/generate-nano-banana-image/:id?', async (req, res) => {
   try {
     const { id } = req.params;

@@ -1,62 +1,37 @@
-# Railway deployment ignore file  
-# 🚀 OPTIMIZED FOR DEPLOYMENT SUCCESS - Excludes all heavy files
+# Node modules
+node_modules/
 
-# 🧹 TEMP FILES - EXCLUDE ALL (will be recreated automatically)
-temp/
-screenshots/
-*.jpg
-*.png  
-*.jpeg
-*.gif
-*.webp
-
-# 📁 LOG FILES - EXCLUDE ALL (prevent bloat)
+# Logs
 logs/
 *.log
+npm-debug.log*
 
-# 🖼️ IMAGE SERVICES - EXCLUDE HEAVY DEPENDENCIES  
-src/services/imageValidationService.js
+# AI Cover Generator (too large for Railway) 
+ai-cover-generator/training_data/
+ai-cover-generator/models/
+ai-cover-generator/external/
+*.safetensors
+*.ckpt
+*.pth
 
-# Development files
-node_modules/
+# Temporary files
+temp/
+uploads/
+*.tmp
+
+# Environment files
+.env
 .env.local
-.env.development
+.env.production
 
-# Backup files
-*.backup
-package-full.json.backup
-package-minimal.json
-
-# Screenshots and large assets
-*.png
-*.jpg
-*.jpeg
-frontend-*.png
-screenshot-*.js
-
-# Development tools
+# IDE files
 .vscode/
 .idea/
-*.log
 
-# Database files
-database/*.db
-*.sqlite
-*.sqlite3
-
-# Documentation (deploy docs separately)
-docs/
-README.md
-
-# Cleanup and fix scripts (not needed in production)
-cleanup-*.js
-ultra-*.js
-fix-*.js
-
-# Git files
-.git/
-.gitignore
-
-# macOS
+# OS files
 .DS_Store
 Thumbs.db
+
+# Cache
+.cache/
+*.cache

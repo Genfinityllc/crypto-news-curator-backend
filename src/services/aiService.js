@@ -210,11 +210,12 @@ async function rewriteArticle(title, originalContent, articleUrl = null) {
 
           🎯 CORE OBJECTIVES:
           1. ORIGINALITY: Create 100% original content that doesn't resemble the source
-          2. READABILITY: Target 97+ Flesch Reading Ease score using:
-             - Short sentences (12-18 words average)
-             - Simple, clear vocabulary
-             - Active voice (80%+ of sentences)
-             - Smooth transitions and flow
+          2. READABILITY: Target 95+ Flesch Reading Ease score using:
+             - Very short sentences (8-12 words maximum)
+             - Simple, everyday vocabulary (avoid technical jargon)
+             - Active voice only (no passive voice)
+             - Clear, direct statements
+             - Common words instead of complex terms
           3. SEO OPTIMIZATION: Natural keyword integration for crypto terms
           4. ENGAGEMENT: Conversational, compelling tone that drives shares
           5. GOOGLE ADS COMPLIANCE: Family-friendly, advertiser-safe content
@@ -230,10 +231,11 @@ async function rewriteArticle(title, originalContent, articleUrl = null) {
           - Call-to-Action: Engaging conclusion that encourages sharing
 
           📊 TECHNICAL SPECS:
-          - Length: 300-450 words (optimal for engagement)
-          - Paragraphs: 2-3 sentences max
-          - Headlines: Use power words and numbers when relevant
-          - Tone: Professional yet accessible, enthusiastic but not hyperbolic
+          - Length: 400-600 words (optimal for engagement and readability)
+          - Paragraphs: 1-2 short sentences max
+          - Sentences: 8-12 words maximum for 95+ readability
+          - Vocabulary: Elementary level, avoid complex terms
+          - Tone: Simple, clear, and direct
 
           Return ONLY the rewritten article content, no additional formatting or explanations.`
         },
@@ -249,14 +251,14 @@ ${originalContent}
 REWRITE REQUIREMENTS:
 1. Preserve ALL facts, figures, names, dates, prices, and percentages exactly
 2. Transform structure and phrasing completely for 100% originality  
-3. Use short sentences (12-18 words average) for 97+ readability score
-4. Write in engaging, conversational tone that encourages sharing
+3. Use very short sentences (8-12 words maximum) for 95+ readability score
+4. Write in simple, clear language that anyone can understand
 5. Include EVERY key detail and piece of information from original
 6. Make it click-worthy and viral while staying completely factual
 7. Optimize for SEO and social media engagement
 8. Ensure Google Ads compliance (family-friendly content)
 
-Create a comprehensive, full-length rewrite (2000-2800 words) that covers all original information in fresh, highly readable format. Include detailed analysis, market implications, expert perspectives, and comprehensive background context. Structure with clear sections and provide in-depth coverage of all aspects mentioned in the original content.`
+Create a clear, readable rewrite (400-600 words) that covers all key information using simple language. Use elementary vocabulary and very short sentences. Each sentence should be 8-12 words maximum. Avoid complex terms. Make it easy to read and understand.`
         }
       ],
       max_tokens: 4000,
