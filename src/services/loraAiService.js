@@ -14,8 +14,8 @@ const execAsync = promisify(exec);
  */
 class LoRAiService {
   constructor() {
-    // Use main backend endpoint for AI cover generation
-    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'https://crypto-news-curator-backend-production.up.railway.app/api/ai-cover';
+    // Use ACTUAL deployed AI Cover Generator service
+    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'https://ai-cover-generator-production.up.railway.app';
     this.aiCoverGeneratorPath = path.join(__dirname, '../../ai-cover-generator');
     this.initialized = false;
     this.useExternalService = true; // Use main backend endpoint
