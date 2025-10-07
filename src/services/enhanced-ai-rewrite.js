@@ -3,14 +3,22 @@
 
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
-const FactCheckService = require('./factCheckService');
 
-// Initialize OpenAI and Fact Check Service
+// Optional fact-checking service
+let FactCheckService = null;
+let factCheckService = null;
+try {
+  FactCheckService = require('./factCheckService');
+  factCheckService = new FactCheckService();
+  logger.info('✅ Fact-checking service initialized');
+} catch (error) {
+  logger.warn(`⚠️ Fact-checking service disabled: ${error.message}`);
+}
+
+// Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-const factCheckService = new FactCheckService();
 
 /**
  * Generate credible cryptocurrency sources
@@ -332,9 +340,16 @@ MARKET SENTIMENT: ${cryptoElements.sentiment}
 
 MANDATORY CONTENT STRUCTURE (TARGET: 400-800 WORDS):
 1. Opening paragraph (120-150 words) - Establish context and hook readers
-2. H2: Market Impact and Analysis (180-220 words) - Technical analysis and market data
-3. H2: Investment Insights and Strategy (150-200 words) - Actionable investment guidance  
-4. H2: Future Outlook and Implications (120-180 words) - Forward-looking analysis
+2. H2: [Create unique heading based on article content] (180-220 words) - Technical analysis and market data
+3. H2: [Create unique heading based on article content] (150-200 words) - Actionable investment guidance  
+4. H2: [Create unique heading based on article content] (120-180 words) - Forward-looking analysis
+
+CRITICAL H2 HEADING REQUIREMENTS:
+- DO NOT use templated headings like "Market Impact and Analysis" or "Investment Insights and Strategy"
+- Create unique, content-specific H2 headings that relate directly to the article topic
+- Examples for Bitcoin article: "Bitcoin's Price Surge Drivers", "Institutional Adoption Trends", "Regulatory Impact on Bitcoin"
+- Examples for Ethereum article: "Layer 2 Scaling Solutions", "DeFi Protocol Integration", "Ethereum 2.0 Transition Effects"
+- Make each H2 heading specific to the content being discussed in that section
 
 CRITICAL WORD COUNT REQUIREMENTS:
 - Final article MUST be between 400-800 words
@@ -465,18 +480,27 @@ Write the article now:`;
     const coverPrompt = generateIntelligentCoverPrompt(finalTitle, cryptoElements);
     
     // Perform fact-checking analysis
-    logger.info('🔍 Running fact-check analysis...');
     let factCheckResult = null;
-    try {
-      factCheckResult = await factCheckService.factCheckArticle(
-        finalContent, 
-        content, 
-        finalTitle, 
-        cryptoElements.primaryNetwork
-      );
-      logger.info(`📊 Fact-check completed: Score ${factCheckResult.overall_score}/100, Confidence: ${factCheckResult.confidence_level}`);
-    } catch (factCheckError) {
-      logger.warn(`⚠️ Fact-check failed: ${factCheckError.message}`);
+    if (factCheckService) {
+      try {
+        logger.info('🔍 Running fact-check analysis...');
+        factCheckResult = await factCheckService.factCheckArticle(
+          finalContent, 
+          content, 
+          finalTitle, 
+          cryptoElements.primaryNetwork
+        );
+        logger.info(`📊 Fact-check completed: Score ${factCheckResult.overall_score}/100, Confidence: ${factCheckResult.confidence_level}`);
+        
+        // If fact-check provides verified sources, we could integrate them here
+        if (factCheckResult.fact_verification && factCheckResult.fact_verification.verification_results) {
+          logger.info(`🔗 Found ${factCheckResult.fact_verification.verification_results.length} verified sources`);
+        }
+      } catch (factCheckError) {
+        logger.warn(`⚠️ Fact-check failed: ${factCheckError.message}`);
+      }
+    } else {
+      logger.info('📋 Fact-checking service not available');
     }
     
     logger.info(`✅ Advanced rewrite complete - Title: "${finalTitle}" (${finalTitle.split(' ').length} words), Content: ${wordCount} words, Readability: ${readabilityScore}%, SEO: ${seoScore}%`);
