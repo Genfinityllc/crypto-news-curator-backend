@@ -209,7 +209,7 @@ class LoRAiService {
       logger.error(`❌ LoRA cover generation failed: ${error.message}`);
       
       // FORCE LORA TESTING - NO FALLBACKS ALLOWED
-      throw new Error(`LoRA Testing Mode - Generation failed: ${error.message}. NO FALLBACKS - MUST FIX LORA SERVICE.`);
+      throw new Error(`LoRA service unavailable. AI Cover Generator service needs to be deployed separately on Railway.`);
     }
   }
 
@@ -262,8 +262,8 @@ class LoRAiService {
     } catch (error) {
       logger.error(`❌ External AI service failed: ${error.message}`);
       
-      // FORCE LORA TESTING - NO FALLBACKS ALLOWED
-      throw new Error(`External LoRA Service failed: ${error.message}. NO FALLBACKS - MUST FIX LORA SERVICE.`);
+      // FORCE LORA TESTING - NO FALLBACKS ALLOWED  
+      throw new Error(`LoRA service unavailable. AI Cover Generator service needs to be deployed separately on Railway.`);
     }
   }
 

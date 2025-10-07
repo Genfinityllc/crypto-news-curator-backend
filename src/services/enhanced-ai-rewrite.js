@@ -167,8 +167,16 @@ function generateShortSEOTitle(originalTitle, cryptoElements) {
   let selectedTitle;
   
   if (foundAction) {
-    // Use action-based title (4 words)
-    selectedTitle = `${network} Price ${foundAction}s Today`;
+    // Use action-based title with proper grammar
+    if (foundAction === 'surge' || foundAction === 'rise' || foundAction === 'gain') {
+      selectedTitle = `${network} Price Surges`;
+    } else if (foundAction === 'drop' || foundAction === 'fall' || foundAction === 'loss') {
+      selectedTitle = `${network} Price Drops`;
+    } else if (foundAction === 'break' || foundAction === 'hit' || foundAction === 'reach') {
+      selectedTitle = `${network} Price Breaks High`;
+    } else {
+      selectedTitle = `${network} Price Movement`;
+    }
   } else if (sentiment === 'positive') {
     // Positive sentiment (3 words)
     selectedTitle = `${network} Market Surge`;
