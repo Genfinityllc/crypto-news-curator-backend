@@ -2,6 +2,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
 const axios = require('axios');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+
+const execAsync = promisify(exec);
 
 /**
  * LoRA-based AI Cover Generation Service
@@ -10,26 +14,100 @@ const axios = require('axios');
  */
 class LoRAiService {
   constructor() {
-    this.aiCoverGeneratorUrl = process.env.AI_COVER_GENERATOR_URL || 'http://localhost:8000';
+    // FORCE LORA TESTING - Use local service for full LoRA testing
+    this.aiServiceUrl = 'http://localhost:8000'; // Force local service
+    this.aiCoverGeneratorPath = path.join(__dirname, '../../ai-cover-generator');
     this.initialized = false;
+    this.useExternalService = true; // Use local service running on 8000
     this.clientMapping = this.initializeClientMapping();
+    this.forceLoRAMode = true; // Testing flag
     
     this.initialize();
   }
 
   async initialize() {
+    if (this.forceLoRAMode) {
+      // FORCE LOCAL LORA TESTING - Use local AI service
+      logger.info('🧪 FORCE LORA MODE: Testing with local AI service on port 8000');
+      
+      try {
+        // Test local AI service connection
+        const response = await axios.get(`${this.aiServiceUrl}/health`, { timeout: 2000 });
+        
+        if (response.status === 200) {
+          this.initialized = true;
+          this.useExternalService = true;
+          logger.info('✅ LoRA AI Service ready for FULL TESTING (local service on port 8000)');
+          return;
+        }
+      } catch (error) {
+        logger.error('❌ Local AI service not available on port 8000. Make sure it\'s running.');
+        this.initialized = false;
+        return;
+      }
+    }
+
     try {
-      // Test connection to AI Cover Generator service
-      const response = await axios.get(`${this.aiCoverGeneratorUrl}/health`, { timeout: 5000 });
+      // Normal operation - try external service first
+      const response = await axios.get(`${this.aiServiceUrl}/health`, { timeout: 2000 });
       
       if (response.status === 200) {
         this.initialized = true;
-        logger.info('✅ LoRA AI Cover Generator service connected');
+        this.useExternalService = true;
+        logger.info(`✅ LoRA AI Service connected at ${this.aiServiceUrl}`);
+        return;
       }
     } catch (error) {
-      logger.warn('⚠️  LoRA AI Cover Generator service not available, will use fallback');
+      logger.info(`🔍 External AI service not available, checking local LoRA...`);
+    }
+
+    try {
+      // Check if local script exists
+      const generatorScript = path.join(this.aiCoverGeneratorPath, 'boxed_subtitle_generator.py');
+      await fs.access(generatorScript);
+      this.initialized = true;
+      this.useExternalService = false;
+      logger.info('✅ LoRA AI Service ready with local LoRA generation');
+    } catch (error) {
+      logger.error('❌ Neither external service nor local LoRA script available');
       this.initialized = false;
     }
+  }
+
+  /**
+   * Generate intelligent fallback cover with network branding
+   */
+  generateIntelligentFallback(title, articleData) {
+    const network = articleData?.network || 'crypto';
+    const clientId = articleData?.client_id || 'generic';
+    
+    // Network-specific color schemes
+    const networkColors = {
+      'hedera': { bg: '8B2CE6', text: 'FFFFFF', name: 'Hedera' },
+      'algorand': { bg: '0078CC', text: 'FFFFFF', name: 'Algorand' },
+      'constellation': { bg: '484D8B', text: 'FFFFFF', name: 'Constellation' },
+      'bitcoin': { bg: 'F7931A', text: '000000', name: 'Bitcoin' },
+      'ethereum': { bg: '627EEA', text: 'FFFFFF', name: 'Ethereum' },
+      'solana': { bg: '9945FF', text: 'FFFFFF', name: 'Solana' },
+      'generic': { bg: '4A90E2', text: 'FFFFFF', name: 'Crypto' }
+    };
+    
+    const colors = networkColors[network.toLowerCase()] || networkColors['generic'];
+    const safeTitle = encodeURIComponent(title.substring(0, 50));
+    
+    // Create intelligent placeholder with network branding
+    const fallbackUrl = `https://via.placeholder.com/1800x900/${colors.bg}/${colors.text}?text=${safeTitle}+%7C+${colors.name}+News`;
+    
+    return {
+      success: true,
+      image_url: fallbackUrl,
+      metadata: {
+        method: 'intelligent_fallback',
+        network: colors.name,
+        colors: colors,
+        generated_at: new Date().toISOString()
+      }
+    };
   }
 
   initializeClientMapping() {
@@ -104,8 +182,7 @@ class LoRAiService {
   async generateCryptoNewsImage(articleData, options = {}) {
     try {
       if (!this.isAvailable()) {
-        logger.info('🧪 LoRA service unavailable, generating test image');
-        return await this.generateFallbackCover(articleData);
+        throw new Error('LoRA service not available');
       }
 
       const {
@@ -116,55 +193,144 @@ class LoRAiService {
 
       // Detect client for LoRA selection
       const clientId = this.detectClientFromArticle(articleData);
+      const subtitle = this.createSubtitle(articleData);
       
       logger.info(`🎨 Generating LoRA cover for article: ${articleData.title} (Client: ${clientId})`);
 
-      // Prepare generation request
-      const generateRequest = {
-        title: articleData.title,
-        subtitle: this.createSubtitle(articleData),
-        client_id: clientId !== 'generic' ? clientId : null,
-        style: {
-          theme: style,
-          size: size,
-          enhancement: this.createEnhancement(articleData)
-        }
-      };
-
-      // Call AI Cover Generator service
-      const response = await axios.post(
-        `${this.aiCoverGeneratorUrl}/generate`, 
-        generateRequest,
-        { 
-          timeout: 60000, // 60 second timeout for generation
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.data.success) {
-        logger.info(`✅ LoRA cover generated successfully for ${articleData.title}`);
-        
-        return {
-          success: true,
-          coverUrl: response.data.image_url,
-          generationMethod: 'lora_ai',
-          clientId: clientId,
-          style: style,
-          size: size,
-          generatedAt: new Date().toISOString(),
-          metadata: response.data.metadata || {}
-        };
+      if (this.useExternalService) {
+        // Use external AI service (FastAPI)
+        return await this.generateViaExternalService(articleData, clientId, subtitle, options);
       } else {
-        throw new Error(response.data.error || 'Generation failed');
+        // Use local Python script (fallback)
+        return await this.generateViaLocalScript(articleData, clientId, subtitle, options);
       }
 
     } catch (error) {
       logger.error(`❌ LoRA cover generation failed: ${error.message}`);
       
-      // Fallback to simple generated cover
-      return await this.generateFallbackCover(articleData);
+      // FORCE LORA TESTING - NO FALLBACKS ALLOWED
+      throw new Error(`LoRA Testing Mode - Generation failed: ${error.message}. NO FALLBACKS - MUST FIX LORA SERVICE.`);
+    }
+  }
+
+  async generateViaExternalService(articleData, clientId, subtitle, options) {
+    try {
+      const requestData = {
+        title: articleData.title,
+        subtitle: subtitle,
+        client_id: clientId,
+        article_content: articleData.content || articleData.summary || '',
+        style: options.style || 'professional',
+        size: options.size || '1792x896'
+      };
+
+      logger.info(`🌐 Calling external AI service: ${this.aiServiceUrl}/generate`);
+
+      const response = await axios.post(`${this.aiServiceUrl}/generate`, requestData, {
+        timeout: 180000, // 3 minute timeout
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        // Convert external service URL to our proxy URL
+        const externalImageUrl = response.data.image_url;
+        const proxyUrl = `/ai-service-proxy${externalImageUrl}`;
+
+        logger.info(`✅ External AI service generated cover: ${externalImageUrl}`);
+        
+        return {
+          success: true,
+          coverUrl: proxyUrl,
+          generationMethod: 'external_ai_service',
+          clientId: clientId,
+          style: options.style || 'professional',
+          size: options.size || '1792x896',
+          generatedAt: new Date().toISOString(),
+          metadata: {
+            externalService: this.aiServiceUrl,
+            originalImageUrl: externalImageUrl,
+            generationTime: response.data.generation_time,
+            ...response.data.metadata
+          }
+        };
+      } else {
+        throw new Error(response.data.error || 'External service failed');
+      }
+
+    } catch (error) {
+      logger.error(`❌ External AI service failed: ${error.message}`);
+      
+      // FORCE LORA TESTING - NO FALLBACKS ALLOWED
+      throw new Error(`External LoRA Service failed: ${error.message}. NO FALLBACKS - MUST FIX LORA SERVICE.`);
+    }
+  }
+
+  async generateViaLocalScript(articleData, clientId, subtitle, options) {
+    // Original local script implementation
+    const articleContent = `${articleData.title}\n\n${articleData.content || articleData.summary || ''}`;
+    const articleTempFile = path.join(this.aiCoverGeneratorPath, 'temp_article.txt');
+    await fs.writeFile(articleTempFile, articleContent);
+
+    const pythonScript = path.join(this.aiCoverGeneratorPath, 'boxed_subtitle_generator.py');
+    
+    const env = {
+      ...process.env,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY
+    };
+
+    const command = [
+      'python3',
+      pythonScript,
+      '--title', `"${articleData.title}"`,
+      '--subtitle', `"${subtitle}"`,
+      '--client', clientId,
+      '--article', articleTempFile
+    ].join(' ');
+
+    logger.info(`🚀 Executing local script: ${command}`);
+
+    const { stdout, stderr } = await execAsync(command, {
+      cwd: this.aiCoverGeneratorPath,
+      env: env,
+      timeout: 120000
+    });
+
+    try {
+      await fs.unlink(articleTempFile);
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+
+    if (stderr && !stderr.includes('Warning') && !stderr.includes('UserWarning')) {
+      throw new Error(`Generation failed: ${stderr}`);
+    }
+
+    const outputPath = path.join(this.aiCoverGeneratorPath, 'style_outputs', `boxed_cover_${clientId}.png`);
+    
+    try {
+      await fs.access(outputPath);
+      const coverUrl = `/ai-covers/boxed_cover_${clientId}.png`;
+      
+      logger.info(`✅ Local LoRA cover generated: ${coverUrl}`);
+      
+      return {
+        success: true,
+        coverUrl: coverUrl,
+        generationMethod: 'local_script',
+        clientId: clientId,
+        style: options.style || 'professional',
+        size: options.size || '1792x896',
+        generatedAt: new Date().toISOString(),
+        metadata: {
+          outputPath: outputPath,
+          command: command,
+          stdout: stdout
+        }
+      };
+    } catch (fileError) {
+      throw new Error(`Output file not created: ${outputPath}`);
     }
   }
 
@@ -270,7 +436,7 @@ class LoRAiService {
     return {
       available: this.initialized,
       service: 'LoRA AI Cover Generator',
-      aiCoverGeneratorUrl: this.aiCoverGeneratorUrl,
+      aiCoverGeneratorPath: this.aiCoverGeneratorPath,
       clientMappings: Object.keys(this.clientMapping).length,
       lastChecked: new Date().toISOString()
     };

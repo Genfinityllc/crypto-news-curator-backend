@@ -91,6 +91,27 @@ app.use('/screenshots', express.static(path.join(__dirname, '..', 'screenshots')
 // Serve uploaded logos
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// Serve AI generated covers
+app.use('/ai-covers', express.static(path.join(__dirname, '..', 'ai-cover-generator', 'style_outputs')));
+
+// Proxy images from external AI service
+app.get('/ai-service-proxy/*', async (req, res) => {
+  try {
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const imagePath = req.path.replace('/ai-service-proxy', '');
+    const imageUrl = `${aiServiceUrl}${imagePath}`;
+    
+    const response = await require('axios').get(imageUrl, { responseType: 'stream' });
+    
+    res.set('Content-Type', response.headers['content-type']);
+    res.set('Content-Length', response.headers['content-length']);
+    
+    response.data.pipe(res);
+  } catch (error) {
+    res.status(404).json({ error: 'Image not found' });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
