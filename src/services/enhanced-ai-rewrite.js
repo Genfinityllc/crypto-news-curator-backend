@@ -3,11 +3,14 @@
 
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
+const FactCheckService = require('./factCheckService');
 
-// Initialize OpenAI
+// Initialize OpenAI and Fact Check Service
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const factCheckService = new FactCheckService();
 
 /**
  * Generate credible cryptocurrency sources
@@ -461,6 +464,21 @@ Write the article now:`;
     // Generate intelligent cover prompt
     const coverPrompt = generateIntelligentCoverPrompt(finalTitle, cryptoElements);
     
+    // Perform fact-checking analysis
+    logger.info('🔍 Running fact-check analysis...');
+    let factCheckResult = null;
+    try {
+      factCheckResult = await factCheckService.factCheckArticle(
+        finalContent, 
+        content, 
+        finalTitle, 
+        cryptoElements.primaryNetwork
+      );
+      logger.info(`📊 Fact-check completed: Score ${factCheckResult.overall_score}/100, Confidence: ${factCheckResult.confidence_level}`);
+    } catch (factCheckError) {
+      logger.warn(`⚠️ Fact-check failed: ${factCheckError.message}`);
+    }
+    
     logger.info(`✅ Advanced rewrite complete - Title: "${finalTitle}" (${finalTitle.split(' ').length} words), Content: ${wordCount} words, Readability: ${readabilityScore}%, SEO: ${seoScore}%`);
     
     return {
@@ -476,7 +494,8 @@ Write the article now:`;
       copyrightSafe: true,
       originalTitle: title,
       cryptoElements: cryptoElements,
-      intelligentCoverPrompt: coverPrompt
+      intelligentCoverPrompt: coverPrompt,
+      factCheck: factCheckResult // NEW: Add fact-check results
     };
 
   } catch (error) {
