@@ -283,7 +283,6 @@ async function generateFullLengthRewrite(title, content, articleUrl = null) {
   try {
     // Extract intelligent crypto elements
     const cryptoElements = extractCryptoElements(content, title);
-    const sources = await generateCredibleSources();
     
     logger.info(`🔍 Detected: ${cryptoElements.primaryNetwork}, Themes: ${cryptoElements.themes.join(', ')}, Sentiment: ${cryptoElements.sentiment}`);
     
@@ -306,9 +305,11 @@ CRITICAL REQUIREMENTS (MUST FOLLOW EXACTLY):
 - H2 headings without ## markdown (use text only)
 
 TITLE REQUIREMENTS (CRITICAL):
-- MUST use this EXACT title: "${shortTitle}"
-- Count the words: ${shortTitle.split(' ').length} words - this is PERFECT
-- DO NOT change this title - use it exactly as provided
+- Create a title that captures the MAIN TOPIC of the original article
+- Title MUST be exactly 3-5 words - count them carefully
+- Title should reflect the specific content being rewritten, not generic crypto terms
+- Example: If article is about "Bank of England stablecoin regulations", title could be "BOE Stablecoin Rules Update"
+- Make it relevant and specific to the actual article content
 
 ORIGINAL CONTENT TO REWRITE (MUST USE THIS EXACT CONTENT):
 Title: ${title}
@@ -334,15 +335,20 @@ READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Short paragraphs (3-4 sentences max)
 
 INTEGRATION REQUIREMENTS:
-- Naturally integrate these 5 credible sources as links:
-${sources.slice(0, 5).map((source, i) => `  ${i + 1}. <a href="${source.url}" target="_blank">${source.domain}</a>`).join('\n')}
+- Include 5 REAL, RELEVANT sources that directly support the article content
+- Research and reference actual cryptocurrency news sites, exchanges, or official project pages
+- DO NOT use generic placeholder links - find sources that actually relate to the topic
+- Examples of good sources: official project websites, major crypto exchanges, regulatory bodies, established crypto publications
+- CRITICAL: If you cannot find 5 real, relevant sources specific to the topic, use fewer sources or none at all
+- NEVER use fake, placeholder, or canned sources - only use real, verifiable links
+- Format sources as: <a href="[actual_url]" target="_blank">[domain_name]</a>
 - Include specific data points and percentages when possible
 - Write for professional investors and informed readers
 - Maintain neutral, analytical tone
 - Ensure every sentence adds value
 
 RESPONSE FORMAT (FOLLOW EXACTLY):
-TITLE: ${shortTitle}
+TITLE: [Your 3-5 word title that captures the main topic]
 
 CONTENT: [Write the complete article here with <p> and <h2> tags, NO line breaks, WordPress-ready format]
 
@@ -440,7 +446,7 @@ Write the article now:`;
       readabilityScore: readabilityScore,
       seoScore: seoScore,
       viralScore: Math.floor(Math.random() * 16) + 85, // 85-100
-      sources: sources.slice(0, 5),
+      sources: [], // Sources now embedded in content by OpenAI
       seoOptimized: true,
       wordpressReady: true,
       copyrightSafe: true,
@@ -455,9 +461,8 @@ Write the article now:`;
     // Enhanced fallback
     const cryptoElements = extractCryptoElements(content, title);
     const shortTitle = generateShortSEOTitle(title, cryptoElements);
-    const sources = await generateCredibleSources();
     
-    const fallbackContent = formatForWordPress(`<p>The ${cryptoElements.primaryNetwork} market demonstrates significant developments that professional investors should monitor closely. Recent analysis from <a href="${sources[0]?.url}" target="_blank">${sources[0]?.domain}</a> indicates evolving market dynamics with important implications for digital asset strategies.</p><h2>Market Analysis and Technical Indicators</h2><p>Current market data reveals increased institutional participation and trading volume patterns. Professional analysis from <a href="${sources[1]?.url}" target="_blank">${sources[1]?.domain}</a> suggests strengthening technical indicators across multiple timeframes. Key support and resistance levels provide important guidance for strategic positioning.</p><p>Network fundamentals continue showing positive development metrics. Data from <a href="${sources[2]?.url}" target="_blank">${sources[2]?.domain}</a> demonstrates growing adoption rates and technological advancement in core infrastructure capabilities.</p><h2>Investment Strategy and Portfolio Considerations</h2><p>Strategic allocation decisions require careful evaluation of risk-adjusted returns and correlation patterns. Research from <a href="${sources[3]?.url}" target="_blank">${sources[3]?.domain}</a> highlights shifting institutional preferences and emerging investment themes that impact portfolio construction.</p><p>Professional investors are implementing diversified approaches that balance growth potential with downside protection. Market intelligence from <a href="${sources[4]?.url}" target="_blank">${sources[4]?.domain}</a> provides valuable insights for tactical asset allocation and timing considerations.</p>`);
+    const fallbackContent = formatForWordPress(`<p>The ${cryptoElements.primaryNetwork} market demonstrates significant developments that professional investors should monitor closely. Current market dynamics show important implications for digital asset strategies and portfolio allocation decisions.</p><h2>Market Analysis and Technical Indicators</h2><p>Current market data reveals increased institutional participation and trading volume patterns. Technical indicators suggest strengthening signals across multiple timeframes. Key support and resistance levels provide important guidance for strategic positioning and risk management.</p><p>Network fundamentals continue showing positive development metrics. Growing adoption rates and technological advancement in core infrastructure capabilities indicate sustained growth potential in the sector.</p><h2>Investment Strategy and Portfolio Considerations</h2><p>Strategic allocation decisions require careful evaluation of risk-adjusted returns and correlation patterns. Shifting institutional preferences and emerging investment themes impact portfolio construction and asset selection strategies.</p><p>Professional investors are implementing diversified approaches that balance growth potential with downside protection. Market intelligence provides valuable insights for tactical asset allocation and timing considerations in volatile market conditions.</p>`);
     
     return {
       title: shortTitle,
@@ -466,7 +471,7 @@ Write the article now:`;
       readabilityScore: 98,
       seoScore: 98,
       viralScore: 88,
-      sources: sources.slice(0, 5),
+      sources: [], // No fake sources in fallback
       seoOptimized: true,
       wordpressReady: true,
       copyrightSafe: true,
