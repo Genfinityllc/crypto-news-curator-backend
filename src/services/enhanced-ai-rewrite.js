@@ -327,11 +327,17 @@ PRIMARY NETWORK: ${cryptoElements.primaryNetwork}
 KEY THEMES: ${cryptoElements.themes.join(', ')}
 MARKET SENTIMENT: ${cryptoElements.sentiment}
 
-MANDATORY CONTENT STRUCTURE:
+MANDATORY CONTENT STRUCTURE (TARGET: 400-800 WORDS):
 1. Opening paragraph (120-150 words) - Establish context and hook readers
 2. H2: Market Impact and Analysis (180-220 words) - Technical analysis and market data
 3. H2: Investment Insights and Strategy (150-200 words) - Actionable investment guidance  
-4. H2: Future Outlook and Implications (100-150 words) - Forward-looking analysis
+4. H2: Future Outlook and Implications (120-180 words) - Forward-looking analysis
+
+CRITICAL WORD COUNT REQUIREMENTS:
+- Final article MUST be between 400-800 words
+- Count words carefully to ensure minimum 400 words
+- Add additional analysis and details to reach word count if needed
+- Each section should be substantial and informative
 
 READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Maximum 15 words per sentence
