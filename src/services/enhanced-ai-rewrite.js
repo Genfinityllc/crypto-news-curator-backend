@@ -256,6 +256,10 @@ function formatForWordPress(content) {
     .replace(/\r/g, ' ')
     .replace(/\s*\n\s*/g, ' ')
     .replace(/\s+/g, ' ')
+    // CRITICAL: Remove any spacing after H2 tags specifically
+    .replace(/<\/h2>\s*\n\s*/g, '</h2>')
+    .replace(/<\/h2>\s+<p>/g, '</h2><p>')
+    .replace(/<\/h2>\s+/g, '</h2>')
     // Ensure proper HTML structure without line breaks
     .replace(/<h2>\s*/g, '<h2>')
     .replace(/\s*<\/h2>\s*/g, '</h2>')
@@ -302,7 +306,9 @@ CRITICAL REQUIREMENTS (MUST FOLLOW EXACTLY):
 - Google Ads and Google News policy compliant
 - Professional journalism standards
 - NO LINE BREAKS in final output (WordPress ready)
-- H2 headings without ## markdown (use text only)
+- H2 headings without ## markdown (use text only)  
+- CRITICAL: Do not add any line breaks, <br> tags, or spacing after H2 headings
+- H2 headings should flow directly into the next paragraph with no gaps
 
 TITLE REQUIREMENTS (CRITICAL):
 - Create a title that captures the MAIN TOPIC of the original article
@@ -356,7 +362,13 @@ INTEGRATION REQUIREMENTS - SOURCES:
 RESPONSE FORMAT (FOLLOW EXACTLY):
 TITLE: [Your 3-5 word title that captures the main topic]
 
-CONTENT: [Write the complete article here with <p> and <h2> tags, NO line breaks, WordPress-ready format]
+CONTENT: [Write the complete article here with <p> and <h2> tags, ABSOLUTELY NO LINE BREAKS OR SPACING AFTER H2 TAGS, WordPress-ready format]
+
+CRITICAL FORMATTING RULES:
+- Write all content as one continuous block with no line breaks
+- H2 tags should be immediately followed by the next paragraph without any spacing
+- Example: <h2>Market Analysis</h2><p>The market shows...</p>
+- Do NOT format like this: <h2>Market Analysis</h2>\n\n<p>The market shows...</p>
 
 Write the article now:`;
 
