@@ -124,6 +124,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/news', newsRoutes);
+app.use('/api/ai-cover', require('./routes/ai-cover')); // LoRA AI Cover Generator endpoint
 app.use('/api/unified-news', require('./routes/unified-news')); // Unified news endpoint - single source of truth
 app.use('/api/cached-news', require('./routes/cached-news')); // New ultra-fast cached route
 app.use('/api/fast-news', require('./routes/fast-news')); // Simple ultra-fast cached route

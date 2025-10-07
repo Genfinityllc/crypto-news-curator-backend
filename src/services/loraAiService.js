@@ -14,11 +14,11 @@ const execAsync = promisify(exec);
  */
 class LoRAiService {
   constructor() {
-    // FORCE LORA TESTING - Use Railway deployed service for full LoRA testing
-    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'https://ai-cover-generator-production.up.railway.app'; // Use Railway deployed service
+    // Use main backend endpoint for AI cover generation
+    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'https://crypto-news-curator-backend-production.up.railway.app/api/ai-cover';
     this.aiCoverGeneratorPath = path.join(__dirname, '../../ai-cover-generator');
     this.initialized = false;
-    this.useExternalService = true; // Use deployed Railway service
+    this.useExternalService = true; // Use main backend endpoint
     this.clientMapping = this.initializeClientMapping();
     this.forceLoRAMode = true; // Testing flag
     
@@ -27,8 +27,8 @@ class LoRAiService {
 
   async initialize() {
     if (this.forceLoRAMode) {
-      // FORCE LORA TESTING - Use Railway deployed AI service
-      logger.info('🧪 FORCE LORA MODE: Testing with Railway AI service');
+      // FORCE LORA TESTING - Use main backend AI cover endpoint
+      logger.info('🧪 FORCE LORA MODE: Testing with main backend AI cover endpoint');
       
       try {
         // Test Railway AI service connection
@@ -37,7 +37,7 @@ class LoRAiService {
         if (response.status === 200) {
           this.initialized = true;
           this.useExternalService = true;
-          logger.info(`✅ LoRA AI Service ready for FULL TESTING (Railway service: ${this.aiServiceUrl})`);
+          logger.info(`✅ LoRA AI Service ready for FULL TESTING (main backend endpoint: ${this.aiServiceUrl})`);
           return;
         }
       } catch (error) {
