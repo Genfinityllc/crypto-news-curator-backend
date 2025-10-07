@@ -338,24 +338,26 @@ PRIMARY NETWORK: ${cryptoElements.primaryNetwork}
 KEY THEMES: ${cryptoElements.themes.join(', ')}
 MARKET SENTIMENT: ${cryptoElements.sentiment}
 
-MANDATORY CONTENT STRUCTURE (TARGET: 400-800 WORDS):
-1. Opening paragraph (120-150 words) - Establish context and hook readers
-2. H2: [Create unique heading based on article content] (180-220 words) - Technical analysis and market data
-3. H2: [Create unique heading based on article content] (150-200 words) - Actionable investment guidance  
-4. H2: [Create unique heading based on article content] (120-180 words) - Forward-looking analysis
+MANDATORY CONTENT STRUCTURE (STRICT: 450-750 WORDS):
+1. Opening paragraph (140-180 words) - Establish context and hook readers with detailed background
+2. H2: [Create unique heading based on article content] (180-250 words) - Deep technical analysis and comprehensive market data
+3. H2: [Create unique heading based on article content] (180-250 words) - Detailed actionable investment guidance with specific strategies
+4. H2: [Create unique heading based on article content] (140-200 words) - Comprehensive forward-looking analysis with specific predictions
 
 CRITICAL H2 HEADING REQUIREMENTS:
-- DO NOT use templated headings like "Market Impact and Analysis" or "Investment Insights and Strategy"
+- DO NOT use templated headings like "Market Impact and Analysis", "Investment Insights and Strategy", "Bitcoin ETF Trading Insights"
 - Create unique, content-specific H2 headings that relate directly to the article topic
 - Examples for Bitcoin article: "Bitcoin's Price Surge Drivers", "Institutional Adoption Trends", "Regulatory Impact on Bitcoin"
 - Examples for Ethereum article: "Layer 2 Scaling Solutions", "DeFi Protocol Integration", "Ethereum 2.0 Transition Effects"
 - Make each H2 heading specific to the content being discussed in that section
 
-CRITICAL WORD COUNT REQUIREMENTS:
-- Final article MUST be between 400-800 words
-- Count words carefully to ensure minimum 400 words
-- Add additional analysis and details to reach word count if needed
-- Each section should be substantial and informative
+ABSOLUTE WORD COUNT REQUIREMENTS:
+- Final article MUST be minimum 450 words (strictly enforced)
+- Target range: 450-750 words for optimal readability
+- Each paragraph should be 3-5 sentences with substantial detail
+- Add specific examples, statistics, and detailed analysis to reach word count
+- Every sentence must add valuable information - no filler content
+- Write comprehensive, in-depth analysis rather than surface-level content
 
 READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Maximum 15 words per sentence
