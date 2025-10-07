@@ -334,14 +334,20 @@ READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Use active voice only
 - Short paragraphs (3-4 sentences max)
 
-INTEGRATION REQUIREMENTS:
-- Include 5 REAL, RELEVANT sources that directly support the article content
-- Research and reference actual cryptocurrency news sites, exchanges, or official project pages
-- DO NOT use generic placeholder links - find sources that actually relate to the topic
-- Examples of good sources: official project websites, major crypto exchanges, regulatory bodies, established crypto publications
-- CRITICAL: If you cannot find 5 real, relevant sources specific to the topic, use fewer sources or none at all
-- NEVER use fake, placeholder, or canned sources - only use real, verifiable links
-- Format sources as: <a href="[actual_url]" target="_blank">[domain_name]</a>
+INTEGRATION REQUIREMENTS - SOURCES:
+- ONLY include sources that link to SPECIFIC ARTICLES that directly substantiate claims made in the rewritten content
+- Each source must validate a particular statement, statistic, or fact mentioned in the rewrite
+- DO NOT include generic website links (like coindesk.com, forbes.com, hedera.com) without specific article URLs
+- Examples of VALID sources: 
+  * https://coindesk.com/tech/2024/01/15/hedera-partnership-enterprise-blockchain/ (if this specific article exists and supports the partnership claim)
+  * https://www.sec.gov/news/press-release/2024-01 (if referencing specific regulatory announcements)
+- Examples of INVALID sources:
+  * https://www.hedera.com (generic website)
+  * https://coindesk.com (homepage without specific article)
+  * https://forbes.com (generic financial site)
+- CRITICAL: If you cannot find specific articles that validate the claims in your rewrite, DO NOT include any sources
+- Better to have zero sources than generic/irrelevant ones
+- Format sources as: <a href="[specific_article_url]" target="_blank">[descriptive_text]</a>
 - Include specific data points and percentages when possible
 - Write for professional investors and informed readers
 - Maintain neutral, analytical tone
