@@ -3,6 +3,7 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { scrapeNewsSources, performWebSearch, scrapePressReleases, fetchRealCryptoNews } = require('../services/newsService');
 const { rewriteArticle, optimizeForSEO, generateAISummary } = require('../services/aiService');
+const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite');
 const { generateCoverImage, generateCardCoverImage } = require('../services/imageService');
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
 const articlesCacheService = require('../services/articlesCacheService');
@@ -1406,8 +1407,8 @@ router.post('/rewrite-rss-article', async (req, res) => {
     
     logger.info(`Rewriting RSS article: ${title.substring(0, 50)}...`);
     
-    // Rewrite the article
-    const rewriteResult = await rewriteArticle(title, content, url);
+    // Rewrite the article using ENHANCED AI service with 3-5 word titles and 97-100% readability
+    const rewriteResult = await generateFullLengthRewrite(title, content, url);
     
     // Calculate additional metrics
     const wordCount = rewriteResult.content ? rewriteResult.content.split(' ').length : 0;
@@ -1417,13 +1418,19 @@ router.post('/rewrite-rss-article', async (req, res) => {
       success: true,
       data: {
         rewrittenContent: rewriteResult.content,
-        rewrittenTitle: rewriteResult.title || title,
+        rewrittenTitle: rewriteResult.title,
         rewrittenText: rewriteResult.content,
-        readabilityScore: rewriteResult.readabilityScore || 97,
-        viralScore: rewriteResult.viralScore || 85,
-        wordCount: wordCount,
+        readabilityScore: rewriteResult.readabilityScore,
+        seoScore: rewriteResult.seoScore,
+        viralScore: rewriteResult.viralScore,
+        wordCount: rewriteResult.wordCount,
         originalWordCount: originalWordCount,
         isOriginal: true,
+        wordpressReady: rewriteResult.wordpressReady,
+        copyrightSafe: rewriteResult.copyrightSafe,
+        sources: rewriteResult.sources,
+        cryptoElements: rewriteResult.cryptoElements,
+        intelligentCoverPrompt: rewriteResult.intelligentCoverPrompt,
         seoOptimized: true,
         googleAdsReady: true,
         coverImage: rewriteResult.coverImage,
