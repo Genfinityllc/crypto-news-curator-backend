@@ -19,10 +19,11 @@
 
 ## 🔧 **CURRENT ISSUES TO RESOLVE:**
 
-### **Issue 1: OpenAI API ✅ WORKING**
-- **Status**: ✅ RESOLVED - OpenAI API is working perfectly
-- **Evidence**: Test call returns real rewrite based on original content
-- **Results**: 4-word title, 100% readability, 405 words, WordPress ready
+### **Issue 1: OpenAI API ❌ FAILING IN PRODUCTION**
+- **Status**: ❌ CRITICAL - OpenAI API failing and using fallback content
+- **Evidence**: User getting generic fallback content instead of real rewrites
+- **Root Cause**: Likely missing OPENAI_API_KEY in Railway environment variables
+- **Action Needed**: Check Railway environment variables
 
 ### **Issue 2: LoRA Service Connection**
 - **Problem**: Frontend showing "fallback image generation" error

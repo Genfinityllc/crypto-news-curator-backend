@@ -374,16 +374,23 @@ Write the article now:`;
     const titleMatch = aiResponse.match(/TITLE:\s*(.+?)(?:\n|CONTENT|$)/is);
     const contentMatch = aiResponse.match(/CONTENT:\s*([\s\S]+?)(?:\n\n---|\n\nNOTE:|$)/is);
     
-    let finalTitle = shortTitle; // Use our generated short title as fallback
+    let finalTitle = shortTitle; // Fallback title
     let finalContent = '';
     
     if (titleMatch && contentMatch) {
       const parsedTitle = titleMatch[1].trim().replace(/^["']|["']$/g, '');
       
-      // Ensure title is 3-5 words
-      const titleWords = parsedTitle.split(' ').length;
-      if (titleWords >= 3 && titleWords <= 5) {
-        finalTitle = parsedTitle;
+      // Use OpenAI's title if it exists, trim to 5 words if needed
+      if (parsedTitle && parsedTitle.length > 0) {
+        const titleWords = parsedTitle.split(' ');
+        if (titleWords.length >= 3 && titleWords.length <= 5) {
+          finalTitle = parsedTitle; // Perfect length - use as is
+        } else if (titleWords.length > 5) {
+          finalTitle = titleWords.slice(0, 5).join(' '); // Trim to 5 words
+        } else {
+          // Too short (less than 3 words) - use our generated title
+          finalTitle = shortTitle;
+        }
       }
       
       finalContent = contentMatch[1].trim().replace(/^["']|["']$/g, '');
