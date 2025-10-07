@@ -14,11 +14,11 @@ const execAsync = promisify(exec);
  */
 class LoRAiService {
   constructor() {
-    // FORCE LORA TESTING - Use local service for full LoRA testing
-    this.aiServiceUrl = 'http://localhost:8000'; // Force local service
+    // FORCE LORA TESTING - Use Railway deployed service for full LoRA testing
+    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'https://ai-cover-generator-production.up.railway.app'; // Use Railway deployed service
     this.aiCoverGeneratorPath = path.join(__dirname, '../../ai-cover-generator');
     this.initialized = false;
-    this.useExternalService = true; // Use local service running on 8000
+    this.useExternalService = true; // Use deployed Railway service
     this.clientMapping = this.initializeClientMapping();
     this.forceLoRAMode = true; // Testing flag
     
@@ -27,21 +27,21 @@ class LoRAiService {
 
   async initialize() {
     if (this.forceLoRAMode) {
-      // FORCE LOCAL LORA TESTING - Use local AI service
-      logger.info('🧪 FORCE LORA MODE: Testing with local AI service on port 8000');
+      // FORCE LORA TESTING - Use Railway deployed AI service
+      logger.info('🧪 FORCE LORA MODE: Testing with Railway AI service');
       
       try {
-        // Test local AI service connection
-        const response = await axios.get(`${this.aiServiceUrl}/health`, { timeout: 2000 });
+        // Test Railway AI service connection
+        const response = await axios.get(`${this.aiServiceUrl}/health`, { timeout: 5000 });
         
         if (response.status === 200) {
           this.initialized = true;
           this.useExternalService = true;
-          logger.info('✅ LoRA AI Service ready for FULL TESTING (local service on port 8000)');
+          logger.info(`✅ LoRA AI Service ready for FULL TESTING (Railway service: ${this.aiServiceUrl})`);
           return;
         }
       } catch (error) {
-        logger.error('❌ Local AI service not available on port 8000. Make sure it\'s running.');
+        logger.error(`❌ Railway AI service not available at ${this.aiServiceUrl}. Error: ${error.message}`);
         this.initialized = false;
         return;
       }

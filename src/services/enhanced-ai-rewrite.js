@@ -237,23 +237,29 @@ function calculateAdvancedReadability(text) {
 }
 
 /**
- * Format content for WordPress without line breaks
+ * Format content for WordPress without line breaks - STRICT FORMATTING
  */
 function formatForWordPress(content) {
   return content
-    // Remove all line breaks and extra whitespace
-    .replace(/\n\s*\n/g, ' ')
+    // Remove ALL line breaks and extra whitespace  
+    .replace(/\r\n/g, ' ')
+    .replace(/\n\r/g, ' ')
     .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .replace(/\s*\n\s*/g, ' ')
     .replace(/\s+/g, ' ')
-    // Ensure proper HTML structure
-    .replace(/<h2>/g, '<h2>')
-    .replace(/<\/h2>\s*/g, '</h2>')
-    .replace(/<p>/g, '<p>')
-    .replace(/<\/p>\s*/g, '</p>')
-    // Clean up spacing around tags
+    // Ensure proper HTML structure without line breaks
+    .replace(/<h2>\s*/g, '<h2>')
+    .replace(/\s*<\/h2>\s*/g, '</h2>')
+    .replace(/<p>\s*/g, '<p>')
+    .replace(/\s*<\/p>\s*/g, '</p>')
+    // Clean up spacing around ALL tags
     .replace(/>\s+</g, '><')
     .replace(/\s+>/g, '>')
     .replace(/<\s+/g, '<')
+    // Remove any remaining line breaks
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
     .trim();
 }
 
@@ -296,9 +302,11 @@ TITLE REQUIREMENTS (CRITICAL):
 - Count the words: ${shortTitle.split(' ').length} words - this is PERFECT
 - DO NOT change this title - use it exactly as provided
 
-ORIGINAL CONTENT TO REWRITE:
+ORIGINAL CONTENT TO REWRITE (MUST USE THIS EXACT CONTENT):
 Title: ${title}
 Content: ${content}
+
+CRITICAL: The rewritten article MUST be directly based on the above original content. Do not write generic content. Rewrite the specific article provided above.
 
 PRIMARY NETWORK: ${cryptoElements.primaryNetwork}
 KEY THEMES: ${cryptoElements.themes.join(', ')}
