@@ -68,7 +68,15 @@
 - ✅ Enhanced OpenAI prompt with explicit formatting rules
 - ✅ Strengthened formatForWordPress function
 - ✅ Multiple regex patterns to eliminate line breaks
-- 🔄 **IN PROGRESS**: Frontend H2 styling causing blue lines (not backend issue)
+- ✅ Frontend H2 styling fixed (removed border-bottom CSS)
+- ✅ Unique, content-specific H2 headings (no more templates)
+
+### **Google AI Fact-Checking Integration:**
+- ✅ FactCheckService implemented with multiple validation approaches
+- ✅ Integrated into AI rewrite workflow with graceful fallbacks
+- ✅ Speculation detection and factual claim extraction
+- 🔄 **NEEDS API KEYS**: Google AI and Fact Check API keys required for full functionality
+- ✅ Service runs with fallback scoring when APIs unavailable
 
 ## 🧪 **TESTING CHECKLIST:**
 - ✅ OpenAI API returns real rewrites (not generic content)
@@ -77,7 +85,7 @@
 - ✅ Real, contextual sources only (or none if no valid sources found)
 - 🔄 LoRA image generation works without fallbacks
 - 🔄 No blue line breaks in frontend display (CSS styling issue)
-- 🔄 Word count between 400-800 words
+- 🔄 Word count between 400-800 words (currently generating ~200-400 words, needs enhancement)
 
 ---
-*Last Updated: 2025-10-07 - After identifying separate Railway services*
+*Last Updated: 2025-10-07 - After identifying separate Railway services*# Clean LoRA-only deployment - Thu Oct  9 10:19:45 PDT 2025
