@@ -131,48 +131,45 @@ class ImageHostingService {
    */
   async generateAndHostLoRAImage(articleData, options = {}) {
     try {
-      // Import LoRA service
-      const LoRAiService = require('./loraAiService');
-      const loraService = new LoRAiService();
+      // Import HF Spaces LoRA service
+      const HFSpacesLoraService = require('./hfSpacesLoraService');
+      const loraService = new HFSpacesLoraService();
       
       if (!loraService.isAvailable()) {
-        throw new Error('LoRA service not available');
+        logger.warn('🤗 HF Spaces LoRA service not available, falling back to local service');
+        const LoRAiService = require('./loraAiService');
+        const fallbackService = new LoRAiService();
+        
+        if (!fallbackService.isAvailable()) {
+          throw new Error('No LoRA service available');
+        }
+        
+        const result = await fallbackService.generateCryptoNewsImage(articleData, options);
+        if (result.success) {
+          return {
+            success: true,
+            image_url: result.coverUrl,
+            generation_method: result.generationMethod,
+            hosting_service: 'fallback_service'
+          };
+        }
+        throw new Error('Fallback service failed');
       }
       
-      logger.info(`🎨 Generating LoRA image for: ${articleData.title}`);
+      logger.info(`🤗 Generating HF Spaces LoRA image for: ${articleData.title}`);
       
-      // Generate image
+      // Generate image using HF Spaces
       const result = await loraService.generateCryptoNewsImage(articleData, options);
       
       if (result.success && result.coverUrl) {
-        // If it's a local file path, upload it
-        if (result.coverUrl.startsWith('/') || result.coverUrl.includes('style_outputs')) {
-          const imagePath = result.coverUrl.startsWith('/') ? 
-            result.coverUrl : 
-            path.join(__dirname, '../../ai-cover-generator/style_outputs', path.basename(result.coverUrl));
-          
-          const hostingResult = await this.hostGeneratedImage(imagePath, {
-            title: articleData.title,
-            network: articleData.network,
-            generated_at: new Date().toISOString()
-          });
-          
-          if (hostingResult.success) {
-            return {
-              success: true,
-              image_url: hostingResult.url,
-              display_url: hostingResult.display_url,
-              hosting_service: hostingResult.hosting_service,
-              generation_method: result.generationMethod,
-              metadata: result.metadata
-            };
-          }
-        }
+        // HF Spaces returns direct URLs, no need to upload
+        logger.info(`✅ HF Spaces LoRA image generated: ${result.coverUrl}`);
         
-        // If it's already a URL, return as-is
         return {
           success: true,
           image_url: result.coverUrl,
+          display_url: result.coverUrl,
+          hosting_service: 'hf_spaces',
           generation_method: result.generationMethod,
           metadata: result.metadata
         };
