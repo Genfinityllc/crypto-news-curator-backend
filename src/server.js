@@ -14,7 +14,7 @@ const tempCleanupService = require('./services/tempCleanupService');
 const pressReleaseService = require('./services/pressReleaseService');
 
 // Load environment variables
-dotenv.config(); // Force Railway redeploy - Nano Banana integration complete
+dotenv.config();
 
 // Import routes
 const newsRoutes = require('./routes/supabase-news');

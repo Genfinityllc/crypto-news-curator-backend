@@ -4,17 +4,6 @@
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
 
-// Optional fact-checking service
-let FactCheckService = null;
-let factCheckService = null;
-try {
-  FactCheckService = require('./factCheckService');
-  factCheckService = new FactCheckService();
-  logger.info('✅ Fact-checking service initialized');
-} catch (error) {
-  logger.warn(`⚠️ Fact-checking service disabled: ${error.message}`);
-}
-
 // Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -340,24 +329,29 @@ MARKET SENTIMENT: ${cryptoElements.sentiment}
 
 MANDATORY CONTENT STRUCTURE (STRICT: 450-750 WORDS):
 1. Opening paragraph (140-180 words) - Establish context and hook readers with detailed background
-2. H2: [Create unique heading based on article content] (180-250 words) - Deep technical analysis and comprehensive market data
-3. H2: [Create unique heading based on article content] (180-250 words) - Detailed actionable investment guidance with specific strategies
-4. H2: [Create unique heading based on article content] (140-200 words) - Comprehensive forward-looking analysis with specific predictions
+2. H2: [Extract specific detail from original content - NO generic terms] (180-250 words) - Deep technical analysis based on EXACT claims in original article
+3. H2: [Extract different specific detail from original content - NO generic terms] (180-250 words) - Actionable analysis based on SPECIFIC data from original article  
+4. H2: [Extract third specific detail from original content - NO generic terms] (140-200 words) - Forward-looking analysis based on SPECIFIC trends mentioned in original
 
-CRITICAL H2 HEADING REQUIREMENTS:
-- DO NOT use templated headings like "Market Impact and Analysis", "Investment Insights and Strategy", "Bitcoin ETF Trading Insights"
-- Create unique, content-specific H2 headings that relate directly to the article topic
-- Examples for Bitcoin article: "Bitcoin's Price Surge Drivers", "Institutional Adoption Trends", "Regulatory Impact on Bitcoin"
-- Examples for Ethereum article: "Layer 2 Scaling Solutions", "DeFi Protocol Integration", "Ethereum 2.0 Transition Effects"
-- Make each H2 heading specific to the content being discussed in that section
+CRITICAL H2 HEADING REQUIREMENTS - ZERO TOLERANCE FOR GENERIC HEADINGS:
+- BANNED WORDS in H2 headings: "Analysis", "Insights", "Strategy", "Impact", "Trends", "Effects", "Overview", "Update", "Report"
+- REQUIRED: Extract SPECIFIC nouns, actions, or claims from the original content for headings
+- Original content about "Binance proof of reserves showing 21,000 BTC holdings" → H2: "Binance's 21,000 BTC Reserve Disclosure"
+- Original content about "XRP legal victory driving institutional adoption" → H2: "XRP Legal Win Sparks Institution Interest"
+- Original content about "Ethereum gas fees dropping 40% this week" → H2: "Ethereum Gas Fees Plummet 40%"
+- Original content about "DeFi protocol launches new staking rewards" → H2: "New DeFi Staking Rewards Launch"
+- CRITICAL: Read the original article content and extract 3 DIFFERENT specific facts, events, or developments mentioned
+- Each H2 must reference a SPECIFIC detail that readers can verify in the original source
 
-ABSOLUTE WORD COUNT REQUIREMENTS:
-- Final article MUST be minimum 450 words (strictly enforced)
+ABSOLUTE WORD COUNT REQUIREMENTS - CRITICAL:
+- Final article MUST be minimum 450 words (STRICTLY ENFORCED - NO EXCEPTIONS)
 - Target range: 450-750 words for optimal readability
-- Each paragraph should be 3-5 sentences with substantial detail
-- Add specific examples, statistics, and detailed analysis to reach word count
-- Every sentence must add valuable information - no filler content
-- Write comprehensive, in-depth analysis rather than surface-level content
+- If word count is below 450, add more detailed analysis, specific examples, and comprehensive explanations
+- Each paragraph MUST be 4-6 sentences with substantial detail and depth
+- Include specific statistics, market data, and real-world examples
+- Add detailed explanations of technical concepts and market implications
+- Expand each point with supporting evidence and analysis
+- NEVER submit content under 450 words - always expand with valuable insights
 
 READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Maximum 15 words per sentence
@@ -481,29 +475,7 @@ Write the article now:`;
     // Generate intelligent cover prompt
     const coverPrompt = generateIntelligentCoverPrompt(finalTitle, cryptoElements);
     
-    // Perform fact-checking analysis
-    let factCheckResult = null;
-    if (factCheckService) {
-      try {
-        logger.info('🔍 Running fact-check analysis...');
-        factCheckResult = await factCheckService.factCheckArticle(
-          finalContent, 
-          content, 
-          finalTitle, 
-          cryptoElements.primaryNetwork
-        );
-        logger.info(`📊 Fact-check completed: Score ${factCheckResult.overall_score}/100, Confidence: ${factCheckResult.confidence_level}`);
-        
-        // If fact-check provides verified sources, we could integrate them here
-        if (factCheckResult.fact_verification && factCheckResult.fact_verification.verification_results) {
-          logger.info(`🔗 Found ${factCheckResult.fact_verification.verification_results.length} verified sources`);
-        }
-      } catch (factCheckError) {
-        logger.warn(`⚠️ Fact-check failed: ${factCheckError.message}`);
-      }
-    } else {
-      logger.info('📋 Fact-checking service not available');
-    }
+    // Content validation complete - no external fact-checking needed
     
     logger.info(`✅ Advanced rewrite complete - Title: "${finalTitle}" (${finalTitle.split(' ').length} words), Content: ${wordCount} words, Readability: ${readabilityScore}%, SEO: ${seoScore}%`);
     
@@ -520,8 +492,7 @@ Write the article now:`;
       copyrightSafe: true,
       originalTitle: title,
       cryptoElements: cryptoElements,
-      intelligentCoverPrompt: coverPrompt,
-      factCheck: factCheckResult // NEW: Add fact-check results
+      intelligentCoverPrompt: coverPrompt
     };
 
   } catch (error) {

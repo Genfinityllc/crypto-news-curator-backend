@@ -22,9 +22,9 @@ echo ""
 
 echo "📦 Deploying backend with LoRA changes..."
 echo "Changes include:"
-echo "  - Removed Nano Banana fallbacks"
 echo "  - LoRA-only image generation"
-echo "  - No fallback to traditional generation"
+echo "  - Clean LoRA implementation"
+echo "  - Removed all third-party fallbacks"
 echo ""
 
 railway up

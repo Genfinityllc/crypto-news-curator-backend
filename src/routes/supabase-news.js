@@ -7,7 +7,6 @@ const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite')
 const { generateCoverImage, generateCardCoverImage } = require('../services/imageService');
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
 const articlesCacheService = require('../services/articlesCacheService');
-const nanoBananaService = require('../services/nanoBananaService');
 const LoRAiService = require('../services/loraAiService');
 const logger = require('../utils/logger');
 const { createClient } = require('@supabase/supabase-js');
@@ -752,7 +751,6 @@ router.get('/top-networks', async (req, res) => {
 router.get('/ai-services-status', async (req, res) => {
   try {
     const loraStatus = await loraAiService.getStatus();
-    const nanoBananaStatus = nanoBananaService.isAvailable();
     
     res.json({
       success: true,
@@ -765,18 +763,13 @@ router.get('/ai-services-status', async (req, res) => {
           lastChecked: loraStatus.lastChecked,
           priority: 1
         },
-        nanoBanana: {
-          available: nanoBananaStatus,
-          service: 'Nano Banana (Google Gemini)',
-          priority: 2
-        },
         traditional: {
           available: true,
           service: 'Traditional Image Service',
           priority: 3
         }
       },
-      recommendation: loraStatus.available ? 'LoRA' : (nanoBananaStatus ? 'Nano Banana' : 'Traditional'),
+      recommendation: loraStatus.available ? 'LoRA' : 'Traditional',
       lastChecked: new Date().toISOString()
     });
   } catch (error) {
@@ -1000,7 +993,7 @@ router.post('/generate-card-image/:id?', async (req, res) => {
     
     logger.info(`Generating card image for article: ${article.title}`);
     
-    // Check generation method preference - LoRA (preferred), Nano Banana, or traditional
+    // Check generation method preference - LoRA (preferred) or traditional
     const useLoRA = req.body.useLoRA !== false; // Default to true
     const useNanoBanana = req.body.useNanoBanana || req.query.useNanoBanana;
     
@@ -1078,7 +1071,7 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
       return res.status(503).json({
         success: false,
         message: 'LoRA AI service is not available. Please check AI Cover Generator configuration.',
-        fallback: 'Will use Nano Banana or traditional generation'
+        fallback: 'Will use traditional generation'
       });
     }
 
@@ -1107,18 +1100,23 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
 
     logger.info(`🎨 Generating LoRA AI image for: ${article.title}`);
 
-    // Generate client-specific branded image using LoRA
-    const loraResult = await loraAiService.generateCryptoNewsImage(article, {
+    // Use image hosting service for proper LoRA generation and hosting
+    const ImageHostingService = require('../services/imageHostingService');
+    const imageHostingService = new ImageHostingService();
+    
+    logger.info(`🎨 Generating and hosting LoRA image for: ${article.title}`);
+    
+    const hostedResult = await imageHostingService.generateAndHostLoRAImage(article, {
       size,
       style,
       includeWatermark: false
     });
 
-    if (!loraResult.success) {
+    if (!hostedResult.success) {
       return res.status(500).json({
         success: false,
-        message: 'LoRA image generation failed',
-        error: loraResult.error || 'Unknown error',
+        message: 'LoRA image generation and hosting failed',
+        error: hostedResult.error || 'Unknown error',
         service: 'lora'
       });
     }
@@ -1126,28 +1124,29 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
     res.json({
       success: true,
       data: {
-        coverImage: loraResult.coverUrl,
+        coverImage: hostedResult.image_url,
         cardImages: {
-          small: loraResult.coverUrl,
-          medium: loraResult.coverUrl,
-          large: loraResult.coverUrl,
-          square: loraResult.coverUrl
+          small: hostedResult.image_url,
+          medium: hostedResult.image_url,
+          large: hostedResult.image_url,
+          square: hostedResult.image_url
         },
         selectedSize: size,
         style,
         service: 'lora',
-        clientId: loraResult.clientId,
-        generationMethod: loraResult.generationMethod,
+        hosting: hostedResult.hosting_service,
+        generationMethod: hostedResult.generation_method,
         article: {
           id: article.id,
           title: article.title,
           network: article.network
         },
         generation: {
-          timestamp: loraResult.generatedAt,
+          timestamp: new Date().toISOString(),
           model: 'LoRA-SDXL',
           quality: 'high',
-          metadata: loraResult.metadata
+          hosted: true,
+          metadata: hostedResult.metadata
         }
       }
     });
@@ -1163,92 +1162,6 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
   }
 });
 
-// Generate AI-powered Nano Banana images for crypto news (fallback)
-router.post('/generate-nano-banana-image/:id?', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { 
-      size = 'medium', 
-      style = 'professional', 
-      title, 
-      network, 
-      category, 
-      sentiment,
-      url 
-    } = req.body;
-
-    if (!nanoBananaService.isAvailable()) {
-      return res.status(503).json({
-        success: false,
-        message: 'Nano Banana AI service is not available. Please check API configuration.'
-      });
-    }
-
-    let article;
-
-    if (id) {
-      // Get article from database
-      const { data: articles } = await getArticles({ limit: 1000 });
-      article = articles?.find(a => a.id === id);
-      
-      if (!article) {
-        return res.status(404).json({
-          success: false,
-          message: 'Article not found'
-        });
-      }
-    } else {
-      // Use provided article data
-      article = {
-        title: title || 'Sample Crypto News',
-        network: network || 'Bitcoin',
-        category: category || 'general',
-        sentiment: sentiment || 'neutral',
-        url: url || 'https://example.com'
-      };
-    }
-
-    logger.info(`🎨 Generating Nano Banana AI image for: ${article.title}`);
-
-    // Generate sophisticated AI image
-    const nanoBananaResult = await nanoBananaService.generateCryptoNewsImage(article, {
-      size,
-      style,
-      includeNetwork: true,
-      aspectRatio: '16:9'
-    });
-
-    res.json({
-      success: true,
-      data: {
-        coverImage: nanoBananaResult.cardImages[size] || nanoBananaResult.cardImages.medium,
-        cardImages: nanoBananaResult.cardImages,
-        selectedSize: size,
-        style,
-        service: 'nano-banana',
-        article: {
-          id: article.id,
-          title: article.title,
-          network: article.network
-        },
-        generation: {
-          timestamp: new Date().toISOString(),
-          model: 'gemini-2.5-flash-image-preview',
-          quality: 'high'
-        }
-      }
-    });
-
-  } catch (error) {
-    logger.error('Error generating Nano Banana image:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error generating AI image with Nano Banana',
-      error: error.message,
-      service: 'nano-banana'
-    });
-  }
-});
 
 // Batch generate card images for multiple articles
 router.post('/generate-card-images/batch', async (req, res) => {
