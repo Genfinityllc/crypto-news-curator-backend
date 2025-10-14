@@ -15,8 +15,19 @@ class HFSpacesLoraService {
     logger.info(`🤗 HF Spaces LoRA Service initialized: ${this.hfSpacesUrl}`);
   }
 
-  isAvailable() {
-    return this.initialized && this.hfSpacesUrl && !this.hfSpacesUrl.includes('YOUR-USERNAME');
+  async isAvailable() {
+    if (!this.initialized || !this.hfSpacesUrl || this.hfSpacesUrl.includes('YOUR-USERNAME')) {
+      return false;
+    }
+    
+    // Quick health check
+    try {
+      const response = await axios.get(`${this.hfSpacesUrl}/health`, { timeout: 30000 });
+      return response.status === 200;
+    } catch (error) {
+      logger.warn(`🤗 HF Spaces health check failed: ${error.message}`);
+      return false;
+    }
   }
 
   detectClientFromArticle(articleData) {
@@ -60,8 +71,10 @@ class HFSpacesLoraService {
 
   async generateCryptoNewsImage(articleData, options = {}) {
     try {
-      if (!this.isAvailable()) {
-        throw new Error('HF Spaces LoRA service not available - check HF_SPACES_LORA_URL');
+      // HF Spaces integration - now enabled
+      const available = await this.isAvailable();
+      if (!available) {
+        throw new Error('HF Spaces LoRA service not available - check deployment status');
       }
 
       const clientId = this.detectClientFromArticle(articleData);
@@ -75,7 +88,8 @@ class HFSpacesLoraService {
         title: articleData.title,
         subtitle: subtitle,
         client: clientId,
-        style: style
+        style: style,
+        use_trained_lora: true  // ✅ Enable Universal LoRA generation
       };
 
       const response = await axios.post(`${this.hfSpacesUrl}/generate`, requestData, {
@@ -86,12 +100,12 @@ class HFSpacesLoraService {
       });
 
       if (response.data.success && response.data.image_url) {
-        // Convert relative URL to absolute
-        const imageUrl = response.data.image_url.startsWith('http') 
+        // Handle data URLs and regular URLs
+        const imageUrl = response.data.image_url.startsWith('data:') || response.data.image_url.startsWith('http') 
           ? response.data.image_url 
           : `${this.hfSpacesUrl}${response.data.image_url}`;
 
-        logger.info(`✅ HF Spaces LoRA cover generated: ${imageUrl}`);
+        logger.info(`✅ HF Spaces LoRA cover generated successfully`);
 
         return {
           success: true,
@@ -111,11 +125,59 @@ class HFSpacesLoraService {
       }
 
     } catch (error) {
-      logger.error(`❌ HF Spaces LoRA generation failed: ${error.message}`);
+      logger.error(`❌ LoRA generation failed: ${error.message}`);
       
-      // Return intelligent fallback
-      return this.generateIntelligentFallback(articleData.title, articleData);
+      // Throw error instead of fallback since user wants real generation only
+      throw new Error(`HF Spaces LoRA generation failed: ${error.message}`);
     }
+  }
+
+  async usePreGeneratedImages(articleData, options = {}) {
+    const clientId = this.detectClientFromArticle(articleData);
+    const style = options.style || this.selectStyleForArticle(articleData);
+    
+    logger.info(`🎨 Selecting pre-generated LoRA image for client: ${clientId}`);
+    
+    // Map of available pre-generated images
+    const preGeneratedImages = {
+      'hedera': [
+        'https://valtronk-crypto-news-lora-generator.hf.space/download/hedera.png',
+        'https://raw.githubusercontent.com/valtronk/crypto-covers/main/hedera_energy_fields.png'
+      ],
+      'algorand': [
+        'https://valtronk-crypto-news-lora-generator.hf.space/download/algorand.png',
+        'https://raw.githubusercontent.com/valtronk/crypto-covers/main/algorand_energy_fields.png'
+      ],
+      'constellation': [
+        'https://valtronk-crypto-news-lora-generator.hf.space/download/constellation.png',
+        'https://raw.githubusercontent.com/valtronk/crypto-covers/main/constellation_network_nodes.png'
+      ],
+      'generic': [
+        'https://valtronk-crypto-news-lora-generator.hf.space/download/generic.png',
+        'https://raw.githubusercontent.com/valtronk/crypto-covers/main/generic_crypto_cover.png'
+      ]
+    };
+    
+    // Select appropriate images for the client
+    const availableImages = preGeneratedImages[clientId] || preGeneratedImages['generic'];
+    const selectedImage = availableImages[Math.floor(Math.random() * availableImages.length)];
+    
+    logger.info(`✅ Selected pre-generated LoRA image: ${selectedImage}`);
+    
+    return {
+      success: true,
+      coverUrl: selectedImage,
+      generationMethod: 'pre_generated_lora_temp',
+      clientId: clientId,
+      style: style,
+      size: options.size || '1792x896',
+      generatedAt: new Date().toISOString(),
+      metadata: {
+        temporarySolution: true,
+        selectedImage: selectedImage,
+        note: 'Using pre-generated images while HF Spaces is being debugged'
+      }
+    };
   }
 
   generateIntelligentFallback(title, articleData) {
