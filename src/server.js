@@ -85,6 +85,15 @@ app.use(limiter);
 // Serve temporary images  
 app.use('/temp', express.static(path.join(__dirname, '..', 'temp')));
 
+// Serve generated cover images
+app.use('/temp/generated-covers', express.static(path.join(__dirname, '..', 'temp', 'generated-covers')));
+
+// Serve downloaded LoRA images
+app.use('/temp/lora-images', express.static(path.join(__dirname, '..', 'temp', 'lora-images')));
+
+// Serve working LoRA generated images
+app.use('/temp/working-lora', express.static(path.join(__dirname, '..', 'temp', 'working-lora')));
+
 // Serve screenshot images for fallback cases
 app.use('/screenshots', express.static(path.join(__dirname, '..', 'screenshots')));
 
@@ -112,14 +121,52 @@ app.get('/ai-service-proxy/*', async (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+// Health check endpoint - Railway compatible
+app.get('/health', async (req, res) => {
+  try {
+    // Basic health indicators
+    const health = {
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+      service: 'crypto-news-curator-backend',
+      version: '1.0.0'
+    };
+
+    // Test critical services
+    try {
+      // Test Supabase connection
+      const { testSupabaseConnection } = require('./config/supabase');
+      const supabaseHealthy = await Promise.race([
+        testSupabaseConnection(),
+        new Promise(resolve => setTimeout(() => resolve(false), 5000))
+      ]);
+      health.services = {
+        supabase: supabaseHealthy ? 'healthy' : 'degraded'
+      };
+    } catch (error) {
+      health.services = {
+        supabase: 'degraded'
+      };
+    }
+
+    // Return success even if some services are degraded
+    res.status(200).json(health);
+  } catch (error) {
+    // Return error status for Railway
+    res.status(503).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      service: 'crypto-news-curator-backend'
+    });
+  }
+});
+
+// Simple healthcheck for Railway (backup)
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
 });
 
 // API routes
@@ -167,7 +214,7 @@ app.use(errorHandler);
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+  logger.info(`🚀 Server running on port ${PORT} - LoRA interceptor fixed!`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
   // Initialize WebSocket service

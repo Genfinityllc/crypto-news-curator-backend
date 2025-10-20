@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const createWriteStream = require('fs').createWriteStream;
 const path = require('path');
 const FormData = require('form-data');
 const axios = require('axios');
@@ -127,79 +128,122 @@ class ImageHostingService {
   }
 
   /**
+   * Download image from URL and host it locally
+   */
+  async downloadAndHostImage(imageUrl, metadata = {}) {
+    try {
+      logger.info(`📥 Downloading LoRA image from: ${imageUrl}`);
+      
+      // Create safe filename
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substr(2, 9);
+      const filename = `lora_${timestamp}_${randomId}.png`;
+      
+      // Download image
+      const response = await axios.get(imageUrl, { 
+        responseType: 'stream',
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Crypto-News-Curator/1.0'
+        }
+      });
+      
+      if (response.status !== 200) {
+        throw new Error(`Failed to download image: HTTP ${response.status}`);
+      }
+      
+      // Save to local temp directory
+      const tempDir = path.join(__dirname, '../../temp/lora-images');
+      
+      // Ensure directory exists
+      try {
+        await fs.mkdir(tempDir, { recursive: true });
+      } catch (e) {
+        // Directory already exists
+      }
+      
+      const localPath = path.join(tempDir, filename);
+      const writeStream = createWriteStream(localPath);
+      
+      // Pipe the image data to file
+      response.data.pipe(writeStream);
+      
+      await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+      
+      // Generate URL that backend can serve
+      const baseUrl = process.env.BACKEND_URL || 'https://crypto-news-curator-backend-production.up.railway.app';
+      const hostedUrl = `${baseUrl}/temp/lora-images/${filename}`;
+      
+      logger.info(`✅ Image downloaded and hosted: ${hostedUrl}`);
+      
+      return {
+        success: true,
+        url: hostedUrl,
+        local_path: localPath,
+        filename: filename,
+        original_url: imageUrl,
+        metadata: {
+          ...metadata,
+          downloaded_at: new Date().toISOString(),
+          file_size: (await fs.stat(localPath)).size
+        }
+      };
+      
+    } catch (error) {
+      logger.error(`❌ Failed to download and host image: ${error.message}`);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Generate and host a LoRA image
    */
   async generateAndHostLoRAImage(articleData, options = {}) {
     try {
-      // Import HF Spaces LoRA service
-      const HFSpacesLoraService = require('./hfSpacesLoraService');
-      const loraService = new HFSpacesLoraService();
+      // Use working LoRA generator first
+      logger.info('🎨🎨🎨 USING NEW WORKING LORA GENERATOR - FIXED VERSION 🎨🎨🎨');
+      const WorkingLoraGenerator = require('./workingLoraGenerator');
+      const workingGenerator = new WorkingLoraGenerator();
       
-      if (!loraService.isAvailable()) {
-        logger.warn('🤗 HF Spaces LoRA service not available, falling back to local service');
-        const LoRAiService = require('./loraAiService');
-        const fallbackService = new LoRAiService();
-        
-        if (!fallbackService.isAvailable()) {
-          throw new Error('No LoRA service available');
-        }
-        
-        const result = await fallbackService.generateCryptoNewsImage(articleData, options);
-        if (result.success) {
-          return {
-            success: true,
-            image_url: result.coverUrl,
-            generation_method: result.generationMethod,
-            hosting_service: 'fallback_service'
-          };
-        }
-        throw new Error('Fallback service failed');
-      }
+      const result = await workingGenerator.generateCover(
+        articleData.title,
+        articleData.subtitle || "CRYPTO NEWS",
+        articleData.network || "hedera",
+        options.style || "energy_fields"
+      );
       
-      logger.info(`🤗 Generating HF Spaces LoRA image for: ${articleData.title}`);
-      
-      // Generate image using HF Spaces
-      const result = await loraService.generateCryptoNewsImage(articleData, options);
-      
-      if (result.success && result.coverUrl) {
-        // HF Spaces returns direct URLs, no need to upload
-        logger.info(`✅ HF Spaces LoRA image generated: ${result.coverUrl}`);
-        
+      if (result.success) {
+        logger.info(`✅ Working LoRA cover generated: ${result.coverUrl}`);
         return {
           success: true,
           image_url: result.coverUrl,
           display_url: result.coverUrl,
-          hosting_service: 'hf_spaces',
+          hosting_service: 'working_lora_generator',
           generation_method: result.generationMethod,
           metadata: result.metadata
         };
       }
       
-      throw new Error(result.error || 'LoRA generation failed');
+      // If working generator fails, throw error - no fallbacks as requested
+      throw new Error(result.error || 'Working LoRA generator failed');
       
     } catch (error) {
       logger.error('LoRA generation and hosting failed:', error.message);
       
-      // Return intelligent fallback
-      const network = articleData?.network || 'crypto';
-      const networkColors = {
-        'hedera': { bg: '8B2CE6', text: 'FFFFFF', name: 'Hedera' },
-        'algorand': { bg: '0078CC', text: 'FFFFFF', name: 'Algorand' },
-        'constellation': { bg: '484D8B', text: 'FFFFFF', name: 'Constellation' },
-        'bitcoin': { bg: 'F7931A', text: '000000', name: 'Bitcoin' },
-        'ethereum': { bg: '627EEA', text: 'FFFFFF', name: 'Ethereum' },
-        'generic': { bg: '4A90E2', text: 'FFFFFF', name: 'Crypto' }
-      };
-      
-      const colors = networkColors[network.toLowerCase()] || networkColors['generic'];
-      const safeTitle = encodeURIComponent(articleData.title.substring(0, 50));
-      const fallbackUrl = `https://via.placeholder.com/1800x900/${colors.bg}/${colors.text}?text=${safeTitle}+%7C+${colors.name}+News`;
-      
+      // Return error instead of fallback as requested
       return {
-        success: true,
-        image_url: fallbackUrl,
-        generation_method: 'intelligent_fallback',
-        error: error.message
+        success: false,
+        error: `LoRA generation failed: ${error.message}`,
+        metadata: {
+          error_type: 'lora_generation_failure',
+          timestamp: new Date().toISOString()
+        }
       };
     }
   }
