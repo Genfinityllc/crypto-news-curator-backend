@@ -1,0 +1,33 @@
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application files
+COPY app.py .
+COPY simple_lora_generator.py .
+
+# Create necessary directories
+RUN mkdir -p style_outputs
+RUN mkdir -p models
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV HF_HOME=/app/models
+
+# Expose port
+EXPOSE 7860
+
+# CRITICAL: This CMD was missing or wrong in your current Dockerfile
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]

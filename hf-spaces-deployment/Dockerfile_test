@@ -1,0 +1,13 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install minimal requirements
+RUN pip install fastapi uvicorn
+
+# Copy test app
+COPY test_app.py .
+
+EXPOSE 7860
+
+CMD ["python", "test_app.py"]

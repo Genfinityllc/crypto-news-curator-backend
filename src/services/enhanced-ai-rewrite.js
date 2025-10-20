@@ -290,15 +290,14 @@ async function generateFullLengthRewrite(title, content, articleUrl = null) {
     
     logger.info(`🔍 Detected: ${cryptoElements.primaryNetwork}, Themes: ${cryptoElements.themes.join(', ')}, Sentiment: ${cryptoElements.sentiment}`);
     
-    // Generate 3-5 word title
-    const shortTitle = generateShortSEOTitle(title, cryptoElements);
-    logger.info(`📝 Generated short title: "${shortTitle}" (${shortTitle.split(' ').length} words)`);
+    // Skip pre-generation - let AI create proper title from content
+    logger.info(`📝 Using original title for AI processing: "${title}"`);
     
     // Create ultra-optimized prompt for GPT-4
     const prompt = `You are an elite cryptocurrency journalist creating PREMIUM CONTENT for WordPress publication.
 
 CRITICAL REQUIREMENTS (MUST FOLLOW EXACTLY):
-- TITLE MUST BE EXACTLY 3-5 WORDS - NO MORE, NO LESS
+- TITLE MUST BE EXACTLY 3-6 WORDS - NO MORE, NO LESS
 - Write EXACTLY 400-800 words (count every word)
 - Use 8th-grade reading level for 97-100% readability (short sentences, simple words)
 - SEO optimized with longtail keywords naturally integrated
@@ -312,10 +311,11 @@ CRITICAL REQUIREMENTS (MUST FOLLOW EXACTLY):
 
 TITLE REQUIREMENTS (CRITICAL):
 - Create a title that captures the MAIN TOPIC of the original article
-- Title MUST be exactly 3-5 words - count them carefully
+- Title MUST be exactly 3-6 words - count them carefully
 - Title should reflect the specific content being rewritten, not generic crypto terms
-- Example: If article is about "Bank of England stablecoin regulations", title could be "BOE Stablecoin Rules Update"
+- Example: If article is about "Bank of England stablecoin regulations", title could be "BOE Stablecoin Rules Update" (4 words)
 - Make it relevant and specific to the actual article content
+- Use complete, grammatically correct phrases, not broken fragments
 
 ORIGINAL CONTENT TO REWRITE (MUST USE THIS EXACT CONTENT):
 Title: ${title}
@@ -418,7 +418,7 @@ Write the article now:`;
     const titleMatch = aiResponse.match(/TITLE:\s*(.+?)(?:\n|CONTENT|$)/is);
     const contentMatch = aiResponse.match(/CONTENT:\s*([\s\S]+?)(?:\n\n---|\n\nNOTE:|$)/is);
     
-    let finalTitle = shortTitle; // Fallback title
+    let finalTitle = title; // Use original title as fallback
     let finalContent = '';
     
     if (titleMatch && contentMatch) {
@@ -427,13 +427,13 @@ Write the article now:`;
       // Use OpenAI's title if it exists, trim to 5 words if needed
       if (parsedTitle && parsedTitle.length > 0) {
         const titleWords = parsedTitle.split(' ');
-        if (titleWords.length >= 3 && titleWords.length <= 5) {
+        if (titleWords.length >= 3 && titleWords.length <= 6) {
           finalTitle = parsedTitle; // Perfect length - use as is
-        } else if (titleWords.length > 5) {
-          finalTitle = titleWords.slice(0, 5).join(' '); // Trim to 5 words
+        } else if (titleWords.length > 6) {
+          finalTitle = titleWords.slice(0, 6).join(' '); // Trim to 6 words
         } else {
-          // Too short (less than 3 words) - use our generated title
-          finalTitle = shortTitle;
+          // Too short (less than 3 words) - use original title
+          finalTitle = title;
         }
       }
       

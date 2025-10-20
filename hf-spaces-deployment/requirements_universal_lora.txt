@@ -1,0 +1,30 @@
+# Universal LoRA HF Spaces Requirements
+# Core web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Image processing
+Pillow==10.1.0
+numpy==1.24.3
+
+# Data models
+pydantic==2.5.0
+
+# PyTorch (CPU version for HF Spaces)
+torch==2.0.1+cpu
+torchvision==0.15.2+cpu
+
+# Diffusers for LoRA loading
+diffusers==0.21.4
+transformers==4.35.2
+
+# LoRA support
+peft==0.6.2
+safetensors==0.4.0
+
+# Hugging Face Hub
+huggingface-hub==0.17.3
+
+# Additional dependencies
+accelerate==0.24.1
+datasets==2.14.0
