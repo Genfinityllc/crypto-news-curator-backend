@@ -78,16 +78,16 @@ router.get('/generate/status/:job_id', (req, res) => {
   });
 });
 
-// NEW WORKING ENDPOINT FOR FRONTEND - GUARANTEED IMAGE URL
+// UNIVERSAL LORA GENERATE - NO FALLBACKS, PROPER IMAGE IDS
 router.post('/lora-generate', async (req, res) => {
   try {
     const { title, subtitle, client_id } = req.body;
     
-    console.log('🎨 LoRA Generate Request:', req.body);
+    console.log('🎨 Universal LoRA Generate Request:', req.body);
     
-    // Call HF Spaces LoRA service to get real images
-    const HFSpacesLoraService = require('../services/hfSpacesLoraService');
-    const hfService = new HFSpacesLoraService();
+    // Use new Universal LoRA Service - NO FALLBACKS
+    const UniversalLoraService = require('../services/universalLoraService');
+    const loraService = new UniversalLoraService();
     
     const articleData = {
       title: title || 'Crypto News',
@@ -95,102 +95,116 @@ router.post('/lora-generate', async (req, res) => {
       network: client_id || 'generic'
     };
     
-    const result = await hfService.generateCryptoNewsImage(articleData, { size: '1792x896' });
+    const result = await loraService.generateWithId(articleData, { size: '1792x896' });
     
-    if (result && result.success && result.coverUrl) {
-      console.log('✅ HF Spaces LoRA successful:', result.coverUrl);
-      res.json({
-        success: true,
-        image_url: result.coverUrl,
-        metadata: {
-          method: 'hf_spaces_lora',
-          client_id: client_id || 'generic',
-          title: title || 'Crypto News', 
-          subtitle: subtitle || 'Analysis',
-          generated_at: new Date().toISOString()
-        }
-      });
-    } else {
-      // If HF Spaces fails, return error (no fallbacks)
-      res.status(500).json({
-        success: false,
-        error: 'HF Spaces LoRA generation failed',
-        message: result?.error || 'LoRA service unavailable'
-      });
-    }
+    console.log('✅ Universal LoRA successful:', result);
+    res.json({
+      success: true,
+      image_id: result.imageId,
+      image_url: result.imageUrl,
+      metadata: result.metadata
+    });
+    
   } catch (error) {
+    console.error('❌ Universal LoRA generation failed:', error.message);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      message: 'Universal LoRA generation failed - no fallbacks available'
     });
   }
 });
 
-// WORKING GENERATE ENDPOINT - GUARANTEES IMAGE URL
+// UNIVERSAL LORA GENERATE - PURE LORA, NO FALLBACKS
 router.post('/generate', async (req, res) => {
-  console.log('🎨 AI Cover Generate Request:', req.body);
+  console.log('🎨 Universal LoRA Generate Request:', req.body);
   
   try {
     const { title, subtitle, client_id } = req.body;
     
-    // For now, call actual LoRA service but guarantee we return an image URL
-    let imageUrl = 'https://dummyimage.com/1792x896/1a1a1a/ffffff&text=LoRA+Loading';
-    let generationMethod = 'lora_working';
+    // Use Universal LoRA Service - NO FALLBACKS ALLOWED
+    const UniversalLoraService = require('../services/universalLoraService');
+    const loraService = new UniversalLoraService();
     
-    try {
-      // Try to call HF Spaces LoRA service
-      const HFSpacesLoraService = require('../services/hfSpacesLoraService');
-      const hfService = new HFSpacesLoraService();
-      
-      const articleData = {
-        title: title || 'Crypto News',
-        content: subtitle || 'Analysis',
-        network: client_id || 'generic'
-      };
-      
-      const result = await hfService.generateCryptoNewsImage(articleData, { size: '1792x896' });
-      
-      if (result && result.success && result.coverUrl) {
-        imageUrl = result.coverUrl;
-        generationMethod = 'hf_spaces_lora';
-        console.log('✅ HF Spaces LoRA successful:', imageUrl);
-      } else {
-        console.log('⚠️ HF Spaces failed, using working placeholder');
-        // Create a better placeholder with article title
-        const safeTitle = encodeURIComponent((title || 'Crypto News').substring(0, 50));
-        imageUrl = `https://dummyimage.com/1792x896/0066cc/ffffff&text=${safeTitle}`;
-        generationMethod = 'working_placeholder';
-      }
-    } catch (loraError) {
-      console.log('⚠️ LoRA service error:', loraError.message);
-      // Create a working placeholder with article title  
-      const safeTitle = encodeURIComponent((title || 'Crypto News').substring(0, 50));
-      imageUrl = `https://dummyimage.com/1792x896/0066cc/ffffff&text=${safeTitle}`;
-      generationMethod = 'working_placeholder';
-    }
-    
-    // ALWAYS return success with image_url
-    const response = {
-      success: true,
-      image_url: imageUrl,
-      metadata: {
-        method: generationMethod,
-        client_id: client_id || 'generic',
-        title: title || 'Crypto News',
-        subtitle: subtitle || 'Analysis',
-        generated_at: new Date().toISOString()
-      }
+    const articleData = {
+      title: title || 'Crypto News',
+      content: subtitle || 'Analysis',
+      network: client_id || 'generic'
     };
     
-    console.log('📤 AI Cover Response:', response);
+    const result = await loraService.generateWithId(articleData, { size: '1792x896' });
+    
+    const response = {
+      success: true,
+      image_id: result.imageId,
+      image_url: result.imageUrl,
+      metadata: result.metadata
+    };
+    
+    console.log('📤 Universal LoRA Response:', response);
     res.json(response);
     
   } catch (error) {
-    // NO FALLBACKS! Return error
+    console.error('❌ Universal LoRA generation failed:', error.message);
+    // NO FALLBACKS! Return error as requested
     res.status(500).json({
       success: false,
       error: error.message,
-      message: 'LoRA AI service error'
+      message: 'Universal LoRA generation failed - no fallbacks available'
+    });
+  }
+});
+
+// IMAGE RETRIEVAL BY ID - GET HOSTED LORA IMAGE
+router.get('/image/:imageId', async (req, res) => {
+  try {
+    const { imageId } = req.params;
+    
+    console.log(`🖼️ Retrieving image: ${imageId}`);
+    
+    const UniversalLoraService = require('../services/universalLoraService');
+    const loraService = new UniversalLoraService();
+    
+    const result = await loraService.getImageById(imageId);
+    
+    res.json({
+      success: true,
+      image_id: result.imageId,
+      image_url: result.imageUrl,
+      message: 'Image retrieved successfully'
+    });
+    
+  } catch (error) {
+    res.status(404).json({
+      success: false,
+      error: error.message,
+      message: `Image ${req.params.imageId} not found`
+    });
+  }
+});
+
+// LIST ALL GENERATED IMAGES
+router.get('/images', async (req, res) => {
+  try {
+    console.log('📋 Listing all generated LoRA images');
+    
+    const UniversalLoraService = require('../services/universalLoraService');
+    const loraService = new UniversalLoraService();
+    
+    const result = await loraService.listImages();
+    
+    res.json({
+      success: true,
+      count: result.count,
+      images: result.images,
+      message: `Found ${result.count} generated images`
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to list images'
     });
   }
 });
