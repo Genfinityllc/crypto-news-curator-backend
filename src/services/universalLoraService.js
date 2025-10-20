@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
@@ -37,7 +37,8 @@ class UniversalLoraService {
    * Generate unique image ID
    */
   generateImageId() {
-    return `lora_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
+    const randomBytes = crypto.randomBytes(8);
+    return `lora_${randomBytes.toString('hex')}`;
   }
 
   /**

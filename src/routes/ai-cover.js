@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const LoRAiService = require('../services/loraAiService');
 const LogoCollectionService = require('../services/LogoCollectionService');
+const EnhancedLogoCollectionService = require('../services/enhancedLogoCollectionService');
+const LogoIntegrationTrainingService = require('../services/logoIntegrationTrainingService');
 
 // Health check endpoint for LoRA AI service compatibility
 router.get('/health', (req, res) => {
@@ -353,6 +355,235 @@ router.get('/training/collection-status', async (req, res) => {
       success: false,
       error: error.message,
       message: 'Failed to get collection status'
+    });
+  }
+});
+
+// 🎯 PHASE 2: ENHANCED LOGO COLLECTION ENDPOINTS (150+ Networks)
+
+// Collect all 150+ crypto network logos
+router.post('/training/collect-all-networks', async (req, res) => {
+  try {
+    const enhancedLogoService = new EnhancedLogoCollectionService();
+    
+    console.log('🚀 Phase 2: Starting collection of 150+ crypto networks...');
+    
+    // This is a long-running operation, so respond immediately and process in background
+    res.json({
+      success: true,
+      phase: 'Phase 2: Enhanced Logo Collection',
+      message: 'Collection started for 150+ crypto networks',
+      status: 'processing',
+      estimated_time: '15-30 minutes',
+      check_status_url: '/api/ai-cover/training/enhanced-status'
+    });
+    
+    // Start collection in background
+    enhancedLogoService.collectAll150Networks()
+      .then(report => {
+        console.log('✅ Enhanced logo collection completed:', report.statistics);
+      })
+      .catch(error => {
+        console.error('❌ Enhanced logo collection failed:', error);
+      });
+    
+  } catch (error) {
+    console.error('❌ Enhanced logo collection failed to start:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      phase: 'Phase 2: Enhanced Logo Collection',
+      message: 'Failed to start enhanced logo collection'
+    });
+  }
+});
+
+// Get enhanced collection status
+router.get('/training/enhanced-status', async (req, res) => {
+  try {
+    const enhancedLogoService = new EnhancedLogoCollectionService();
+    const status = await enhancedLogoService.getCollectionStatus();
+    
+    res.json({
+      success: true,
+      phase: 'Phase 2: Enhanced Logo Collection',
+      status: status,
+      message: 'Enhanced collection status retrieved'
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get enhanced collection status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to get enhanced collection status'
+    });
+  }
+});
+
+// Collect specific crypto network manually (for testing)
+router.post('/training/collect-network/:cryptoId', async (req, res) => {
+  try {
+    const { cryptoId } = req.params;
+    const enhancedLogoService = new EnhancedLogoCollectionService();
+    
+    console.log(`🎯 Manual collection requested for: ${cryptoId}`);
+    const result = await enhancedLogoService.collectSpecificCrypto(cryptoId);
+    
+    res.json({
+      success: true,
+      phase: 'Phase 2: Enhanced Logo Collection',
+      cryptoId: cryptoId,
+      result: result,
+      message: `Successfully collected logos for ${cryptoId}`
+    });
+    
+  } catch (error) {
+    console.error(`❌ Enhanced logo collection failed for ${req.params.cryptoId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      cryptoId: req.params.cryptoId,
+      phase: 'Phase 2: Enhanced Logo Collection',
+      message: 'Enhanced logo collection failed'
+    });
+  }
+});
+
+// Get training readiness report
+router.get('/training/readiness', async (req, res) => {
+  try {
+    const enhancedLogoService = new EnhancedLogoCollectionService();
+    const originalLogoService = new LogoCollectionService();
+    
+    const [enhancedStatus, originalStatus] = await Promise.all([
+      enhancedLogoService.getCollectionStatus(),
+      originalLogoService.getCollectionStatus()
+    ]);
+    
+    const totalNetworks = (enhancedStatus.statistics?.successful || 0) + (originalStatus.summary?.collected || 0);
+    const totalVariations = (enhancedStatus.statistics?.totalVariations || 0) + 
+                          (originalStatus.summary?.cryptos?.reduce((sum, crypto) => sum + crypto.variations, 0) || 0);
+    
+    const readiness = {
+      phase: 'Phase 2: Training Readiness Assessment',
+      logo_collection: {
+        original_system: {
+          networks: originalStatus.summary?.collected || 0,
+          variations: originalStatus.summary?.cryptos?.reduce((sum, crypto) => sum + crypto.variations, 0) || 0
+        },
+        enhanced_system: {
+          networks: enhancedStatus.statistics?.successful || 0,
+          variations: enhancedStatus.statistics?.totalVariations || 0
+        },
+        total: {
+          networks: totalNetworks,
+          variations: totalVariations
+        }
+      },
+      training_readiness: {
+        logos_ready: totalNetworks >= 100,
+        variations_ready: totalVariations >= 1000,
+        overall_status: totalNetworks >= 100 && totalVariations >= 1000 ? 'Ready for LoRA Training' : 'Collecting More Data',
+        next_phase: 'Logo Integration Training'
+      }
+    };
+    
+    res.json({
+      success: true,
+      readiness: readiness,
+      message: `Training readiness: ${readiness.training_readiness.overall_status}`
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to assess training readiness'
+    });
+  }
+});
+
+// 🎯 PHASE 2: LOGO INTEGRATION TRAINING ENDPOINTS
+
+// Create integrated background training samples
+router.post('/training/create-integration-samples', async (req, res) => {
+  try {
+    const trainingService = new LogoIntegrationTrainingService();
+    
+    console.log('🎨 Creating logo integration training samples...');
+    
+    res.json({
+      success: true,
+      phase: 'Phase 2: Logo Integration Training',
+      message: 'Creating training samples with logos integrated into backgrounds',
+      status: 'processing',
+      estimated_time: '10-20 minutes',
+      check_status_url: '/api/ai-cover/training/integration-status'
+    });
+    
+    // Start training sample creation in background
+    trainingService.createCompleteTrainingDataset()
+      .then(dataset => {
+        console.log('✅ Logo integration training samples created:', dataset.samples_count);
+      })
+      .catch(error => {
+        console.error('❌ Training sample creation failed:', error);
+      });
+    
+  } catch (error) {
+    console.error('❌ Failed to start training sample creation:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      phase: 'Phase 2: Logo Integration Training'
+    });
+  }
+});
+
+// Get integration training status
+router.get('/training/integration-status', async (req, res) => {
+  try {
+    const trainingService = new LogoIntegrationTrainingService();
+    const status = await trainingService.getTrainingDatasetStatus();
+    
+    res.json({
+      success: true,
+      phase: 'Phase 2: Logo Integration Training',
+      status: status,
+      message: 'Training dataset status retrieved'
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to get training status'
+    });
+  }
+});
+
+// Analyze crypto.news style
+router.post('/training/analyze-crypto-news-style', async (req, res) => {
+  try {
+    const trainingService = new LogoIntegrationTrainingService();
+    
+    console.log('🔍 Analyzing crypto.news style for reference...');
+    const analysis = await trainingService.analyzeCryptoNewsStyle();
+    
+    res.json({
+      success: true,
+      phase: 'Phase 2: Style Analysis',
+      analysis: analysis,
+      message: 'Crypto.news style analysis complete'
+    });
+    
+  } catch (error) {
+    console.error('❌ Style analysis failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Style analysis failed'
     });
   }
 });
