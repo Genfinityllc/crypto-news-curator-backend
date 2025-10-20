@@ -209,6 +209,67 @@ router.get('/images', async (req, res) => {
   }
 });
 
+// WATERMARK CONFIGURATION ENDPOINTS
+router.post('/watermark/configure', async (req, res) => {
+  try {
+    const { position, opacity } = req.body;
+    
+    console.log('🎨 Watermark configuration request:', req.body);
+    
+    const UniversalLoraService = require('../services/universalLoraService');
+    const loraService = new UniversalLoraService();
+    
+    if (position) {
+      loraService.watermarkService.setPosition(position);
+    }
+    
+    if (opacity !== undefined) {
+      loraService.watermarkService.setOpacity(opacity);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Watermark configuration updated',
+      config: {
+        position: loraService.watermarkService.watermarkPosition,
+        opacity: loraService.watermarkService.watermarkOpacity
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Watermark configuration failed'
+    });
+  }
+});
+
+// GET WATERMARK STATUS
+router.get('/watermark/status', (req, res) => {
+  try {
+    const UniversalLoraService = require('../services/universalLoraService');
+    const loraService = new UniversalLoraService();
+    
+    res.json({
+      success: true,
+      watermark: {
+        enabled: true,
+        brand: 'genfinity',
+        position: loraService.watermarkService.watermarkPosition,
+        opacity: loraService.watermarkService.watermarkOpacity,
+        size: loraService.watermarkService.watermarkSize
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // 🎯 PHASE 1: Logo Collection Pipeline Endpoints
 router.post('/training/collect-logos', async (req, res) => {
   try {

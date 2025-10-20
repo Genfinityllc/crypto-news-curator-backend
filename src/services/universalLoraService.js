@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
 const logger = require('../utils/logger');
+const WatermarkService = require('./watermarkService');
 
 /**
  * Universal LoRA Service - NO FALLBACKS
@@ -15,11 +16,12 @@ class UniversalLoraService {
     this.timeout = 300000; // 5 minutes
     this.imageStorePath = path.join(__dirname, '../../temp/lora-images');
     this.baseUrl = process.env.BASE_URL || 'https://crypto-news-curator-backend-production.up.railway.app';
+    this.watermarkService = new WatermarkService();
     
     // Ensure storage directory exists
     this.ensureStorageDirectory();
     
-    logger.info('🎨 Universal LoRA Service initialized - NO FALLBACKS MODE');
+    logger.info('🎨 Universal LoRA Service initialized - NO FALLBACKS MODE + Genfinity Watermark');
   }
 
   async ensureStorageDirectory() {
@@ -67,10 +69,14 @@ class UniversalLoraService {
       // Download and store image with proper ID
       await this.downloadAndStoreImage(result.image_url, imagePath);
       
-      // Verify image was stored
+      // Apply Genfinity watermark to stored image
+      logger.info(`🏷️ Applying Genfinity watermark to image: ${imageId}`);
+      await this.watermarkService.addWatermark(imagePath);
+      
+      // Verify final watermarked image exists
       const imageExists = await this.verifyImageExists(imagePath);
       if (!imageExists) {
-        throw new Error('Image storage verification failed');
+        throw new Error('Watermarked image storage verification failed');
       }
       
       logger.info(`✅ LoRA image generated and stored: ${imageId}`);
@@ -84,7 +90,9 @@ class UniversalLoraService {
           client_id: this.detectClient(articleData),
           title: articleData.title,
           generated_at: new Date().toISOString(),
-          stored_at: imagePath
+          stored_at: imagePath,
+          watermarked: true,
+          watermark: 'genfinity'
         }
       };
       
