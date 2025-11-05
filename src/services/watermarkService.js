@@ -76,32 +76,12 @@ class WatermarkService {
       // If we created a temp file, replace the original
       if (!outputImagePath && finalOutputPath !== inputImagePath) {
         await fs.rename(finalOutputPath, inputImagePath);
-        logger.info(`✅ Genfinity full-size watermark overlay applied successfully to: ${path.basename(inputImagePath)}`);
-        
-        return {
-          success: true,
-          outputPath: inputImagePath,
-          watermarkInfo: {
-            type: 'full_size_overlay',
-            source: this.useHfSpacesWatermark ? 'hf_spaces' : 'local',
-            position: this.watermarkPosition,
-            opacity: this.watermarkOpacity
-          }
-        };
+        logger.info(`✅ Genfinity watermark and title overlay applied successfully: ${path.basename(inputImagePath)}`);
+        return inputImagePath; // Return string path for compatibility
       }
       
-      logger.info(`✅ Genfinity full-size watermark overlay applied successfully to: ${path.basename(finalOutputPath)}`);
-      
-      return {
-        success: true,
-        outputPath: finalOutputPath,
-        watermarkInfo: {
-          type: 'full_size_overlay',
-          source: this.useHfSpacesWatermark ? 'hf_spaces' : 'local',
-          position: this.watermarkPosition,
-          opacity: this.watermarkOpacity
-        }
-      };
+      logger.info(`✅ Genfinity watermark and title overlay applied successfully: ${path.basename(finalOutputPath)}`);
+      return finalOutputPath; // Return string path for compatibility
       
     } catch (error) {
       logger.error(`❌ Watermark application failed: ${error.message}`);
