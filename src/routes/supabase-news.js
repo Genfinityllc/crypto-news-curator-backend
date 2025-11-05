@@ -1062,6 +1062,13 @@ router.post('/generate-card-image/:id?', async (req, res) => {
 // Generate LoRA-based AI images for crypto news with client-specific branding
 router.post('/generate-lora-image/:id?', async (req, res) => {
   try {
+    // TEMPORARY: Disable LoRA generation to prevent backend crashes
+    return res.json({
+      success: false,
+      message: 'LoRA generation temporarily disabled for stability',
+      error: 'Service under maintenance'
+    });
+
     const { id } = req.params;
     const { 
       size = '1792x896', 
