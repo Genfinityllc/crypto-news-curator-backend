@@ -51,56 +51,146 @@ class WorkingLoraService {
   }
 
   /**
-   * FIXED: Direct FastAPI call (no polling needed)
+   * FIXED: Gradio queue-based pattern with proper dimensions
    */
   async generateUniversalLoraImage(title, subtitle = '', client = '', style = 'modern') {
     try {
       const imageId = this.generateImageId();
       const startTime = Date.now();
       
-      logger.info(`🎨 Starting FastAPI LoRA generation for: "${title}"`);
+      logger.info(`🎨 Starting Gradio LoRA generation for: "${title}"`);
       
-      // Call the FastAPI endpoint directly
-      const generateUrl = `${this.hfSpacesUrl}/generate`;
-      logger.info(`🌐 Calling FastAPI endpoint: ${generateUrl}`);
+      // Create enhanced prompt
+      const prompt = this.createEnhancedPrompt(title, subtitle, client, style);
+      logger.info(`🔤 Enhanced prompt: "${prompt}"`);
       
-      const requestData = {
-        title: title,
-        subtitle: subtitle || 'CRYPTO NEWS',
-        client: client || 'hedera',
-        style: style || 'dark_theme',
-        use_trained_lora: true
-      };
+      // STEP 1: Call the Gradio API
+      const submitUrl = `${this.hfSpacesUrl}/gradio_api/call/generate_crypto_cover`;
+      logger.info(`🌐 Calling Gradio API: ${submitUrl}`);
       
-      logger.info(`📤 Request data: ${JSON.stringify(requestData)}`);
-      
-      const response = await axios.post(generateUrl, requestData, {
-        timeout: 240000, // 4 minutes for generation
+      const submitResponse = await axios.post(submitUrl, {
+        data: [
+          prompt,          // Image prompt
+          title,           // Cover title
+          "",              // Negative prompt (use default)
+          20,              // Inference steps (reduced from 30)
+          7.5              // Guidance scale
+        ]
+      }, {
+        timeout: 30000,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         }
       });
       
-      logger.info(`📦 FastAPI response: ${JSON.stringify(response.data)}`);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Generation failed');
+      const eventId = submitResponse.data.event_id;
+      if (!eventId) {
+        throw new Error('No event_id received from HF Spaces queue');
       }
       
-      const imageUrl = response.data.image_url;
-      if (!imageUrl) {
-        throw new Error('No image URL received from FastAPI');
+      logger.info(`✅ Got event_id: ${eventId}`);
+      
+      // STEP 2: Poll Gradio event for completion
+      const resultUrl = `${this.hfSpacesUrl}/gradio_api/call/generate_crypto_cover/${eventId}`;
+      logger.info(`🔄 Polling Gradio event: ${resultUrl}`);
+      
+      // Poll for completion
+      let imageData = null;
+      const maxAttempts = 30; // Reduced attempts for faster failure
+      
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          logger.info(`🔄 Polling attempt ${attempt + 1}/${maxAttempts}`);
+          
+          const pollResponse = await axios.get(resultUrl, {
+            timeout: 15000, // Shorter timeout
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          // Check for completion
+          if (pollResponse.data && pollResponse.data.includes && pollResponse.data.includes('complete')) {
+            logger.info(`✅ Generation complete!`);
+            // Parse the SSE response
+            const responseText = typeof pollResponse.data === 'string' ? pollResponse.data : String(pollResponse.data);
+            const lines = responseText.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonText = line.substring(6).trim();
+                  if (jsonText && jsonText !== '[DONE]') {
+                    const parsed = JSON.parse(jsonText);
+                    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]) {
+                      // Check if first element is an image object or base64
+                      const potentialImage = parsed[0];
+                      if (typeof potentialImage === 'string' && potentialImage.startsWith('data:image/')) {
+                        imageData = { dataUrl: potentialImage };
+                        break;
+                      } else if (potentialImage && typeof potentialImage === 'object' && 
+                                (potentialImage.url || potentialImage.path)) {
+                        imageData = potentialImage;
+                        break;
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  // Continue looking for valid data
+                }
+              }
+            }
+            
+            if (imageData) {
+              logger.info(`🎉 Polling completed successfully in ${attempt + 1} attempts`);
+              break;
+            }
+          }
+          
+          // Wait between attempts
+          if (attempt < maxAttempts - 1) {
+            const waitTime = Math.min(3000 + (attempt * 200), 8000); // 3-8 seconds
+            logger.info(`⏳ Waiting ${waitTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+          
+        } catch (pollError) {
+          logger.warn(`⚠️ Polling error on attempt ${attempt + 1}: ${pollError.message}`);
+          if (attempt < maxAttempts - 1) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          }
+        }
       }
       
-      // Handle base64 data URLs
+      if (!imageData) {
+        throw new Error(`Generation timeout: No image generated after ${maxAttempts} attempts`);
+      }
+      
+      // STEP 3: Download the image
       let imageBuffer;
-      if (imageUrl.startsWith('data:image/')) {
+      if (imageData.dataUrl) {
+        // Handle base64 data URL
         logger.info(`📥 Processing base64 image data`);
-        const base64Data = imageUrl.split(',')[1];
+        const base64Data = imageData.dataUrl.split(',')[1];
         imageBuffer = Buffer.from(base64Data, 'base64');
       } else {
+        // Handle file URL
+        let imageUrl = imageData.url || imageData.path;
+        
+        // Convert relative paths to absolute URLs
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          imageUrl = `${this.hfSpacesUrl}/file=${imageUrl}`;
+          logger.info(`🔧 Constructed absolute URL: ${imageUrl}`);
+        }
+        
+        if (!imageUrl) {
+          throw new Error(`No valid image URL found in response data`);
+        }
+        
         logger.info(`⬇️ Downloading image from: ${imageUrl}`);
+        
         const imageResponse = await axios.get(imageUrl, {
           responseType: 'arraybuffer',
           timeout: 60000,
@@ -108,6 +198,7 @@ class WorkingLoraService {
             'User-Agent': 'Mozilla/5.0 (compatible; LoRAService/1.0)'
           }
         });
+        
         imageBuffer = imageResponse.data;
       }
       
@@ -118,7 +209,7 @@ class WorkingLoraService {
       const fileSize = (await fs.stat(imagePath)).size;
       logger.info(`💾 Image saved: ${imagePath} (${fileSize} bytes)`);
       
-      // Resize to standard dimensions BEFORE watermarking
+      // Resize to standard dimensions BEFORE watermarking (using dimensions divisible by 8)
       await this.resizeToStandardDimensions(imagePath);
       
       // Apply watermark
@@ -131,7 +222,7 @@ class WorkingLoraService {
       }
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.info(`🎉 FastAPI LoRA generation completed in ${totalTime}s`);
+      logger.info(`🎉 Gradio LoRA generation completed in ${totalTime}s`);
       
       return {
         success: true,
@@ -143,23 +234,24 @@ class WorkingLoraService {
           subtitle,
           client,
           style,
+          prompt,
           generationTime: totalTime,
-          method: 'fastapi_direct',
-          model: 'SDXL_LoRA',
-          timestamp: new Date().toISOString(),
-          hf_metadata: response.data.metadata
+          method: 'gradio_queue_fixed',
+          model: 'SD_LoRA',
+          eventId: eventId,
+          timestamp: new Date().toISOString()
         }
       };
       
     } catch (error) {
-      logger.error('❌ FastAPI Universal LoRA generation failed:', error);
+      logger.error('❌ Gradio Universal LoRA generation failed:', error);
       
       if (error.response) {
         logger.error(`📊 Response status: ${error.response.status}`);
         logger.error(`📄 Response data:`, error.response.data);
       }
       
-      throw new Error(`FastAPI Universal LoRA generation failed: ${error.message}`);
+      throw new Error(`Gradio Universal LoRA generation failed: ${error.message}`);
     }
   }
 
@@ -191,16 +283,16 @@ class WorkingLoraService {
   }
 
   /**
-   * Resize image to standard 1800x900 dimensions to prevent watermark stretching
+   * Resize image to standard dimensions divisible by 8 to prevent SDXL errors
    */
   async resizeToStandardDimensions(imagePath) {
     try {
-      logger.info(`📐 Resizing to standard 1800x900 dimensions: ${path.basename(imagePath)}`);
+      logger.info(`📐 Resizing to SDXL-compatible 1792x896 dimensions: ${path.basename(imagePath)}`);
       
       const tempPath = imagePath.replace('.png', '_resized.png');
       
       await sharp(imagePath)
-        .resize(1800, 900, {
+        .resize(1792, 896, {  // Both dimensions divisible by 8
           fit: 'cover',
           position: 'center'
         })
@@ -209,7 +301,7 @@ class WorkingLoraService {
       
       // Replace original with resized version
       await fs.rename(tempPath, imagePath);
-      logger.info(`✅ Image resized to 1800x900: ${path.basename(imagePath)}`);
+      logger.info(`✅ Image resized to 1792x896 (divisible by 8): ${path.basename(imagePath)}`);
       
     } catch (error) {
       throw new Error(`Image resize failed: ${error.message}`);
