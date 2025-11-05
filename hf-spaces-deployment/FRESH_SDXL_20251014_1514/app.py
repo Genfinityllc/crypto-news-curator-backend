@@ -17,6 +17,18 @@ import torch
 from diffusers import StableDiffusionXLPipeline
 import numpy as np
 
+# Import spaces for ZeroGPU support
+try:
+    import spaces
+    logger.info("✅ Spaces module loaded for ZeroGPU support")
+except ImportError:
+    logger.warning("⚠️ Spaces module not available - running without ZeroGPU decorators")
+    # Create dummy decorator for local testing
+    class spaces:
+        @staticmethod
+        def GPU(fn):
+            return fn
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -150,14 +162,13 @@ class SDXLLoRACoverGenerator:
         
         try:
             # Load with maximum memory optimizations
+            # Note: HF Spaces doesn't support device_map="auto", so we avoid it
             self.pipeline = StableDiffusionXLPipeline.from_pretrained(
                 "stabilityai/stable-diffusion-xl-base-1.0",
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 variant="fp16" if device == "cuda" and torch_dtype == torch.float16 else None,
                 use_safetensors=True,
-                low_cpu_mem_usage=True,
-                device_map="auto" if device == "cuda" else None,
-                max_memory={0: "15GB"} if device == "cuda" else None
+                low_cpu_mem_usage=True
             )
             
             logger.info("📦 SDXL model loaded, moving to device...")
@@ -173,11 +184,8 @@ class SDXLLoRACoverGenerator:
                 except Exception as e:
                     logger.warning(f"⚠️ XFormers failed: {e}")
                 
-                try:
-                    self.pipeline.enable_model_cpu_offload()
-                    logger.info("✅ Model CPU offload enabled")
-                except Exception as e:
-                    logger.warning(f"⚠️ CPU offload failed: {e}")
+                # Skip CPU offload on HF Spaces - can cause conflicts with ZeroGPU
+                logger.info("⏭️ Skipping CPU offload (HF Spaces compatibility)")
             else:
                 # CPU optimizations
                 try:
@@ -204,7 +212,7 @@ class SDXLLoRACoverGenerator:
             raise e
     
     def load_lora_weights(self, client, style):
-        """Load appropriate LoRA weights"""
+        """Load appropriate LoRA weights - FIXED with weight_name specification"""
         if not self.pipeline:
             return False
         
@@ -224,16 +232,80 @@ class SDXLLoRACoverGenerator:
             if self.current_lora:
                 self.pipeline.unload_lora_weights()
             
-            # Load new LoRA
-            self.pipeline.load_lora_weights(lora_path)
+            # ✅ FIX: Handle directory vs file path and specify weight_name explicitly
+            if os.path.isdir(lora_path):
+                # If path is a directory, use weight_name parameter
+                lora_file = "crypto_cover_styles_lora.safetensors"
+                logger.info(f"🔧 Loading LoRA from directory: {lora_path} with weight_name: {lora_file}")
+                self.pipeline.load_lora_weights(
+                    lora_path,
+                    weight_name=lora_file
+                )
+            elif os.path.isfile(lora_path):
+                # If path is a file, check if directory has multiple files
+                lora_dir = os.path.dirname(lora_path)
+                lora_file = os.path.basename(lora_path)
+                
+                # Check for multiple safetensors files in directory
+                safetensors_files = [f for f in os.listdir(lora_dir) if f.endswith('.safetensors')]
+                
+                if len(safetensors_files) > 1:
+                    # Multiple files - use directory + weight_name method
+                    logger.info(f"🔧 Multiple safetensors found, using weight_name: {lora_file}")
+                    self.pipeline.load_lora_weights(
+                        lora_dir,
+                        weight_name=lora_file
+                    )
+                else:
+                    # Single file - load directly from path
+                    logger.info(f"🔧 Loading LoRA from file path: {lora_path}")
+                    self.pipeline.load_lora_weights(lora_path)
+            else:
+                # Path doesn't exist - try alternative loading
+                logger.warning(f"⚠️ LoRA path not found: {lora_path}, trying alternative...")
+                lora_dir = "models/lora"
+                lora_file = "crypto_cover_styles_lora.safetensors"
+                alt_path = os.path.join(lora_dir, lora_file)
+                
+                if os.path.exists(alt_path):
+                    logger.info(f"🔧 Loading from alternative path: {alt_path}")
+                    self.pipeline.load_lora_weights(
+                        lora_dir,
+                        weight_name=lora_file
+                    )
+                else:
+                    raise FileNotFoundError(f"LoRA file not found: {lora_path} or {alt_path}")
+            
             self.current_lora = lora_key
-            logger.info(f"✅ Loaded LoRA: {lora_key}")
+            logger.info(f"✅ Loaded LoRA: {lora_key} → file: {lora_file if 'lora_file' in locals() else os.path.basename(lora_path)}")
             return True
             
         except Exception as e:
             logger.error(f"❌ Failed to load LoRA {lora_path}: {e}")
+            logger.error(f"   Error type: {type(e).__name__}")
+            logger.error(f"   Error details: {str(e)}")
+            
+            # Try fallback method with explicit directory + weight_name
+            try:
+                logger.info(f"🔄 Trying fallback loading method...")
+                lora_dir = "models/lora"
+                lora_file = "crypto_cover_styles_lora.safetensors"
+                
+                if os.path.exists(os.path.join(lora_dir, lora_file)):
+                    logger.info(f"🔧 Fallback: Loading from {lora_dir} with weight_name: {lora_file}")
+                    self.pipeline.load_lora_weights(
+                        lora_dir,
+                        weight_name=lora_file
+                    )
+                    self.current_lora = lora_key
+                    logger.info(f"✅ LoRA loaded successfully with fallback method!")
+                    return True
+            except Exception as e2:
+                logger.error(f"❌ Fallback loading also failed: {e2}")
+            
             return False
     
+    @spaces.GPU
     def generate_with_trained_lora(self, client, style, title):
         """Generate background using trained LoRA model"""
         if not self.pipeline:
@@ -486,6 +558,7 @@ async def lora_status():
     }
 
 @app.post("/generate")
+@spaces.GPU
 async def generate_image(request: GenerationRequest):
     """Generate cover using SDXL Universal LoRA or fallback"""
     try:

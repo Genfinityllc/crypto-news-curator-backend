@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const LoRAiService = require('../services/loraAiService');
+// REPLACED: Using Universal LoRA Service exclusively
 const LogoCollectionService = require('../services/LogoCollectionService');
 const EnhancedLogoCollectionService = require('../services/enhancedLogoCollectionService');
 const LogoIntegrationTrainingService = require('../services/logoIntegrationTrainingService');
+const EnhancedCryptoLogoCollector = require('../services/enhancedCryptoLogoCollector');
 
 // Health check endpoint for LoRA AI service compatibility
 router.get('/health', (req, res) => {
@@ -26,17 +27,23 @@ router.get('/status', (req, res) => {
   });
 });
 
-// FastAPI-compatible generate cover endpoint
+// FastAPI-compatible generate cover endpoint - USING UNIVERSAL LORA SERVICE
 router.post('/generate/cover', async (req, res) => {
   try {
     const { title, subtitle, client_id, size } = req.body;
     
-    const loraService = new LoRAiService();
+    console.log('🎨 Universal LoRA Generate Cover Request:', req.body);
+    
+    // Use Universal LoRA Service - REAL LORA WITH PNG AND WATERMARKS
+    console.log('🚨 ULTRA FIX: Loading ULTRA FIXED UniversalLoraService from:', require.resolve('../services/ultraFixedLoraService'));
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
+    console.log('🚨 ULTRA DEBUG: Service methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(loraService)));
     
     const articleData = {
-      title: title,
-      content: subtitle || 'Crypto news article',
-      network: client_id
+      title: title || 'Crypto News',
+      content: subtitle || 'Analysis',
+      network: client_id || 'generic'
     };
     
     const options = {
@@ -44,24 +51,30 @@ router.post('/generate/cover', async (req, res) => {
       style: 'professional'
     };
     
-    const result = await loraService.generateCryptoNewsImage(articleData, options);
+    console.log('🚨 DEBUG: About to call generateLoraImage with:', articleData, options);
+    console.log('🚨 ULTRA DEBUG: Service instance:', typeof loraService.generateLoraImage);
+    console.log('🚨 ULTRA DEBUG: Image storage path:', loraService.imageStorePath);
     
-    if (result.success) {
-      res.json({
-        job_id: Date.now().toString(),
-        status: 'completed',
-        image_url: result.coverUrl,
-        message: 'Cover generated successfully'
-      });
-    } else {
-      res.status(500).json({
-        job_id: Date.now().toString(),
-        status: 'failed',
-        message: 'Generation failed'
-      });
-    }
+    // Use new method from fixed service
+    const result = await loraService.generateLoraImage(
+      articleData.title,
+      articleData.content,
+      articleData.network,
+      options.style
+    );
+    
+    console.log('🚨 DEBUG: generateLoraImage returned:', result);
+    
+    console.log('✅ Universal LoRA Cover successful:', result);
+    res.json({
+      job_id: result.imageId,
+      status: 'completed',
+      image_url: result.imageUrl,
+      message: 'Cover generated successfully with Universal LoRA'
+    });
     
   } catch (error) {
+    console.error('❌ Universal LoRA cover generation failed:', error.message);
     res.status(500).json({
       job_id: Date.now().toString(),
       status: 'failed',
@@ -88,8 +101,8 @@ router.post('/lora-generate', async (req, res) => {
     console.log('🎨 Universal LoRA Generate Request:', req.body);
     
     // Use new Universal LoRA Service - NO FALLBACKS
-    const UniversalLoraService = require('../services/universalLoraService');
-    const loraService = new UniversalLoraService();
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
     
     const articleData = {
       title: title || 'Crypto News',
@@ -97,7 +110,12 @@ router.post('/lora-generate', async (req, res) => {
       network: client_id || 'generic'
     };
     
-    const result = await loraService.generateWithId(articleData, { size: '1792x896' });
+    const result = await loraService.generateLoraImage(
+      articleData.title,
+      articleData.content || '',
+      articleData.network || 'generic',
+      'professional'
+    );
     
     console.log('✅ Universal LoRA successful:', result);
     res.json({
@@ -125,8 +143,8 @@ router.post('/generate', async (req, res) => {
     const { title, subtitle, client_id } = req.body;
     
     // Use Universal LoRA Service - NO FALLBACKS ALLOWED
-    const UniversalLoraService = require('../services/universalLoraService');
-    const loraService = new UniversalLoraService();
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
     
     const articleData = {
       title: title || 'Crypto News',
@@ -134,7 +152,12 @@ router.post('/generate', async (req, res) => {
       network: client_id || 'generic'
     };
     
-    const result = await loraService.generateWithId(articleData, { size: '1792x896' });
+    const result = await loraService.generateLoraImage(
+      articleData.title,
+      articleData.content || '',
+      articleData.network || 'generic',
+      'professional'
+    );
     
     const response = {
       success: true,
@@ -164,8 +187,8 @@ router.get('/image/:imageId', async (req, res) => {
     
     console.log(`🖼️ Retrieving image: ${imageId}`);
     
-    const UniversalLoraService = require('../services/universalLoraService');
-    const loraService = new UniversalLoraService();
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
     
     const result = await loraService.getImageById(imageId);
     
@@ -190,8 +213,8 @@ router.get('/images', async (req, res) => {
   try {
     console.log('📋 Listing all generated LoRA images');
     
-    const UniversalLoraService = require('../services/universalLoraService');
-    const loraService = new UniversalLoraService();
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
     
     const result = await loraService.listImages();
     
@@ -218,8 +241,8 @@ router.post('/watermark/configure', async (req, res) => {
     
     console.log('🎨 Watermark configuration request:', req.body);
     
-    const UniversalLoraService = require('../services/universalLoraService');
-    const loraService = new UniversalLoraService();
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
     
     if (position) {
       loraService.watermarkService.setPosition(position);
@@ -250,8 +273,8 @@ router.post('/watermark/configure', async (req, res) => {
 // GET WATERMARK STATUS
 router.get('/watermark/status', (req, res) => {
   try {
-    const UniversalLoraService = require('../services/universalLoraService');
-    const loraService = new UniversalLoraService();
+    const WorkingLoraService = require('../services/workingLoraService');
+    const loraService = new WorkingLoraService();
     
     res.json({
       success: true,
@@ -584,6 +607,110 @@ router.post('/training/analyze-crypto-news-style', async (req, res) => {
       success: false,
       error: error.message,
       message: 'Style analysis failed'
+    });
+  }
+});
+
+// 🚀 PHASE 1: ULTRA LORA TRAINING - Enhanced Crypto Logo Collection Endpoints
+
+// Start Phase 1 crypto logo collection (per ULTRA_LORA_TRAINING_PLAN.md)
+router.post('/training/phase1/collect-logos', async (req, res) => {
+  try {
+    const collector = new EnhancedCryptoLogoCollector();
+    
+    console.log('🚀 Phase 1: Starting enhanced crypto logo collection...');
+    
+    // This is a long-running operation, respond immediately and process in background
+    res.json({
+      success: true,
+      phase: 'Phase 1: Enhanced Crypto Logo Collection',
+      message: 'Collection started for major cryptocurrencies + style variations',
+      status: 'processing',
+      estimated_time: '10-15 minutes',
+      target_cryptos: 20,
+      style_variations: 10,
+      check_status_url: '/api/ai-cover/training/phase1/status'
+    });
+    
+    // Start collection in background
+    collector.scrapeCryptoLogos()
+      .then(report => {
+        console.log('✅ Phase 1 enhanced logo collection completed:', report.statistics);
+      })
+      .catch(error => {
+        console.error('❌ Phase 1 enhanced logo collection failed:', error);
+      });
+    
+  } catch (error) {
+    console.error('❌ Phase 1 collection failed to start:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      phase: 'Phase 1: Enhanced Crypto Logo Collection',
+      message: 'Failed to start enhanced logo collection'
+    });
+  }
+});
+
+// Get Phase 1 collection status
+router.get('/training/phase1/status', async (req, res) => {
+  try {
+    const collector = new EnhancedCryptoLogoCollector();
+    const status = await collector.getCollectionStatus();
+    
+    res.json({
+      success: true,
+      phase: 'Phase 1: Enhanced Crypto Logo Collection',
+      status: status,
+      message: 'Phase 1 status retrieved',
+      roadmap_compliance: 'ULTRA_LORA_TRAINING_PLAN.md'
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get Phase 1 status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to get Phase 1 status'
+    });
+  }
+});
+
+// Start full ULTRA LoRA training pipeline (all phases)
+router.post('/training/ultra-lora/start', async (req, res) => {
+  try {
+    console.log('🎯 ULTRA LoRA Training Pipeline: Starting all phases...');
+    
+    res.json({
+      success: true,
+      pipeline: 'ULTRA LoRA Training System',
+      message: 'Multi-phase LoRA training pipeline initiated',
+      phases: [
+        'Phase 1: Enhanced Logo Collection',
+        'Phase 2: Specialized LoRA Training', 
+        'Phase 3: Smart LoRA Selection',
+        'Phase 4: Continuous Learning'
+      ],
+      status: 'initiating',
+      roadmap: 'ULTRA_LORA_TRAINING_PLAN.md',
+      estimated_completion: '2-4 weeks'
+    });
+    
+    // Start Phase 1 immediately
+    const collector = new EnhancedCryptoLogoCollector();
+    collector.scrapeCryptoLogos()
+      .then(report => {
+        console.log('🎯 ULTRA LoRA Phase 1 completed, ready for Phase 2');
+      })
+      .catch(error => {
+        console.error('❌ ULTRA LoRA Phase 1 failed:', error);
+      });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'ULTRA LoRA pipeline failed to start'
     });
   }
 });

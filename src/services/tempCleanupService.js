@@ -19,7 +19,8 @@ class TempCleanupService {
       path.join(__dirname, '..', '..', 'screenshots'),
       path.join(__dirname, '..', '..', 'logs')
     ];
-    this.maxFileAge = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+    this.maxFileAge = 4 * 24 * 60 * 60 * 1000; // 4 days in milliseconds
+    this.loraImageAge = 4 * 24 * 60 * 60 * 1000; // Keep LoRA images for 4 days
     this.maxDirectorySize = 100 * 1024 * 1024; // 100MB limit per directory
     this.cleanupInterval = null;
   }
@@ -75,15 +76,19 @@ class TempCleanupService {
         // Skip directories for now (could recurse if needed)
         if (stats.isDirectory()) continue;
         
-        // Delete old files
+        // Delete old files (special handling for LoRA images)
         const fileAge = now - stats.mtime.getTime();
-        if (fileAge > this.maxFileAge) {
+        const isLoraImage = dirPath.includes('lora-images') && file.startsWith('lora_');
+        const ageThreshold = isLoraImage ? this.loraImageAge : this.maxFileAge;
+        
+        if (fileAge > ageThreshold) {
           try {
             const fileSize = stats.size;
             fs.unlinkSync(filePath);
             deletedFiles++;
             freedSpace += fileSize;
-            logger.info(`🗑️ Deleted old file: ${file} (${(fileSize / 1024).toFixed(1)}KB)`);
+            const ageHours = (fileAge / (1000 * 60 * 60)).toFixed(1);
+            logger.info(`🗑️ Deleted old ${isLoraImage ? 'LoRA' : ''} file: ${file} (${(fileSize / 1024).toFixed(1)}KB, ${ageHours}h old)`);
           } catch (deleteError) {
             logger.warn(`Failed to delete ${file}:`, deleteError.message);
           }

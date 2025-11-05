@@ -206,42 +206,57 @@ class ImageHostingService {
    */
   async generateAndHostLoRAImage(articleData, options = {}) {
     try {
-      // Use working LoRA generator first
-      logger.info('🎨🎨🎨 USING NEW WORKING LORA GENERATOR - FIXED VERSION 🎨🎨🎨');
-      const WorkingLoraGenerator = require('./workingLoraGenerator');
-      const workingGenerator = new WorkingLoraGenerator();
+      // Use Universal LoRA Service with PNG + Watermark output
+      logger.info('🎨✨ USING WORKING UNIVERSAL LORA SERVICE - PNG + GENFINITY WATERMARK ✨🎨');
+      const WorkingLoraService = require('./workingLoraService');
+      const universalService = new WorkingLoraService();
       
-      const result = await workingGenerator.generateCover(
-        articleData.title,
-        articleData.subtitle || "CRYPTO NEWS",
-        articleData.network || "hedera",
-        options.style || "energy_fields"
+      // Prepare article data for Universal LoRA Service
+      const loraArticleData = {
+        title: articleData.title,
+        subtitle: articleData.subtitle || "CRYPTO NEWS",
+        network: articleData.network || "hedera",
+        description: articleData.description || ""
+      };
+      
+      const loraOptions = {
+        style: options.style || "energy_fields",
+        ...options
+      };
+      
+      const result = await universalService.generateLoraImage(
+        loraArticleData.title,
+        loraArticleData.content || '',
+        loraArticleData.network || 'generic',
+        loraOptions.style || 'professional'
       );
       
       if (result.success) {
-        logger.info(`✅ Working LoRA cover generated: ${result.coverUrl}`);
+        logger.info(`✅ Universal LoRA PNG with watermark generated: ${result.imageUrl}`);
         return {
           success: true,
-          image_url: result.coverUrl,
-          display_url: result.coverUrl,
-          hosting_service: 'working_lora_generator',
-          generation_method: result.generationMethod,
+          image_url: result.imageUrl,
+          display_url: result.imageUrl,
+          hosting_service: 'universal_lora_service',
+          generation_method: 'hf_spaces_lora_png_watermarked',
+          image_id: result.imageId,
           metadata: result.metadata
         };
       }
       
-      // If working generator fails, throw error - no fallbacks as requested
-      throw new Error(result.error || 'Working LoRA generator failed');
+      // If Universal LoRA Service fails, throw error - no fallbacks as requested
+      throw new Error('Universal LoRA Service failed - PNG generation with watermark failed');
       
     } catch (error) {
-      logger.error('LoRA generation and hosting failed:', error.message);
+      logger.error('Universal LoRA generation and hosting failed:', error.message);
+      logger.error('Full error details:', error);
       
       // Return error instead of fallback as requested
       return {
         success: false,
-        error: `LoRA generation failed: ${error.message}`,
+        error: `Universal LoRA generation failed: ${error.message}`,
         metadata: {
-          error_type: 'lora_generation_failure',
+          error_type: 'universal_lora_generation_failure',
           timestamp: new Date().toISOString()
         }
       };

@@ -75,8 +75,21 @@ const limiter = rateLimit({
 });
 
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
+}));
+app.use(cors({
+  origin: [
+    'https://crypto-news-frontend-ruddy.vercel.app',
+    'https://crypto-news-frontend-ioih8fxg4-valors-projects-03f742a5.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+}));
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -88,8 +101,15 @@ app.use('/temp', express.static(path.join(__dirname, '..', 'temp')));
 // Serve generated cover images
 app.use('/temp/generated-covers', express.static(path.join(__dirname, '..', 'temp', 'generated-covers')));
 
-// Serve downloaded LoRA images
-app.use('/temp/lora-images', express.static(path.join(__dirname, '..', 'temp', 'lora-images')));
+// Serve downloaded LoRA images with CORS headers
+app.use('/temp/lora-images', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+}, express.static(path.join(__dirname, '..', 'temp', 'lora-images')));
 
 // Serve working LoRA generated images
 app.use('/temp/working-lora', express.static(path.join(__dirname, '..', 'temp', 'working-lora')));
@@ -172,6 +192,7 @@ app.get('/healthz', (req, res) => {
 // API routes
 app.use('/api/news', newsRoutes);
 app.use('/api/ai-cover', require('./routes/ai-cover')); // LoRA AI Cover Generator endpoint
+app.use('/api/lora-archive', require('./routes/lora-archive')); // LoRA Archive Browser
 app.use('/api/unified-news', require('./routes/unified-news')); // Unified news endpoint - single source of truth
 app.use('/api/cached-news', require('./routes/cached-news')); // New ultra-fast cached route
 app.use('/api/fast-news', require('./routes/fast-news')); // Simple ultra-fast cached route

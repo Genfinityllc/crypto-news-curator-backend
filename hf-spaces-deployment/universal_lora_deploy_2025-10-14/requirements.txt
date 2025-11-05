@@ -1,28 +1,23 @@
-# SDXL Universal LoRA - FINAL FIXED VERSION - Updated Oct 15 2025
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-Pillow==10.1.0
-pydantic==2.5.0
-numpy==1.24.3
+# Gradio for HF Spaces interface
+gradio==4.44.0
 
-# PyTorch - Version ranges to resolve xformers conflict
-torch>=2.1.0,<2.2.0
-torchvision>=0.16.0,<0.17.0
+# Core ML libraries
+torch==2.1.1
+torchvision==0.16.1
+torchaudio==2.1.1
 
-# Diffusers and transformers - Compatible versions
+# Diffusers and transformers
 diffusers==0.24.0
 transformers==4.36.0
 
-# LoRA libraries - Version ranges for compatibility
-peft>=0.7.0,<0.8.0
-safetensors>=0.4.0,<0.5.0
-accelerate>=0.25.0,<0.26.0
+# LoRA libraries
+peft==0.7.1
+safetensors==0.4.1
+accelerate==0.25.0
 
-# Memory optimization - Removed xformers to fix dependency conflict
-bitsandbytes>=0.41.0,<0.42.0
+# Image processing
+Pillow==10.1.0
 
-# Hugging Face Hub
-huggingface-hub>=0.19.0,<0.20.0
-
-# CRITICAL: This fixes the torch==2.1.1 vs xformers==torch.2.1.2 conflict
-# Upload THIS file to your HF Space to resolve build errors
+# Utilities
+numpy==1.24.3
+huggingface-hub==0.19.4

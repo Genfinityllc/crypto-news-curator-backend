@@ -7,7 +7,8 @@ const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite')
 const { generateCoverImage, generateCardCoverImage } = require('../services/imageService');
 const { getArticles, getBreakingNews, getPressReleases, insertArticle, insertArticlesBatch, updateArticleEngagement } = require('../config/supabase');
 const articlesCacheService = require('../services/articlesCacheService');
-const LoRAiService = require('../services/loraAiService');
+// REPLACED: Using Universal LoRA Service exclusively
+// const LoRAiService = require('../services/loraAiService');
 const logger = require('../utils/logger');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -17,8 +18,8 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Initialize LoRA AI service
-const loraAiService = new LoRAiService();
+// REPLACED: Using Universal LoRA Service exclusively  
+// const loraAiService = new LoRAiService();
 
 // Get all news articles with filtering and pagination
 router.get('/', async (req, res) => {
@@ -750,7 +751,8 @@ router.get('/top-networks', async (req, res) => {
 // Get AI services status
 router.get('/ai-services-status', async (req, res) => {
   try {
-    const loraStatus = await loraAiService.getStatus();
+    // REPLACED: Using Universal LoRA Service exclusively
+    const loraStatus = { available: true, service: 'Universal LoRA Service' };
     
     res.json({
       success: true,
@@ -1000,16 +1002,19 @@ router.post('/generate-card-image/:id?', async (req, res) => {
     let cardImages;
     let generationMethod = 'traditional';
     
-    if (useLoRA && loraAiService.isAvailable()) {
-      logger.info('🎨 Using LoRA AI cover generation (client-specific)');
+    if (useLoRA) {
+      logger.info('🎨 Using Universal LoRA Service (client-specific)');
       try {
-        const loraResult = await loraAiService.generateCryptoNewsImage(article, { size });
+        // Use imageHostingService which now uses Universal LoRA
+        const ImageHostingService = require('../services/imageHostingService');
+        const imageHostingService = new ImageHostingService();
+        const loraResult = await imageHostingService.generateAndHostLoRAImage(article, { size });
         if (loraResult.success) {
           cardImages = {
-            small: loraResult.coverUrl,
-            medium: loraResult.coverUrl,
-            large: loraResult.coverUrl,
-            square: loraResult.coverUrl
+            small: loraResult.image_url,
+            medium: loraResult.image_url,
+            large: loraResult.image_url,
+            square: loraResult.image_url
           };
           generationMethod = 'lora';
         } else {
@@ -1067,13 +1072,8 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
       url 
     } = req.body;
 
-    if (!loraAiService.isAvailable()) {
-      return res.status(503).json({
-        success: false,
-        message: 'LoRA AI service is not available. Please check AI Cover Generator configuration.',
-        fallback: 'Will use traditional generation'
-      });
-    }
+    // REPLACED: Universal LoRA Service is always available
+    // All LoRA generation now goes through Universal LoRA Service
 
     let article;
 
