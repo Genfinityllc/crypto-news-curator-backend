@@ -10,56 +10,95 @@ const logger = require('../utils/logger');
 class WatermarkService {
   constructor() {
     this.watermarkPath = path.join(__dirname, '../../assets/genfinity-watermark.png');
-    this.watermarkPosition = 'bottom-right'; // Default position
-    this.watermarkOpacity = 0.8; // 80% opacity
-    this.watermarkSize = { width: 200, height: 60 }; // Reasonable size
-    this.padding = { x: 20, y: 20 }; // Padding from edges
+    this.hfSpacesWatermarkUrl = 'https://valtronk-crypto-news-lora-generator.hf.space/file/genfinity-watermark.png';
+    this.watermarkPosition = 'overlay'; // Full-size overlay as requested
+    this.watermarkOpacity = 1.0; // Full opacity for perfect overlay
+    this.useHfSpacesWatermark = false; // Use local first, then HF Spaces fallback
     
-    logger.info('🎨 Genfinity Watermark Service initialized');
+    logger.info('🎨 Genfinity Watermark Service initialized - Using local file with HF Spaces fallback');
   }
 
   /**
-   * Add Genfinity watermark to image
+   * Add Genfinity watermark and optional title to image
    */
-  async addWatermark(inputImagePath, outputImagePath = null) {
+  async addWatermark(inputImagePath, outputImagePath = null, options = {}) {
     try {
-      // Use same path if no output specified (overwrite)
-      const finalOutputPath = outputImagePath || inputImagePath;
+      // Create unique output path to avoid Sharp conflict
+      const finalOutputPath = outputImagePath || inputImagePath.replace(/(\.[^.]+)$/, '_watermarked$1');
       
-      logger.info(`🏷️ Adding Genfinity watermark to: ${path.basename(inputImagePath)}`);
-      
-      // Verify watermark exists
-      await this.verifyWatermarkExists();
+      const { title } = options;
+      logger.info(`🏷️ Adding Genfinity watermark${title ? ' and title' : ''} to: ${path.basename(inputImagePath)}`);
       
       // Load main image info
       const mainImage = sharp(inputImagePath);
       const { width: mainWidth, height: mainHeight } = await mainImage.metadata();
       
-      // Prepare watermark
-      const watermark = await this.prepareWatermark(mainWidth, mainHeight);
+      // Create composite layers array
+      const compositeOperations = [];
       
-      // Calculate position
-      const position = this.calculatePosition(mainWidth, mainHeight, watermark.width, watermark.height);
-      
-      // Apply watermark
-      await mainImage
-        .composite([{
-          input: await watermark.png().toBuffer(),
-          left: position.x,
-          top: position.y,
+      // Add title overlay if provided
+      if (title) {
+        const titleOverlay = await this.createTitleOverlay(mainWidth, mainHeight, title);
+        compositeOperations.push({
+          input: titleOverlay,
+          left: 0,
+          top: 0,
           blend: 'over'
-        }])
+        });
+      }
+      
+      // Get watermark (from HF Spaces or local)
+      const watermarkBuffer = await this.getWatermarkBuffer();
+      
+      // Resize watermark maintaining aspect ratio, no stretching
+      const overlayWatermark = sharp(watermarkBuffer)
+        .resize(mainWidth, mainHeight, {
+          fit: 'inside', // Maintain aspect ratio, no stretching
+          position: 'centre',
+          background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+        })
+        .png({ quality: 95 });
+      
+      // Add watermark to composite operations
+      compositeOperations.push({
+        input: await overlayWatermark.toBuffer(),
+        left: 0,
+        top: 0,
+        blend: 'over', // Use 'over' blend mode for 100% opacity
+      });
+      
+      // Apply all overlays
+      await mainImage
+        .composite(compositeOperations)
         .png({ quality: 95 })
         .toFile(finalOutputPath);
       
-      logger.info(`✅ Watermark applied successfully: ${path.basename(finalOutputPath)}`);
+      // If we created a temp file, replace the original
+      if (!outputImagePath && finalOutputPath !== inputImagePath) {
+        await fs.rename(finalOutputPath, inputImagePath);
+        logger.info(`✅ Genfinity full-size watermark overlay applied successfully to: ${path.basename(inputImagePath)}`);
+        
+        return {
+          success: true,
+          outputPath: inputImagePath,
+          watermarkInfo: {
+            type: 'full_size_overlay',
+            source: this.useHfSpacesWatermark ? 'hf_spaces' : 'local',
+            position: this.watermarkPosition,
+            opacity: this.watermarkOpacity
+          }
+        };
+      }
+      
+      logger.info(`✅ Genfinity full-size watermark overlay applied successfully to: ${path.basename(finalOutputPath)}`);
       
       return {
         success: true,
         outputPath: finalOutputPath,
         watermarkInfo: {
+          type: 'full_size_overlay',
+          source: this.useHfSpacesWatermark ? 'hf_spaces' : 'local',
           position: this.watermarkPosition,
-          size: this.watermarkSize,
           opacity: this.watermarkOpacity
         }
       };
@@ -67,6 +106,43 @@ class WatermarkService {
     } catch (error) {
       logger.error(`❌ Watermark application failed: ${error.message}`);
       throw new Error(`Watermark failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get watermark buffer from local file or HF Spaces fallback
+   */
+  async getWatermarkBuffer() {
+    let localError = null;
+    
+    // Try local watermark first
+    try {
+      await fs.access(this.watermarkPath);
+      const watermarkBuffer = await fs.readFile(this.watermarkPath);
+      logger.info(`📁 Using local watermark: ${this.watermarkPath}`);
+      return watermarkBuffer;
+    } catch (error) {
+      localError = error;
+      logger.warn(`⚠️ Local watermark not accessible: ${error.message}`);
+      logger.info(`🔄 Trying HF Spaces fallback`);
+    }
+    
+    // Fall back to HF Spaces if local fails
+    try {
+      logger.info(`📥 Downloading watermark from HF Spaces: ${this.hfSpacesWatermarkUrl}`);
+      const axios = require('axios');
+      
+      const response = await axios.get(this.hfSpacesWatermarkUrl, {
+        responseType: 'arraybuffer',
+        timeout: 30000
+      });
+      
+      logger.info(`✅ HF Spaces watermark downloaded successfully`);
+      return Buffer.from(response.data);
+      
+    } catch (hfError) {
+      logger.error(`❌ HF Spaces watermark failed: ${hfError.message}`);
+      throw new Error(`Neither local nor HF Spaces watermark available. Local: ${localError?.message || 'unknown'}, HF: ${hfError.message}`);
     }
   }
 
@@ -124,6 +200,114 @@ class WatermarkService {
     if (minDimension >= 1200) return 1.0; // Standard size
     if (minDimension >= 800) return 0.8;  // Medium images
     return 0.6; // Small images - smaller watermark
+  }
+
+  /**
+   * Create title overlay for the image
+   */
+  async createTitleOverlay(width, height, title) {
+    try {
+      // Create SVG for title overlay
+      const fontSize = Math.max(48, Math.min(72, width * 0.04)); // Responsive font size
+      const lineHeight = fontSize * 1.2;
+      
+      // Break title into lines if too long
+      const maxCharsPerLine = Math.floor(width / (fontSize * 0.6));
+      const titleLines = this.breakTextIntoLines(title, maxCharsPerLine);
+      
+      // Calculate total text height
+      const totalTextHeight = titleLines.length * lineHeight;
+      const startY = (height - totalTextHeight) / 2 + fontSize; // Center vertically
+      
+      // Create SVG text elements
+      const textElements = titleLines.map((line, index) => {
+        const y = startY + (index * lineHeight);
+        return `
+          <text x="50%" y="${y}" 
+                text-anchor="middle" 
+                font-family="Arial, sans-serif" 
+                font-size="${fontSize}" 
+                font-weight="bold" 
+                fill="white" 
+                stroke="black" 
+                stroke-width="2">${this.escapeXml(line)}</text>
+        `;
+      }).join('');
+      
+      const svg = `
+        <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="3" dy="3" stdDeviation="3" flood-color="black" flood-opacity="0.7"/>
+            </filter>
+          </defs>
+          <g filter="url(#shadow)">
+            ${textElements}
+          </g>
+        </svg>
+      `;
+      
+      // Convert SVG to buffer
+      return Buffer.from(svg);
+      
+    } catch (error) {
+      logger.error('❌ Failed to create title overlay:', error);
+      // Return transparent overlay if title creation fails
+      return sharp({
+        create: {
+          width: width,
+          height: height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      }).png().toBuffer();
+    }
+  }
+
+  /**
+   * Break text into lines to fit width
+   */
+  breakTextIntoLines(text, maxCharsPerLine) {
+    if (text.length <= maxCharsPerLine) {
+      return [text];
+    }
+    
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
+        currentLine = currentLine ? currentLine + ' ' + word : word;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          // Word is too long, truncate it
+          lines.push(word.substring(0, maxCharsPerLine - 3) + '...');
+          currentLine = '';
+        }
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
+  }
+
+  /**
+   * Escape XML special characters
+   */
+  escapeXml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   /**

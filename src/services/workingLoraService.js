@@ -212,11 +212,13 @@ class WorkingLoraService {
       // Resize to standard dimensions BEFORE watermarking (using dimensions divisible by 8)
       await this.resizeToStandardDimensions(imagePath);
       
-      // Apply watermark
+      // Apply watermark and title overlay
       let finalImagePath = imagePath;
       try {
-        finalImagePath = await this.watermarkService.addWatermark(imagePath, imageId);
-        logger.info(`🔖 Watermark applied: ${finalImagePath}`);
+        finalImagePath = await this.watermarkService.addWatermark(imagePath, imageId, {
+          title: title // Pass the article title for overlay
+        });
+        logger.info(`🔖 Watermark and title overlay applied: ${finalImagePath}`);
       } catch (watermarkError) {
         logger.warn(`⚠️ Watermark failed, using original: ${watermarkError.message}`);
       }
@@ -283,16 +285,16 @@ class WorkingLoraService {
   }
 
   /**
-   * Resize image to standard dimensions divisible by 8 to prevent SDXL errors
+   * Resize image to final 1800x900 dimensions for output
    */
   async resizeToStandardDimensions(imagePath) {
     try {
-      logger.info(`📐 Resizing to SDXL-compatible 1792x896 dimensions: ${path.basename(imagePath)}`);
+      logger.info(`📐 Resizing to final output dimensions 1800x900: ${path.basename(imagePath)}`);
       
       const tempPath = imagePath.replace('.png', '_resized.png');
       
       await sharp(imagePath)
-        .resize(1792, 896, {  // Both dimensions divisible by 8
+        .resize(1800, 900, {  // Final output dimensions as required
           fit: 'cover',
           position: 'center'
         })
@@ -301,7 +303,7 @@ class WorkingLoraService {
       
       // Replace original with resized version
       await fs.rename(tempPath, imagePath);
-      logger.info(`✅ Image resized to 1792x896 (divisible by 8): ${path.basename(imagePath)}`);
+      logger.info(`✅ Image resized to final 1800x900 output dimensions: ${path.basename(imagePath)}`);
       
     } catch (error) {
       throw new Error(`Image resize failed: ${error.message}`);
