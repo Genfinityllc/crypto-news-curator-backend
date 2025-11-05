@@ -202,22 +202,65 @@ class ImageHostingService {
   }
 
   /**
-   * Generate and host a LoRA image - TEMPORARILY DISABLED TO PREVENT CRASHES
+   * Generate and host a LoRA image using YOUR trained model
    */
   async generateAndHostLoRAImage(articleData, options = {}) {
-    // EMERGENCY FIX: Completely disable LoRA generation to prevent backend crashes
-    logger.info('🚨 LoRA generation disabled to prevent backend crashes');
-    
-    return {
-      success: false,
-      error: 'LoRA generation temporarily disabled to prevent backend crashes',
-      metadata: {
-        error_type: 'lora_disabled_for_stability',
-        timestamp: new Date().toISOString(),
-        article_title: articleData.title,
-        message: 'LoRA service has been disabled due to stability issues'
+    try {
+      // Use YOUR trained LoRA service
+      logger.info('🎨✨ USING YOUR TRAINED LORA SERVICE ✨🎨');
+      const TrainedLoraService = require('./trainedLoraService');
+      const trainedLoraService = new TrainedLoraService();
+      
+      // Prepare article data for your trained LoRA
+      const loraArticleData = {
+        title: articleData.title,
+        subtitle: articleData.subtitle || "CRYPTO NEWS",
+        network: articleData.network || "generic",
+        description: articleData.description || ""
+      };
+      
+      const loraOptions = {
+        style: options.style || "professional",
+        ...options
+      };
+      
+      const result = await trainedLoraService.generateLoraImage(
+        loraArticleData.title,
+        loraArticleData.content || '',
+        loraArticleData.network || 'generic',
+        loraOptions.style || 'professional'
+      );
+      
+      if (result.success) {
+        logger.info(`✅ YOUR trained LoRA generated: ${result.imageUrl}`);
+        return {
+          success: true,
+          image_url: result.imageUrl,
+          display_url: result.imageUrl,
+          hosting_service: 'trained_lora_service',
+          generation_method: 'your_trained_lora_model',
+          image_id: result.imageId,
+          metadata: result.metadata
+        };
       }
-    };
+      
+      // If your trained LoRA Service fails
+      throw new Error('Your trained LoRA Service failed');
+      
+    } catch (error) {
+      logger.error('Your trained LoRA generation failed:', error.message);
+      logger.error('Full error details:', error);
+      
+      // Return error details
+      return {
+        success: false,
+        error: `Your trained LoRA generation failed: ${error.message}`,
+        metadata: {
+          error_type: 'trained_lora_generation_failure',
+          timestamp: new Date().toISOString()
+        }
+      };
+    }
   }
 }
 

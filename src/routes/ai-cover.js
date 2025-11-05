@@ -60,15 +60,48 @@ router.post('/lora-generate', async (req, res) => {
   });
 });
 
-// UNIVERSAL LORA GENERATE - DISABLED TO PREVENT CRASHES
+// YOUR TRAINED LORA GENERATE - USING YOUR TRAINED MODEL
 router.post('/generate', async (req, res) => {
-  console.log('🚨 LoRA generation disabled to prevent backend crashes');
+  console.log('🎨 YOUR TRAINED LoRA Generate Request:', req.body);
   
-  res.status(503).json({
-    success: false,
-    error: 'LoRA generation disabled for stability',
-    message: 'Universal LoRA generation temporarily disabled to prevent backend crashes'
-  });
+  try {
+    const { title, subtitle, client_id } = req.body;
+    
+    // Use YOUR trained LoRA Service
+    const TrainedLoraService = require('../services/trainedLoraService');
+    const trainedLoraService = new TrainedLoraService();
+    
+    const articleData = {
+      title: title || 'Crypto News',
+      content: subtitle || 'Analysis',
+      network: client_id || 'generic'
+    };
+    
+    const result = await trainedLoraService.generateLoraImage(
+      articleData.title,
+      articleData.content || '',
+      articleData.network || 'generic',
+      'professional'
+    );
+    
+    const response = {
+      success: true,
+      image_id: result.imageId,
+      image_url: result.imageUrl,
+      metadata: result.metadata
+    };
+    
+    console.log('📤 YOUR TRAINED LoRA Response:', response);
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ YOUR TRAINED LoRA generation failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Your trained LoRA generation failed'
+    });
+  }
 });
 
 // IMAGE RETRIEVAL BY ID - GET HOSTED LORA IMAGE
