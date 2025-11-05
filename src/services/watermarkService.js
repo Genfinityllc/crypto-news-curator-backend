@@ -36,15 +36,22 @@ class WatermarkService {
       // Create composite layers array
       const compositeOperations = [];
       
-      // Add title overlay if provided
+      // Add title overlay if provided (simplified for stability)
       if (title) {
-        const titleOverlay = await this.createTitleOverlay(mainWidth, mainHeight, title);
-        compositeOperations.push({
-          input: titleOverlay,
-          left: 0,
-          top: 0,
-          blend: 'over'
-        });
+        try {
+          const titleOverlay = await this.createTitleOverlay(mainWidth, mainHeight, title);
+          if (titleOverlay && titleOverlay.length > 0) {
+            compositeOperations.push({
+              input: titleOverlay,
+              left: 0,
+              top: 0,
+              blend: 'over'
+            });
+          }
+        } catch (titleError) {
+          logger.warn(`⚠️ Title overlay failed, continuing with watermark only: ${titleError.message}`);
+          // Continue without title overlay
+        }
       }
       
       // Get watermark (from HF Spaces or local)
@@ -67,11 +74,18 @@ class WatermarkService {
         blend: 'over', // Use 'over' blend mode for 100% opacity
       });
       
-      // Apply all overlays
-      await mainImage
-        .composite(compositeOperations)
-        .png({ quality: 95 })
-        .toFile(finalOutputPath);
+      // Apply all overlays (with fallback for empty operations)
+      if (compositeOperations.length > 0) {
+        await mainImage
+          .composite(compositeOperations)
+          .png({ quality: 95 })
+          .toFile(finalOutputPath);
+      } else {
+        // No overlays to apply, just copy the original
+        await mainImage
+          .png({ quality: 95 })
+          .toFile(finalOutputPath);
+      }
       
       // If we created a temp file, replace the original
       if (!outputImagePath && finalOutputPath !== inputImagePath) {
