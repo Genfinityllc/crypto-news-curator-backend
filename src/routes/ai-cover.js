@@ -27,60 +27,16 @@ router.get('/status', (req, res) => {
   });
 });
 
-// FastAPI-compatible generate cover endpoint - USING UNIVERSAL LORA SERVICE
+// FastAPI-compatible generate cover endpoint - DISABLED TO PREVENT CRASHES
 router.post('/generate/cover', async (req, res) => {
-  try {
-    const { title, subtitle, client_id, size } = req.body;
-    
-    console.log('🎨 Universal LoRA Generate Cover Request:', req.body);
-    
-    // Use Universal LoRA Service - REAL LORA WITH PNG AND WATERMARKS
-    console.log('🚨 ULTRA FIX: Loading ULTRA FIXED UniversalLoraService from:', require.resolve('../services/ultraFixedLoraService'));
-    const WorkingLoraService = require('../services/workingLoraService');
-    const loraService = new WorkingLoraService();
-    console.log('🚨 ULTRA DEBUG: Service methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(loraService)));
-    
-    const articleData = {
-      title: title || 'Crypto News',
-      content: subtitle || 'Analysis',
-      network: client_id || 'generic'
-    };
-    
-    const options = {
-      size: size || '1792x896',
-      style: 'professional'
-    };
-    
-    console.log('🚨 DEBUG: About to call generateLoraImage with:', articleData, options);
-    console.log('🚨 ULTRA DEBUG: Service instance:', typeof loraService.generateLoraImage);
-    console.log('🚨 ULTRA DEBUG: Image storage path:', loraService.imageStorePath);
-    
-    // Use new method from fixed service
-    const result = await loraService.generateLoraImage(
-      articleData.title,
-      articleData.content,
-      articleData.network,
-      options.style
-    );
-    
-    console.log('🚨 DEBUG: generateLoraImage returned:', result);
-    
-    console.log('✅ Universal LoRA Cover successful:', result);
-    res.json({
-      job_id: result.imageId,
-      status: 'completed',
-      image_url: result.imageUrl,
-      message: 'Cover generated successfully with Universal LoRA'
-    });
-    
-  } catch (error) {
-    console.error('❌ Universal LoRA cover generation failed:', error.message);
-    res.status(500).json({
-      job_id: Date.now().toString(),
-      status: 'failed',
-      message: error.message
-    });
-  }
+  console.log('🚨 LoRA generation disabled to prevent backend crashes');
+  
+  res.status(503).json({
+    job_id: Date.now().toString(),
+    status: 'disabled',
+    message: 'LoRA generation temporarily disabled to prevent backend crashes',
+    error: 'Service disabled for stability'
+  });
 });
 
 // FastAPI-compatible status endpoint
@@ -93,91 +49,26 @@ router.get('/generate/status/:job_id', (req, res) => {
   });
 });
 
-// UNIVERSAL LORA GENERATE - NO FALLBACKS, PROPER IMAGE IDS
+// UNIVERSAL LORA GENERATE - DISABLED TO PREVENT CRASHES
 router.post('/lora-generate', async (req, res) => {
-  try {
-    const { title, subtitle, client_id } = req.body;
-    
-    console.log('🎨 Universal LoRA Generate Request:', req.body);
-    
-    // Use new Universal LoRA Service - NO FALLBACKS
-    const WorkingLoraService = require('../services/workingLoraService');
-    const loraService = new WorkingLoraService();
-    
-    const articleData = {
-      title: title || 'Crypto News',
-      content: subtitle || 'Analysis', 
-      network: client_id || 'generic'
-    };
-    
-    const result = await loraService.generateLoraImage(
-      articleData.title,
-      articleData.content || '',
-      articleData.network || 'generic',
-      'professional'
-    );
-    
-    console.log('✅ Universal LoRA successful:', result);
-    res.json({
-      success: true,
-      image_id: result.imageId,
-      image_url: result.imageUrl,
-      metadata: result.metadata
-    });
-    
-  } catch (error) {
-    console.error('❌ Universal LoRA generation failed:', error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      message: 'Universal LoRA generation failed - no fallbacks available'
-    });
-  }
+  console.log('🚨 LoRA generation disabled to prevent backend crashes');
+  
+  res.status(503).json({
+    success: false,
+    error: 'LoRA generation disabled for stability',
+    message: 'LoRA generation temporarily disabled to prevent backend crashes'
+  });
 });
 
-// UNIVERSAL LORA GENERATE - PURE LORA, NO FALLBACKS
+// UNIVERSAL LORA GENERATE - DISABLED TO PREVENT CRASHES
 router.post('/generate', async (req, res) => {
-  console.log('🎨 Universal LoRA Generate Request:', req.body);
+  console.log('🚨 LoRA generation disabled to prevent backend crashes');
   
-  try {
-    const { title, subtitle, client_id } = req.body;
-    
-    // Use Universal LoRA Service - NO FALLBACKS ALLOWED
-    const WorkingLoraService = require('../services/workingLoraService');
-    const loraService = new WorkingLoraService();
-    
-    const articleData = {
-      title: title || 'Crypto News',
-      content: subtitle || 'Analysis',
-      network: client_id || 'generic'
-    };
-    
-    const result = await loraService.generateLoraImage(
-      articleData.title,
-      articleData.content || '',
-      articleData.network || 'generic',
-      'professional'
-    );
-    
-    const response = {
-      success: true,
-      image_id: result.imageId,
-      image_url: result.imageUrl,
-      metadata: result.metadata
-    };
-    
-    console.log('📤 Universal LoRA Response:', response);
-    res.json(response);
-    
-  } catch (error) {
-    console.error('❌ Universal LoRA generation failed:', error.message);
-    // NO FALLBACKS! Return error as requested
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      message: 'Universal LoRA generation failed - no fallbacks available'
-    });
-  }
+  res.status(503).json({
+    success: false,
+    error: 'LoRA generation disabled for stability',
+    message: 'Universal LoRA generation temporarily disabled to prevent backend crashes'
+  });
 });
 
 // IMAGE RETRIEVAL BY ID - GET HOSTED LORA IMAGE

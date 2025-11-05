@@ -202,65 +202,22 @@ class ImageHostingService {
   }
 
   /**
-   * Generate and host a LoRA image
+   * Generate and host a LoRA image - TEMPORARILY DISABLED TO PREVENT CRASHES
    */
   async generateAndHostLoRAImage(articleData, options = {}) {
-    try {
-      // Use Universal LoRA Service with PNG + Watermark output
-      logger.info('🎨✨ USING WORKING UNIVERSAL LORA SERVICE - PNG + GENFINITY WATERMARK ✨🎨');
-      const WorkingLoraService = require('./workingLoraService');
-      const universalService = new WorkingLoraService();
-      
-      // Prepare article data for Universal LoRA Service
-      const loraArticleData = {
-        title: articleData.title,
-        subtitle: articleData.subtitle || "CRYPTO NEWS",
-        network: articleData.network || "hedera",
-        description: articleData.description || ""
-      };
-      
-      const loraOptions = {
-        style: options.style || "energy_fields",
-        ...options
-      };
-      
-      const result = await universalService.generateLoraImage(
-        loraArticleData.title,
-        loraArticleData.content || '',
-        loraArticleData.network || 'generic',
-        loraOptions.style || 'professional'
-      );
-      
-      if (result.success) {
-        logger.info(`✅ Universal LoRA PNG with watermark generated: ${result.imageUrl}`);
-        return {
-          success: true,
-          image_url: result.imageUrl,
-          display_url: result.imageUrl,
-          hosting_service: 'universal_lora_service',
-          generation_method: 'hf_spaces_lora_png_watermarked',
-          image_id: result.imageId,
-          metadata: result.metadata
-        };
+    // EMERGENCY FIX: Completely disable LoRA generation to prevent backend crashes
+    logger.info('🚨 LoRA generation disabled to prevent backend crashes');
+    
+    return {
+      success: false,
+      error: 'LoRA generation temporarily disabled to prevent backend crashes',
+      metadata: {
+        error_type: 'lora_disabled_for_stability',
+        timestamp: new Date().toISOString(),
+        article_title: articleData.title,
+        message: 'LoRA service has been disabled due to stability issues'
       }
-      
-      // If Universal LoRA Service fails, throw error - no fallbacks as requested
-      throw new Error('Universal LoRA Service failed - PNG generation with watermark failed');
-      
-    } catch (error) {
-      logger.error('Universal LoRA generation and hosting failed:', error.message);
-      logger.error('Full error details:', error);
-      
-      // Return error instead of fallback as requested
-      return {
-        success: false,
-        error: `Universal LoRA generation failed: ${error.message}`,
-        metadata: {
-          error_type: 'universal_lora_generation_failure',
-          timestamp: new Date().toISOString()
-        }
-      };
-    }
+    };
   }
 }
 
