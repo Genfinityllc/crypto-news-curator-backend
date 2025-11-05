@@ -84,3 +84,8 @@ temp/
 *.webp
 frontend-*.png
 
+# But include essential assets
+!assets/*.png
+!assets/*.jpg
+!assets/*.jpeg
+
