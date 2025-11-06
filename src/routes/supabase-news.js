@@ -1059,15 +1059,10 @@ router.post('/generate-card-image/:id?', async (req, res) => {
   }
 });
 
-// Generate LoRA-based AI images for crypto news with client-specific branding
+// Generate LoRA-based AI images for crypto news with client-specific branding  
 router.post('/generate-lora-image/:id?', async (req, res) => {
   try {
-    // TEMPORARY: Disable LoRA generation to prevent backend crashes
-    return res.json({
-      success: false,
-      message: 'LoRA generation temporarily disabled for stability',
-      error: 'Service under maintenance'
-    });
+    // ✅ PURE LORA ONLY - NO FALLBACKS - USING YOUR TRAINED MODEL
 
     const { id } = req.params;
     const { 
@@ -1107,42 +1102,42 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
 
     logger.info(`🎨 Generating LoRA AI image for: ${article.title}`);
 
-    // Use image hosting service for proper LoRA generation and hosting
-    const ImageHostingService = require('../services/imageHostingService');
-    const imageHostingService = new ImageHostingService();
+    // ✅ USE YOUR TRAINED LORA SERVICE ONLY - NO FALLBACKS
+    const TrainedLoraService = require('../services/trainedLoraService');
+    const trainedLoraService = new TrainedLoraService();
     
-    logger.info(`🎨 Generating and hosting LoRA image for: ${article.title}`);
+    logger.info(`🎨 Calling YOUR trained LoRA on HF Spaces: ${article.title}`);
     
-    const hostedResult = await imageHostingService.generateAndHostLoRAImage(article, {
-      size,
-      style,
-      includeWatermark: false
-    });
+    const hostedResult = await trainedLoraService.generateLoraImage(
+      article.title,
+      article.content || article.category || 'crypto news',
+      article.network || 'generic',
+      style || 'professional'
+    );
 
     if (!hostedResult.success) {
       return res.status(500).json({
         success: false,
-        message: 'LoRA image generation and hosting failed',
+        message: 'YOUR trained LoRA generation failed',
         error: hostedResult.error || 'Unknown error',
-        service: 'lora'
+        service: 'trained_lora'
       });
     }
 
     res.json({
       success: true,
       data: {
-        coverImage: hostedResult.image_url,
+        coverImage: hostedResult.imageUrl,
         cardImages: {
-          small: hostedResult.image_url,
-          medium: hostedResult.image_url,
-          large: hostedResult.image_url,
-          square: hostedResult.image_url
+          small: hostedResult.imageUrl,
+          medium: hostedResult.imageUrl,
+          large: hostedResult.imageUrl,
+          square: hostedResult.imageUrl
         },
         selectedSize: size,
         style,
-        service: 'lora',
-        hosting: hostedResult.hosting_service,
-        generationMethod: hostedResult.generation_method,
+        service: 'trained_lora',
+        generationMethod: hostedResult.metadata?.method || 'trained_lora_hf_spaces',
         article: {
           id: article.id,
           title: article.title,
@@ -1150,7 +1145,7 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
         },
         generation: {
           timestamp: new Date().toISOString(),
-          model: 'LoRA-SDXL',
+          model: 'YOUR_TRAINED_LORA',
           quality: 'high',
           hosted: true,
           metadata: hostedResult.metadata

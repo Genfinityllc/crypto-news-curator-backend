@@ -59,6 +59,16 @@ class TrainedLoraService {
     logger.info(`🎨 Generating with YOUR trained LoRA: "${title}"`);
     
     try {
+      // First test connection to see if HF Space is ready
+      const connectionTest = await this.testConnection();
+      if (!connectionTest.success) {
+        if (connectionTest.status === 'rebuilding' || connectionTest.status === 'building') {
+          throw new Error(`Service under maintenance: ${connectionTest.error}`);
+        } else {
+          throw new Error(`Service unavailable: ${connectionTest.error}`);
+        }
+      }
+      
       // Create enhanced prompt for your trained model
       const prompt = this.createEnhancedPrompt(title, content, network, style);
       const negativePrompt = "low quality, blurry, text, watermark, signature, bad anatomy, poorly drawn";
@@ -67,16 +77,13 @@ class TrainedLoraService {
       logger.info(`🚫 Negative: "${negativePrompt}"`);
       
       // Step 1: Submit job to your trained LoRA
-      const submitUrl = `${this.hfSpacesUrl}/call/generate_crypto_cover`;
+      const submitUrl = `${this.hfSpacesUrl}/call/generate_cover`;
       logger.info(`🌐 Calling your trained LoRA: ${submitUrl}`);
       
       const submitResponse = await axios.post(submitUrl, {
         data: [
           prompt,           // Image prompt
-          title,           // Cover title  
-          negativePrompt,  // Negative prompt
-          30,              // Inference steps
-          7.5              // Guidance scale
+          title            // Cover title  
         ]
       }, {
         timeout: 30000,
@@ -94,7 +101,7 @@ class TrainedLoraService {
       logger.info(`✅ Job submitted to trained LoRA, event_id: ${eventId}`);
       
       // Step 2: Poll for completion
-      const resultUrl = `${this.hfSpacesUrl}/call/generate_crypto_cover/${eventId}`;
+      const resultUrl = `${this.hfSpacesUrl}/call/generate_cover/${eventId}`;
       logger.info(`🔄 Polling trained LoRA results: ${resultUrl}`);
       
       const imageData = await this.pollForResult(resultUrl, eventId);
@@ -274,6 +281,29 @@ class TrainedLoraService {
       const response = await axios.get(this.hfSpacesUrl, {
         timeout: 10000
       });
+      
+      // Check for specific error messages
+      if (response.data && typeof response.data === 'string') {
+        if (response.data.includes('error, check its status')) {
+          logger.warn(`⚠️ HF Space is in error/rebuild mode`);
+          return {
+            success: false,
+            status: 'rebuilding',
+            error: 'HF Space is currently rebuilding. Please wait.',
+            url: this.hfSpacesUrl
+          };
+        }
+        
+        if (response.data.includes('Building') || response.data.includes('build')) {
+          logger.warn(`⚠️ HF Space is building`);
+          return {
+            success: false,
+            status: 'building',
+            error: 'HF Space is currently building. Please wait.',
+            url: this.hfSpacesUrl
+          };
+        }
+      }
       
       logger.info(`✅ Your trained LoRA is accessible`);
       
