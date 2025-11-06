@@ -50,7 +50,7 @@ class TrainedLoraService {
   }
 
   /**
-   * Generate image using your trained LoRA model
+   * Generate image using your trained LoRA model via Gradio queue
    */
   async generateLoraImage(title, content = '', network = 'generic', style = 'modern') {
     const imageId = this.generateImageId();
@@ -76,16 +76,18 @@ class TrainedLoraService {
       logger.info(`🔤 Prompt: "${prompt}"`);
       logger.info(`🚫 Negative: "${negativePrompt}"`);
       
-      // Step 1: Submit job to your trained LoRA
-      const submitUrl = `${this.hfSpacesUrl}/api/predict`;
-      logger.info(`🌐 Calling your trained LoRA: ${submitUrl}`);
+      // Step 1: Generate session hash and join queue
+      const sessionHash = this.generateSessionHash();
+      const queueUrl = `${this.hfSpacesUrl}/queue/join`;
+      logger.info(`🌐 Joining queue for trained LoRA: ${queueUrl}`);
+      logger.info(`🔑 Using session: ${sessionHash}`);
       
-      const submitResponse = await axios.post(submitUrl, {
-        data: [
-          prompt,           // Image prompt
-          title            // Cover title  
-        ],
-        fn_index: 0
+      const queueResponse = await axios.post(queueUrl, {
+        data: [prompt, title],
+        event_data: null,
+        fn_index: 0,
+        trigger_id: 12,
+        session_hash: sessionHash
       }, {
         timeout: 30000,
         headers: {
@@ -94,79 +96,46 @@ class TrainedLoraService {
         }
       });
       
-      // Check if response has data directly (for /api/predict)
-      if (submitResponse.data && submitResponse.data.data) {
-        logger.info(`✅ Direct response from trained LoRA`);
-        const responseData = submitResponse.data.data;
+      if (!queueResponse.data.event_id) {
+        throw new Error('No event_id received from queue join');
+      }
+      
+      const eventId = queueResponse.data.event_id;
+      logger.info(`✅ Joined queue, event_id: ${eventId}`);
+      
+      // Step 2: Listen to queue updates with same session
+      const result = await this.listenToQueueUpdates(eventId, sessionHash);
+      
+      if (!result) {
+        throw new Error('No result received from queue');
+      }
+      
+      // Step 3: Handle the image result
+      let imagePath;
+      let fileSize;
+      
+      if (result.type === 'base64') {
+        // Handle base64 image
+        const imageBuffer = Buffer.from(result.data, 'base64');
+        imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+        await fs.writeFile(imagePath, imageBuffer);
+        fileSize = (await fs.stat(imagePath)).size;
+        logger.info(`💾 Base64 LoRA image saved: ${imagePath} (${fileSize} bytes)`);
+      } else if (result.type === 'file') {
+        // Handle file URL
+        logger.info(`⬇️ Downloading LoRA image from: ${result.url}`);
+        const imageResponse = await axios.get(result.url, {
+          responseType: 'arraybuffer',
+          timeout: 60000
+        });
         
-        // Extract base64 image data
-        if (responseData[0] && responseData[0].startsWith('data:image')) {
-          const base64Data = responseData[0].split(',')[1];
-          const imageBuffer = Buffer.from(base64Data, 'base64');
-          
-          // Save image locally
-          const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-          await fs.writeFile(imagePath, imageBuffer);
-          
-          const fileSize = (await fs.stat(imagePath)).size;
-          logger.info(`💾 Trained LoRA image saved: ${imagePath} (${fileSize} bytes)`);
-          
-          const totalTime = Math.round((Date.now() - startTime) / 1000);
-          logger.info(`🎉 YOUR trained LoRA generation completed in ${totalTime}s`);
-          
-          return {
-            success: true,
-            imageId: imageId,
-            imageUrl: this.getImageUrl(imageId),
-            localPath: imagePath,
-            metadata: {
-              title,
-              content,
-              network,
-              style,
-              prompt,
-              generationTime: totalTime,
-              method: 'trained_lora_gradio_api',
-              model: 'YOUR_TRAINED_LORA',
-              timestamp: new Date().toISOString()
-            }
-          };
-        }
+        imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+        await fs.writeFile(imagePath, imageResponse.data);
+        fileSize = (await fs.stat(imagePath)).size;
+        logger.info(`💾 Downloaded LoRA image saved: ${imagePath} (${fileSize} bytes)`);
+      } else {
+        throw new Error('Unknown result type from LoRA generation');
       }
-      
-      // Fallback to event-based polling if available
-      const eventId = submitResponse.data.event_id;
-      if (!eventId) {
-        throw new Error('No image data or event_id received from trained LoRA');
-      }
-      
-      logger.info(`✅ Job submitted to trained LoRA, event_id: ${eventId}`);
-      
-      // Step 2: Poll for completion
-      const resultUrl = `${this.hfSpacesUrl}/call/generate_cover/${eventId}`;
-      logger.info(`🔄 Polling trained LoRA results: ${resultUrl}`);
-      
-      const imageData = await this.pollForResult(resultUrl, eventId);
-      
-      if (!imageData) {
-        throw new Error('No image data received from trained LoRA');
-      }
-      
-      // Step 3: Download and store the generated image
-      const imageUrl = imageData.url || imageData.path;
-      logger.info(`⬇️ Downloading trained LoRA image from: ${imageUrl}`);
-      
-      const imageResponse = await axios.get(imageUrl, {
-        responseType: 'arraybuffer',
-        timeout: 60000
-      });
-      
-      // Save image locally
-      const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-      await fs.writeFile(imagePath, imageResponse.data);
-      
-      const fileSize = (await fs.stat(imagePath)).size;
-      logger.info(`💾 Trained LoRA image saved: ${imagePath} (${fileSize} bytes)`);
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
       logger.info(`🎉 YOUR trained LoRA generation completed in ${totalTime}s`);
@@ -183,7 +152,7 @@ class TrainedLoraService {
           style,
           prompt,
           generationTime: totalTime,
-          method: 'trained_lora_gradio',
+          method: 'trained_lora_queue',
           model: 'YOUR_TRAINED_LORA',
           eventId: eventId,
           timestamp: new Date().toISOString()
@@ -387,6 +356,112 @@ class TrainedLoraService {
     }
     
     throw new Error(`Image with ID ${imageId} not found`);
+  }
+
+  /**
+   * Generate session hash for Gradio queue
+   */
+  generateSessionHash() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
+   * Listen to queue updates via polling
+   */
+  async listenToQueueUpdates(eventId, sessionHash) {
+    const maxAttempts = 30; // 5 minutes max (30 * 10s intervals)
+    let attempts = 0;
+    
+    logger.info(`🔄 Polling for queue updates for event: ${eventId} with session: ${sessionHash}`);
+    
+    while (attempts < maxAttempts) {
+      attempts++;
+      
+      try {
+        const eventUrl = `${this.hfSpacesUrl}/queue/data?session_hash=${sessionHash}`;
+        
+        const response = await axios.get(eventUrl, {
+          timeout: 12000, // Longer timeout for SSE
+          headers: {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        // Parse response for our event
+        if (response.data) {
+          const lines = response.data.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                if (data.event_id === eventId) {
+                  if (data.msg === 'process_completed') {
+                    logger.info(`✅ Queue processing completed for event: ${eventId}`);
+                    
+                    // Extract image data from the response
+                    if (data.output && data.output.data && data.output.data.length > 0) {
+                      const imageResult = data.output.data[0];
+                      
+                      if (typeof imageResult === 'string' && imageResult.startsWith('data:image')) {
+                        // Base64 image
+                        const base64Data = imageResult.split(',')[1];
+                        return { type: 'base64', data: base64Data };
+                      } else if (imageResult && imageResult.url) {
+                        // File URL result (preferred format from our test)
+                        return { type: 'file', url: imageResult.url };
+                      } else if (imageResult && imageResult.path) {
+                        // File path result  
+                        const imageUrl = `${this.hfSpacesUrl}/file=${imageResult.path}`;
+                        return { type: 'file', url: imageUrl };
+                      }
+                    }
+                    
+                    throw new Error('No valid image data in completed result');
+                  } else if (data.msg === 'process_starts') {
+                    logger.info(`🔄 Queue processing started for event: ${eventId}`);
+                  } else if (data.msg === 'estimation') {
+                    const rank = data.rank || 'unknown';
+                    const queueSize = data.queue_size || 'unknown';
+                    logger.info(`⏳ Queue position: ${rank}/${queueSize}`);
+                  } else if (data.msg === 'unexpected_error') {
+                    throw new Error(`Queue error: ${data.message || 'Unknown error'}`);
+                  }
+                }
+              } catch (parseError) {
+                // Not JSON, continue
+                if (parseError.message.includes('Queue error')) {
+                  throw parseError;
+                }
+              }
+            }
+          }
+        }
+        
+        // Wait before next attempt
+        logger.info(`🔄 Polling attempt ${attempts}/${maxAttempts}, waiting 10s...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        
+      } catch (error) {
+        if (error.message.includes('Queue error') || error.message.includes('unexpected_error')) {
+          throw error;
+        }
+        
+        logger.warn(`⚠️ Queue polling error (attempt ${attempts}): ${error.message}`);
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 8000));
+      }
+    }
+    
+    throw new Error(`Timeout: No completion after ${maxAttempts} polling attempts`);
   }
 
   /**
