@@ -77,14 +77,15 @@ class TrainedLoraService {
       logger.info(`🚫 Negative: "${negativePrompt}"`);
       
       // Step 1: Submit job to your trained LoRA
-      const submitUrl = `${this.hfSpacesUrl}/call/generate_cover`;
+      const submitUrl = `${this.hfSpacesUrl}/api/predict`;
       logger.info(`🌐 Calling your trained LoRA: ${submitUrl}`);
       
       const submitResponse = await axios.post(submitUrl, {
         data: [
           prompt,           // Image prompt
           title            // Cover title  
-        ]
+        ],
+        fn_index: 0
       }, {
         timeout: 30000,
         headers: {
@@ -93,9 +94,50 @@ class TrainedLoraService {
         }
       });
       
+      // Check if response has data directly (for /api/predict)
+      if (submitResponse.data && submitResponse.data.data) {
+        logger.info(`✅ Direct response from trained LoRA`);
+        const responseData = submitResponse.data.data;
+        
+        // Extract base64 image data
+        if (responseData[0] && responseData[0].startsWith('data:image')) {
+          const base64Data = responseData[0].split(',')[1];
+          const imageBuffer = Buffer.from(base64Data, 'base64');
+          
+          // Save image locally
+          const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+          await fs.writeFile(imagePath, imageBuffer);
+          
+          const fileSize = (await fs.stat(imagePath)).size;
+          logger.info(`💾 Trained LoRA image saved: ${imagePath} (${fileSize} bytes)`);
+          
+          const totalTime = Math.round((Date.now() - startTime) / 1000);
+          logger.info(`🎉 YOUR trained LoRA generation completed in ${totalTime}s`);
+          
+          return {
+            success: true,
+            imageId: imageId,
+            imageUrl: this.getImageUrl(imageId),
+            localPath: imagePath,
+            metadata: {
+              title,
+              content,
+              network,
+              style,
+              prompt,
+              generationTime: totalTime,
+              method: 'trained_lora_gradio_api',
+              model: 'YOUR_TRAINED_LORA',
+              timestamp: new Date().toISOString()
+            }
+          };
+        }
+      }
+      
+      // Fallback to event-based polling if available
       const eventId = submitResponse.data.event_id;
       if (!eventId) {
-        throw new Error('No event_id received from your trained LoRA');
+        throw new Error('No image data or event_id received from trained LoRA');
       }
       
       logger.info(`✅ Job submitted to trained LoRA, event_id: ${eventId}`);
