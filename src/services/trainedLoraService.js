@@ -315,19 +315,20 @@ class TrainedLoraService {
       prompt += `, ${networkStyles[network]}`;
     }
     
-    // Add style keywords
+    // Minimal style keywords to let your LoRA training dominate the aesthetic
     const styleKeywords = {
-      'modern': 'clean, minimalist, professional, high-tech',
-      'futuristic': 'neon, cyberpunk, digital, advanced technology',
-      'classic': 'traditional, elegant, sophisticated, timeless',
-      'professional': 'business, corporate, premium, polished'
+      'modern': 'clean design',
+      'futuristic': 'advanced technology',
+      'classic': 'elegant',
+      'professional': 'premium quality'
     };
     
     if (styleKeywords[style]) {
       prompt += `, ${styleKeywords[style]}`;
     }
     
-    prompt += ', professional design, high quality, detailed, trending on artstation';
+    // Remove overwhelming style modifiers that force gold/corporate look
+    prompt += ', high quality, detailed';
     
     return prompt;
   }
