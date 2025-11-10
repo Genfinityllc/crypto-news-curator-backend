@@ -127,9 +127,10 @@ class TrainedLoraService {
         imagePath = path.join(this.imageStorePath, `${imageId}.png`);
         await this.watermarkService.addWatermark(tempImagePath, imagePath, { title });
         
-        // Clean up temp file
+        // Clean up temp file and force garbage collection
         try {
           await fs.unlink(tempImagePath);
+          if (global.gc) global.gc(); // Force garbage collection if available
         } catch (cleanupError) {
           logger.warn(`⚠️ Failed to clean up temp file: ${cleanupError.message}`);
         }
@@ -153,9 +154,10 @@ class TrainedLoraService {
         imagePath = path.join(this.imageStorePath, `${imageId}.png`);
         await this.watermarkService.addWatermark(tempImagePath, imagePath, { title });
         
-        // Clean up temp file
+        // Clean up temp file and force garbage collection
         try {
           await fs.unlink(tempImagePath);
+          if (global.gc) global.gc(); // Force garbage collection if available
         } catch (cleanupError) {
           logger.warn(`⚠️ Failed to clean up temp file: ${cleanupError.message}`);
         }
@@ -272,8 +274,19 @@ class TrainedLoraService {
    * Create enhanced prompt for your trained LoRA model
    */
   createEnhancedPrompt(title, content, network, style) {
-    // Base prompt with crypto context
-    let prompt = `crypto cover art style, ${title}`;
+    // Create network-specific base instead of generic "crypto cover art"
+    const networkBases = {
+      'bitcoin': 'bitcoin digital currency cover',
+      'ethereum': 'ethereum blockchain platform cover', 
+      'solana': 'solana high-performance blockchain cover',
+      'hedera': 'hedera hashgraph enterprise cover',
+      'algorand': 'algorand pure proof of stake cover',
+      'constellation': 'constellation DAG network cover',
+      'generic': 'cryptocurrency technology cover'
+    };
+    
+    const basePrompt = networkBases[network] || networkBases['generic'];
+    let prompt = `${basePrompt}, ${title}`;
     
     if (content) {
       prompt += `, ${content}`;
@@ -392,11 +405,12 @@ class TrainedLoraService {
    */
   generateSessionHash() {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 10; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    const timestamp = Date.now().toString(36); // Add timestamp for uniqueness
+    let randomPart = '';
+    for (let i = 0; i < 12; i++) { // Longer random part
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return result;
+    return `${randomPart}_${timestamp}`.substring(0, 16); // Limit to reasonable length
   }
 
   /**
