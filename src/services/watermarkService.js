@@ -57,20 +57,13 @@ class WatermarkService {
       // Get watermark (from HF Spaces or local)
       const watermarkBuffer = await this.getWatermarkBuffer();
       
-      // Resize watermark to exactly match the image dimensions (1800x900)
-      // This preserves the designed overlay positioning at full size
-      const overlayWatermark = sharp(watermarkBuffer)
-        .resize(mainWidth, mainHeight, {
-          fit: 'fill', // Stretch to exact dimensions to maintain overlay design
-          background: { r: 0, g: 0, b: 0, alpha: 0 }
-        })
-        .png({ quality: 95 });
+      // Use watermark at NATIVE size (no resizing) - it's already designed for 1800x900
+      // The PNG overlay is pre-designed to land perfectly at full size
+      logger.info(`🎯 Using watermark at native size for perfect overlay positioning`);
       
-      logger.info(`🎯 Full overlay watermark resized to: ${mainWidth}x${mainHeight}`);
-      
-      // Add watermark to composite operations (full overlay)
+      // Add watermark to composite operations (full overlay at native size)
       compositeOperations.push({
-        input: await overlayWatermark.toBuffer(),
+        input: watermarkBuffer, // Use directly without resizing
         left: 0,
         top: 0,
         blend: 'over'
