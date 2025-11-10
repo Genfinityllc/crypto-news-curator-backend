@@ -51,8 +51,8 @@ class WatermarkService {
         blend: 'over' // Normal blend since it's under the title
       });
       
-      // Add title overlay if provided (goes OVER the watermark)
-      if (title) {
+      // TEMPORARILY DISABLE TITLE OVERLAY TO DEBUG WHITE BAR
+      if (false && title) {
         try {
           const titleOverlay = await this.createTitleOverlay(mainWidth, mainHeight, title);
           if (titleOverlay && titleOverlay.length > 0) {
