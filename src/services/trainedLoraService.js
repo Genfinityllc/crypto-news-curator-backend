@@ -117,10 +117,25 @@ class TrainedLoraService {
       if (result.type === 'base64') {
         // Handle base64 image
         const imageBuffer = Buffer.from(result.data, 'base64');
+        
+        // Save the original base64 image first
+        const tempImagePath = path.join(this.imageStorePath, `${imageId}_temp.png`);
+        await fs.writeFile(tempImagePath, imageBuffer);
+        logger.info(`💾 Base64 LoRA image saved temporarily: ${tempImagePath}`);
+        
+        // Apply FULL SIZE watermark overlay at 1800x900
         imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-        await fs.writeFile(imagePath, imageBuffer);
+        await this.watermarkService.addWatermark(tempImagePath, imagePath, { title });
+        
+        // Clean up temp file
+        try {
+          await fs.unlink(tempImagePath);
+        } catch (cleanupError) {
+          logger.warn(`⚠️ Failed to clean up temp file: ${cleanupError.message}`);
+        }
+        
         fileSize = (await fs.stat(imagePath)).size;
-        logger.info(`💾 Base64 LoRA image saved: ${imagePath} (${fileSize} bytes)`);
+        logger.info(`✅ Base64 LoRA image with FULL SIZE watermark overlay applied: ${imagePath} (${fileSize} bytes)`);
       } else if (result.type === 'file') {
         // Handle file URL
         logger.info(`⬇️ Downloading LoRA image from: ${result.url}`);
@@ -129,10 +144,24 @@ class TrainedLoraService {
           timeout: 60000
         });
         
+        // Save the original image first (without watermark from HF Space)
+        const tempImagePath = path.join(this.imageStorePath, `${imageId}_temp.png`);
+        await fs.writeFile(tempImagePath, imageResponse.data);
+        logger.info(`💾 Downloaded LoRA image saved temporarily: ${tempImagePath}`);
+        
+        // Apply FULL SIZE watermark overlay at 1800x900 (replacing HF Space tiny watermark)
         imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-        await fs.writeFile(imagePath, imageResponse.data);
+        await this.watermarkService.addWatermark(tempImagePath, imagePath, { title });
+        
+        // Clean up temp file
+        try {
+          await fs.unlink(tempImagePath);
+        } catch (cleanupError) {
+          logger.warn(`⚠️ Failed to clean up temp file: ${cleanupError.message}`);
+        }
+        
         fileSize = (await fs.stat(imagePath)).size;
-        logger.info(`💾 Downloaded LoRA image saved: ${imagePath} (${fileSize} bytes)`);
+        logger.info(`✅ LoRA image with FULL SIZE watermark overlay applied: ${imagePath} (${fileSize} bytes)`);
       } else {
         throw new Error('Unknown result type from LoRA generation');
       }
