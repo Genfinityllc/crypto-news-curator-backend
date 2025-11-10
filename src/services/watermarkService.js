@@ -11,11 +11,11 @@ class WatermarkService {
   constructor() {
     this.watermarkPath = path.join(__dirname, '../../assets/genfinity-watermark.png');
     this.hfSpacesWatermarkUrl = 'https://valtronk-crypto-news-lora-generator.hf.space/file/genfinity-watermark.png';
-    this.watermarkPosition = 'overlay'; // Full-size overlay as requested
+    this.watermarkPosition = 'overlay'; // Full-size overlay at 1800x900
     this.watermarkOpacity = 1.0; // Full opacity for perfect overlay
     this.useHfSpacesWatermark = false; // Use local first, then HF Spaces fallback
     
-    logger.info('🎨 Genfinity Watermark Service initialized - Using local file with HF Spaces fallback');
+    logger.info('🎨 Genfinity Watermark Service initialized - Full size overlay at 1800x900');
   }
 
   /**
@@ -57,21 +57,23 @@ class WatermarkService {
       // Get watermark (from HF Spaces or local)
       const watermarkBuffer = await this.getWatermarkBuffer();
       
-      // Resize watermark maintaining aspect ratio, no stretching
+      // Resize watermark to exactly match the image dimensions (1800x900)
+      // This preserves the designed overlay positioning at full size
       const overlayWatermark = sharp(watermarkBuffer)
         .resize(mainWidth, mainHeight, {
-          fit: 'inside', // Maintain aspect ratio, no stretching
-          position: 'centre',
-          background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+          fit: 'fill', // Stretch to exact dimensions to maintain overlay design
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
         })
         .png({ quality: 95 });
       
-      // Add watermark to composite operations
+      logger.info(`🎯 Full overlay watermark resized to: ${mainWidth}x${mainHeight}`);
+      
+      // Add watermark to composite operations (full overlay)
       compositeOperations.push({
         input: await overlayWatermark.toBuffer(),
         left: 0,
         top: 0,
-        blend: 'over', // Use 'over' blend mode for 100% opacity
+        blend: 'over'
       });
       
       // Apply all overlays (with fallback for empty operations)
@@ -341,7 +343,7 @@ class WatermarkService {
     x = Math.max(0, Math.min(x, mainWidth - watermarkWidth));
     y = Math.max(0, Math.min(y, mainHeight - watermarkHeight));
     
-    logger.debug(`📍 Watermark position: ${x}, ${y}`);
+    logger.info(`📍 Genfinity watermark positioned at: ${x}, ${y} (${watermarkWidth}x${watermarkHeight})`);
     
     return { x: Math.round(x), y: Math.round(y) };
   }
