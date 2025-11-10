@@ -224,14 +224,7 @@ class WatermarkService {
       
       const svg = `
         <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="3" dy="3" stdDeviation="3" flood-color="black" flood-opacity="0.7"/>
-            </filter>
-          </defs>
-          <g filter="url(#shadow)">
-            ${textElements}
-          </g>
+          ${textElements}
         </svg>
       `;
       
