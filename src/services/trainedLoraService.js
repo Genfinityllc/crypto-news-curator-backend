@@ -71,7 +71,13 @@ class TrainedLoraService {
       
       // Create enhanced prompt for your trained model
       const prompt = this.createEnhancedPrompt(title, content, network, style);
-      const negativePrompt = "low quality, blurry, text, watermark, signature, bad anatomy, poorly drawn";
+      // Create network-specific negative prompts to counter SDXL Bitcoin bias
+      let negativePrompt = "low quality, blurry, text, watermark, signature, bad anatomy, poorly drawn";
+      
+      // Add Bitcoin exclusion for non-Bitcoin networks
+      if (network && network !== 'bitcoin' && network !== 'generic') {
+        negativePrompt += ", bitcoin symbol, BTC logo, bitcoin coin, orange bitcoin";
+      }
       
       logger.info(`🔤 Prompt: "${prompt}"`);
       logger.info(`🚫 Negative: "${negativePrompt}"`);
@@ -292,15 +298,17 @@ class TrainedLoraService {
       prompt += `, ${content}`;
     }
     
-    // Add network-specific elements
+    // Add network-specific elements with explicit negative prompting to counter SDXL bias
     const networkStyles = {
-      'bitcoin': 'golden orange colors, digital gold, secure blockchain',
-      'ethereum': 'blue purple colors, smart contracts, decentralized',
-      'solana': 'purple pink colors, fast transactions, high performance',
-      'hedera': 'black white colors, hashgraph technology, enterprise',
-      'algorand': 'green blue colors, pure proof of stake, sustainable',
-      'constellation': 'purple cosmic colors, DAG network, constellation',
-      'generic': 'professional crypto design, modern blockchain'
+      'bitcoin': 'golden orange colors, digital gold, secure blockchain, bitcoin symbol, BTC logo',
+      'ethereum': 'blue purple colors, ethereum symbol, ETH logo, smart contracts, NOT bitcoin, NOT BTC',
+      'solana': 'purple pink colors, solana symbol, SOL logo, high performance, NOT bitcoin, NOT BTC',
+      'hedera': 'black white colors, hedera symbol, HBAR logo, hashgraph, NOT bitcoin, NOT BTC',
+      'algorand': 'green blue colors, algorand symbol, ALGO logo, proof of stake, NOT bitcoin, NOT BTC',
+      'constellation': 'purple cosmic colors, constellation symbol, DAG logo, NOT bitcoin, NOT BTC',
+      'ripple': 'blue green colors, ripple symbol, XRP logo, NOT bitcoin, NOT BTC',
+      'aave': 'cyan colors, aave ghost symbol, DeFi protocol, NOT bitcoin, NOT BTC',
+      'generic': 'professional crypto design, modern blockchain technology, NOT bitcoin specific'
     };
     
     if (networkStyles[network]) {
