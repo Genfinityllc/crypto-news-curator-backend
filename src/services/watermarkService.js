@@ -36,7 +36,22 @@ class WatermarkService {
       // Create composite layers array
       const compositeOperations = [];
       
-      // Add title overlay if provided (simplified for stability)
+      // Get watermark (from HF Spaces or local) - ADD FIRST so it goes UNDER the title
+      const watermarkBuffer = await this.getWatermarkBuffer();
+      
+      // Use watermark at NATIVE size (no resizing) - it's already designed for 1800x900
+      // The PNG overlay is pre-designed to land perfectly at full size
+      logger.info(`🎯 Adding watermark UNDER title to avoid interference`);
+      
+      // Add watermark to composite operations FIRST (so it goes under title)
+      compositeOperations.push({
+        input: watermarkBuffer, // Use directly without resizing
+        left: 0,
+        top: 0,
+        blend: 'over' // Normal blend since it's under the title
+      });
+      
+      // Add title overlay if provided (goes OVER the watermark)
       if (title) {
         try {
           const titleOverlay = await this.createTitleOverlay(mainWidth, mainHeight, title);
@@ -53,21 +68,6 @@ class WatermarkService {
           // Continue without title overlay
         }
       }
-      
-      // Get watermark (from HF Spaces or local)
-      const watermarkBuffer = await this.getWatermarkBuffer();
-      
-      // Use watermark at NATIVE size (no resizing) - it's already designed for 1800x900
-      // The PNG overlay is pre-designed to land perfectly at full size
-      logger.info(`🎯 Using watermark at native size for perfect overlay positioning`);
-      
-      // Add watermark to composite operations (full overlay at native size)
-      compositeOperations.push({
-        input: watermarkBuffer, // Use directly without resizing
-        left: 0,
-        top: 0,
-        blend: 'over'
-      });
       
       // Apply all overlays (with fallback for empty operations)
       if (compositeOperations.length > 0) {
@@ -208,7 +208,7 @@ class WatermarkService {
       const totalTextHeight = titleLines.length * lineHeight;
       const startY = (height - totalTextHeight) / 2 + fontSize; // Center vertically
       
-      // Create SVG text elements
+      // Create SVG text elements with VALOR specifications
       const textElements = titleLines.map((line, index) => {
         const y = startY + (index * lineHeight);
         return `
@@ -218,8 +218,7 @@ class WatermarkService {
                 font-size="${fontSize}" 
                 font-weight="bold" 
                 fill="white" 
-                stroke="black" 
-                stroke-width="2">${this.escapeXml(line)}</text>
+                letter-spacing="-8px">${this.escapeXml(line.toUpperCase())}</text>
         `;
       }).join('');
       

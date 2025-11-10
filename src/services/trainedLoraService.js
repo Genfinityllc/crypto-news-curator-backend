@@ -83,7 +83,7 @@ class TrainedLoraService {
       logger.info(`🔑 Using session: ${sessionHash}`);
       
       const queueResponse = await axios.post(queueUrl, {
-        data: [prompt, title],
+        data: [prompt], // Only send prompt - no title processing on HF Space
         event_data: null,
         fn_index: 0,
         trigger_id: 12,
