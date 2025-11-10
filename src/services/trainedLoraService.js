@@ -374,8 +374,9 @@ class TrainedLoraService {
    * Listen to queue updates via polling
    */
   async listenToQueueUpdates(eventId, sessionHash) {
-    const maxAttempts = 30; // 5 minutes max (30 * 10s intervals)
+    const maxAttempts = 60; // 10 minutes max (60 * 10s intervals)
     let attempts = 0;
+    let hasStarted = false;
     
     logger.info(`🔄 Polling for queue updates for event: ${eventId} with session: ${sessionHash}`);
     
@@ -386,7 +387,7 @@ class TrainedLoraService {
         const eventUrl = `${this.hfSpacesUrl}/queue/data?session_hash=${sessionHash}`;
         
         const response = await axios.get(eventUrl, {
-          timeout: 12000, // Longer timeout for SSE
+          timeout: 10000, // Reduced timeout to handle stream aborts faster
           headers: {
             'Accept': 'text/event-stream',
             'Cache-Control': 'no-cache'
@@ -426,11 +427,13 @@ class TrainedLoraService {
                     
                     throw new Error('No valid image data in completed result');
                   } else if (data.msg === 'process_starts') {
+                    hasStarted = true;
                     logger.info(`🔄 Queue processing started for event: ${eventId}`);
                   } else if (data.msg === 'estimation') {
                     const rank = data.rank || 'unknown';
                     const queueSize = data.queue_size || 'unknown';
-                    logger.info(`⏳ Queue position: ${rank}/${queueSize}`);
+                    const eta = data.rank_eta ? `${Math.round(data.rank_eta)}s` : 'unknown';
+                    logger.info(`⏳ Queue position: ${rank}/${queueSize}, ETA: ${eta}`);
                   } else if (data.msg === 'unexpected_error') {
                     throw new Error(`Queue error: ${data.message || 'Unknown error'}`);
                   }
@@ -445,23 +448,33 @@ class TrainedLoraService {
           }
         }
         
-        // Wait before next attempt
-        logger.info(`🔄 Polling attempt ${attempts}/${maxAttempts}, waiting 10s...`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        // Adaptive waiting based on whether processing has started
+        const waitTime = hasStarted ? 5000 : 8000; // Faster polling once started
+        logger.info(`🔄 Polling attempt ${attempts}/${maxAttempts}, waiting ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         
       } catch (error) {
         if (error.message.includes('Queue error') || error.message.includes('unexpected_error')) {
           throw error;
         }
         
-        logger.warn(`⚠️ Queue polling error (attempt ${attempts}): ${error.message}`);
+        // Log different error types
+        if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
+          logger.warn(`⚠️ Network error (attempt ${attempts}): ${error.message}`);
+        } else if (error.code === 'ECONNABORTED' || error.message.includes('stream has been aborted')) {
+          logger.warn(`⚠️ Stream aborted (attempt ${attempts}): ${error.message}`);
+        } else {
+          logger.warn(`⚠️ Queue polling error (attempt ${attempts}): ${error.message}`);
+        }
         
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        // Shorter backoff for stream aborts since they're common
+        const baseBackoff = error.message.includes('stream has been aborted') ? 3000 : 5000;
+        const backoffTime = Math.min(baseBackoff + (attempts * 500), 12000);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
       }
     }
     
-    throw new Error(`Timeout: No completion after ${maxAttempts} polling attempts`);
+    throw new Error(`Timeout: No completion after ${maxAttempts} polling attempts (${Math.round(maxAttempts * 8 / 60)} minutes)`);
   }
 
   /**
