@@ -60,16 +60,16 @@ router.post('/lora-generate', async (req, res) => {
   });
 });
 
-// YOUR TRAINED LORA GENERATE - USING YOUR TRAINED MODEL
+// RUNPOD LORA GENERATE - USING RUNPOD SERVERLESS
 router.post('/generate', async (req, res) => {
-  console.log('🎨 YOUR TRAINED LoRA Generate Request:', req.body);
+  console.log('🚀 RunPod LoRA Generate Request:', req.body);
   
   try {
     const { title, subtitle, client_id } = req.body;
     
-    // Use YOUR trained LoRA Service
-    const TrainedLoraService = require('../services/trainedLoraService');
-    const trainedLoraService = new TrainedLoraService();
+    // Use RunPod LoRA Service instead of HF Spaces
+    const RunPodLoraService = require('../services/runpodLoraService');
+    const runPodLoraService = new RunPodLoraService();
     
     const articleData = {
       title: title || 'Crypto News',
@@ -77,7 +77,7 @@ router.post('/generate', async (req, res) => {
       network: client_id || 'generic'
     };
     
-    const result = await trainedLoraService.generateLoraImage(
+    const result = await runPodLoraService.generateLoraImage(
       articleData.title,
       articleData.content || '',
       articleData.network || 'generic',
@@ -91,15 +91,15 @@ router.post('/generate', async (req, res) => {
       metadata: result.metadata
     };
     
-    console.log('📤 YOUR TRAINED LoRA Response:', response);
+    console.log('📤 RunPod LoRA Response:', response);
     res.json(response);
     
   } catch (error) {
-    console.error('❌ YOUR TRAINED LoRA generation failed:', error.message);
+    console.error('❌ RunPod LoRA generation failed:', error.message);
     res.status(500).json({
       success: false,
       error: error.message,
-      message: 'Your trained LoRA generation failed'
+      message: 'RunPod LoRA generation failed'
     });
   }
 });
