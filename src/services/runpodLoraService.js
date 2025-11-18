@@ -58,9 +58,22 @@ class RunPodLoraService {
   }
 
   /**
-   * Generate image using RunPod serverless endpoint
+   * Generate image using RunPod serverless endpoint with OpenAI fallback
    */
   async generateLoraImage(title, content = '', network = 'generic', style = 'modern') {
+    // Try RunPod first, with quick timeout, then fallback to OpenAI
+    try {
+      return await this.tryRunPodGeneration(title, content, network, style);
+    } catch (runpodError) {
+      logger.warn(`⚠️ RunPod failed: ${runpodError.message}, falling back to OpenAI DALL-E`);
+      return await this.generateWithOpenAI(title, content, network, style);
+    }
+  }
+
+  /**
+   * Try RunPod generation (original method)
+   */
+  async tryRunPodGeneration(title, content = '', network = 'generic', style = 'modern') {
     const imageId = this.generateImageId();
     const startTime = Date.now();
     
@@ -175,7 +188,7 @@ class RunPodLoraService {
    * Poll RunPod job until completion
    */
   async pollRunPodJob(jobId) {
-    const maxAttempts = 240; // 20 minutes max (4x longer)
+    const maxAttempts = 12; // 1 minute max for quick fallback
     const pollInterval = 5000; // 5 seconds
     const statusUrl = `https://api.runpod.ai/v2/dr3yg58suwkise/status/${jobId}`;
     
@@ -384,6 +397,98 @@ class RunPodLoraService {
       
     } catch (error) {
       throw new Error(`Failed to list images: ${error.message}`);
+    }
+  }
+
+  /**
+   * OpenAI DALL-E fallback when RunPod fails
+   */
+  async generateWithOpenAI(title, content = '', network = 'generic', style = 'modern') {
+    const imageId = this.generateImageId();
+    const startTime = Date.now();
+    
+    logger.info(`🎨 Generating with OpenAI DALL-E fallback: "${title}"`);
+    
+    try {
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      if (!openaiApiKey) {
+        throw new Error('OPENAI_API_KEY not configured - cannot use fallback');
+      }
+
+      // Create enhanced prompt for DALL-E
+      const prompt = this.createEnhancedPrompt(title, content, network, style);
+      const dallePrompt = `${prompt}, professional magazine cover design, high quality cryptocurrency illustration, detailed digital art`;
+      
+      logger.info(`🔤 DALL-E Prompt: "${dallePrompt}"`);
+      
+      const response = await axios.post('https://api.openai.com/v1/images/generations', {
+        model: "dall-e-3",
+        prompt: dallePrompt,
+        size: "1792x1024",
+        quality: "hd",
+        n: 1
+      }, {
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 60000
+      });
+
+      if (!response.data.data || !response.data.data[0] || !response.data.data[0].url) {
+        throw new Error('No image URL received from DALL-E');
+      }
+
+      const imageUrl = response.data.data[0].url;
+      logger.info(`⬇️ Downloading DALL-E image from: ${imageUrl}`);
+      
+      // Download image
+      const imageResponse = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 30000
+      });
+
+      // Save the original image first  
+      const tempImagePath = path.join(this.imageStorePath, `${imageId}_temp.png`);
+      await fs.writeFile(tempImagePath, imageResponse.data);
+      
+      // Apply watermark overlay
+      const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+      await this.watermarkService.addWatermark(tempImagePath, imagePath, { title });
+      
+      // Clean up temp file
+      try {
+        await fs.unlink(tempImagePath);
+        if (global.gc) global.gc();
+      } catch (cleanupError) {
+        logger.warn(`⚠️ Failed to clean up temp file: ${cleanupError.message}`);
+      }
+
+      const totalTime = Math.round((Date.now() - startTime) / 1000);
+      logger.info(`✅ DALL-E fallback generation completed in ${totalTime}s`);
+      
+      return {
+        success: true,
+        imageId: imageId,
+        imageUrl: this.getImageUrl(imageId),
+        localPath: imagePath,
+        metadata: {
+          title,
+          content,
+          network,
+          style,
+          prompt: dallePrompt,
+          generationTime: totalTime,
+          method: 'openai_dalle3_fallback',
+          model: 'DALL-E-3',
+          timestamp: new Date().toISOString(),
+          fallback_reason: 'RunPod unavailable'
+        }
+      };
+      
+    } catch (error) {
+      logger.error('❌ OpenAI DALL-E fallback failed:', error);
+      throw new Error(`Both RunPod and OpenAI failed: ${error.message}`);
     }
   }
 }
