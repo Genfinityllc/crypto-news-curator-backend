@@ -88,7 +88,7 @@ class RunPodLoraService {
       logger.info(`📋 Job payload:`, jobPayload);
       
       const submitResponse = await axios.post(this.runpodEndpoint, jobPayload, {
-        timeout: 30000,
+        timeout: 60000, // Increase to 60 seconds for job submission
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.runpodApiKey}`,
@@ -175,7 +175,7 @@ class RunPodLoraService {
    * Poll RunPod job until completion
    */
   async pollRunPodJob(jobId) {
-    const maxAttempts = 60; // 5 minutes max
+    const maxAttempts = 240; // 20 minutes max (4x longer)
     const pollInterval = 5000; // 5 seconds
     const statusUrl = `https://api.runpod.ai/v2/dr3yg58suwkise/status/${jobId}`;
     
