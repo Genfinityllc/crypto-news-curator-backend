@@ -27,16 +27,51 @@ router.get('/status', (req, res) => {
   });
 });
 
-// FastAPI-compatible generate cover endpoint - DISABLED TO PREVENT CRASHES
+// FastAPI-compatible generate cover endpoint - USING RUNPOD
 router.post('/generate/cover', async (req, res) => {
-  console.log('🚨 LoRA generation disabled to prevent backend crashes');
+  console.log('🚀 RunPod LoRA Generate Cover Request:', req.body);
   
-  res.status(503).json({
-    job_id: Date.now().toString(),
-    status: 'disabled',
-    message: 'LoRA generation temporarily disabled to prevent backend crashes',
-    error: 'Service disabled for stability'
-  });
+  try {
+    const { title, subtitle, client_id, width, height } = req.body;
+    
+    // Use RunPod LoRA Service instead of HF Spaces
+    const RunPodLoraService = require('../services/runpodLoraService');
+    const runPodLoraService = new RunPodLoraService();
+    
+    const articleData = {
+      title: title || 'Crypto News',
+      content: subtitle || 'Analysis',
+      network: client_id || 'generic'
+    };
+    
+    const result = await runPodLoraService.generateLoraImage(
+      articleData.title,
+      articleData.content || '',
+      articleData.network || 'generic',
+      'professional'
+    );
+    
+    const response = {
+      job_id: result.imageId,
+      status: "completed",
+      image_url: result.imageUrl,
+      preview_url: result.imageUrl,
+      message: "Cover generated successfully"
+    };
+    
+    console.log('📤 RunPod LoRA Cover Response:', response);
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ RunPod LoRA cover generation failed:', error.message);
+    res.status(500).json({
+      job_id: Date.now().toString(),
+      status: "failed",
+      message: `Error generating AI image with LoRA: ${error.message}`,
+      error: error.message,
+      service: "lora"
+    });
+  }
 });
 
 // FastAPI-compatible status endpoint
@@ -49,15 +84,50 @@ router.get('/generate/status/:job_id', (req, res) => {
   });
 });
 
-// UNIVERSAL LORA GENERATE - DISABLED TO PREVENT CRASHES
+// UNIVERSAL LORA GENERATE - USING RUNPOD
 router.post('/lora-generate', async (req, res) => {
-  console.log('🚨 LoRA generation disabled to prevent backend crashes');
+  console.log('🚀 RunPod Universal LoRA Generate Request:', req.body);
   
-  res.status(503).json({
-    success: false,
-    error: 'LoRA generation disabled for stability',
-    message: 'LoRA generation temporarily disabled to prevent backend crashes'
-  });
+  try {
+    const { title, subtitle, client_id } = req.body;
+    
+    // Use RunPod LoRA Service instead of HF Spaces
+    const RunPodLoraService = require('../services/runpodLoraService');
+    const runPodLoraService = new RunPodLoraService();
+    
+    const articleData = {
+      title: title || 'Crypto News',
+      content: subtitle || 'Analysis',
+      network: client_id || 'generic'
+    };
+    
+    const result = await runPodLoraService.generateLoraImage(
+      articleData.title,
+      articleData.content || '',
+      articleData.network || 'generic',
+      'professional'
+    );
+    
+    const response = {
+      success: true,
+      image_id: result.imageId,
+      image_url: result.imageUrl,
+      metadata: result.metadata,
+      message: 'LoRA generation completed successfully'
+    };
+    
+    console.log('📤 RunPod Universal LoRA Response:', response);
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ RunPod Universal LoRA generation failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: `LoRA generation failed: ${error.message}`,
+      service: 'lora'
+    });
+  }
 });
 
 // RUNPOD LORA GENERATE - USING RUNPOD SERVERLESS
