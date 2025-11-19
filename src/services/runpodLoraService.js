@@ -91,6 +91,8 @@ class RunPodLoraService {
         input: {
           prompt: prompt,
           title: title,
+          width: 1800,
+          height: 900,
           num_inference_steps: 25,
           guidance_scale: 7.5,
           lora_scale: 1.0

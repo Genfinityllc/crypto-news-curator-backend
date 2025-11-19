@@ -39,12 +39,13 @@ class WatermarkService {
       // Get watermark (from HF Spaces or local) - ADD FIRST so it goes UNDER the title
       const watermarkBuffer = await this.getWatermarkBuffer();
       
-      // Resize watermark to match main image dimensions to avoid composite error
-      logger.info(`🎯 Resizing watermark to match image dimensions: ${mainWidth}x${mainHeight}`);
+      // Resize watermark to maintain aspect ratio and fit within image bounds
+      logger.info(`🎯 Preparing watermark for ${mainWidth}x${mainHeight} image`);
       
       const resizedWatermarkBuffer = await sharp(watermarkBuffer)
         .resize(mainWidth, mainHeight, { 
-          fit: 'fill',
+          fit: 'inside', // Maintain aspect ratio, scale to fit inside bounds
+          withoutEnlargement: false, // Allow enlarging if watermark is smaller
           background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
         })
         .png()
