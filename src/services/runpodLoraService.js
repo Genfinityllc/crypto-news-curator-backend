@@ -88,9 +88,13 @@ class RunPodLoraService {
       
       // Step 1: Submit job to RunPod
       // NUCLEAR ANTI-BITCOIN + ABSOLUTE TEXT ELIMINATION for non-Bitcoin articles
-      const negativePrompt = network !== 'bitcoin' 
-        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions, text, words, letters, spelling, readable text, written words, typography, font, alphabet, characters, writing, script, label, caption, title text, name tag, branding text, logo text, coin text, symbol text, any text, all text, readable letters, visible words, legible text, printed text, displayed text, shown text, written characters, letter symbols, word symbols, textual elements, linguistic content'
-        : 'low quality, blurry, distorted, card platform, trading card, text, words, letters, spelling, readable text, written words, typography, font, alphabet, characters, writing, script, label, caption, title text, name tag, branding text, logo text, coin text, symbol text, any text, all text, readable letters, visible words, legible text, printed text, displayed text, shown text, written characters, letter symbols, word symbols, textual elements, linguistic content';
+      // Enhanced negative prompting with XRP-specific exclusions
+      let negativePrompt = 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions, text, words, letters, spelling, readable text, written words, typography, font, alphabet, characters, writing, script, label, caption, title text, name tag, branding text, logo text, coin text, symbol text, any text, all text, readable letters, visible words, legible text, printed text, displayed text, shown text, written characters, letter symbols, word symbols, textual elements, linguistic content';
+      
+      // Add XRP-specific negative prompts to fix logo accuracy
+      if (network === 'xrp') {
+        negativePrompt += ', generic X shape, rounded X, soft X, blurry X, abstract X, stylized X, decorative X, ornamental X, curved X edges, wrong X proportions, incorrect logo shape, fake XRP symbol, modified XRP design, distorted XRP logo';
+      }
       
       const jobPayload = {
         input: {
@@ -385,7 +389,7 @@ class RunPodLoraService {
       'aave': `pure aave ghost symbol only, ${selectedComposition}, white ethereal ghost figure, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'bitcoin': `pure bitcoin symbol ₿ only, ${selectedComposition}, golden orange design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY`,
       'ripple': `pure ripple logo symbol only, ${selectedComposition}, teal blue branding, flowing design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'xrp': `pure XRP symbol with X pattern only, ${selectedComposition}, purple token design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin, ONLY XRP symbol`,
+      'xrp': `official XRP cryptocurrency logo only, sharp angular X shape with four triangular segments, geometric XRP design, clean edges, official XRP proportions, ${selectedComposition}, purple token design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin, authentic XRP logo shape`,
       'ethereum': `pure ethereum diamond symbol only, ${selectedComposition}, geometric diamond shape, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'dogecoin': `pure dogecoin symbol only, ${selectedComposition}, shiba inu design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'solana': `pure solana symbol only, ${selectedComposition}, purple gradient design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
