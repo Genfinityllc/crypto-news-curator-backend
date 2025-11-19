@@ -143,16 +143,34 @@ class RunPodLoraService {
       await fs.writeFile(tempImagePath, imageResponse.data);
       logger.info(`💾 Downloaded RunPod image saved temporarily: ${tempImagePath}`);
       
-      // Apply watermark overlay
-      const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-      await this.watermarkService.addWatermark(tempImagePath, imagePath, { title });
+      // FORCE resize to 1800x900 (RunPod ignores our size parameters)
+      const sharp = require('sharp');
+      const resizedImagePath = path.join(this.imageStorePath, `${imageId}_resized.png`);
       
-      // Clean up temp file
+      const metadata = await sharp(tempImagePath).metadata();
+      logger.info(`📏 Original RunPod dimensions: ${metadata.width}x${metadata.height}`);
+      
+      await sharp(tempImagePath)
+        .resize(1800, 900, { 
+          fit: 'fill',
+          background: { r: 0, g: 0, b: 0, alpha: 1 }
+        })
+        .png()
+        .toFile(resizedImagePath);
+      
+      logger.info(`✅ FORCED resize to 1800x900: ${resizedImagePath}`);
+      
+      // Apply watermark overlay to resized image
+      const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+      await this.watermarkService.addWatermark(resizedImagePath, imagePath, { title });
+      
+      // Clean up temp files
       try {
         await fs.unlink(tempImagePath);
+        await fs.unlink(resizedImagePath);
         if (global.gc) global.gc();
       } catch (cleanupError) {
-        logger.warn(`⚠️ Failed to clean up temp file: ${cleanupError.message}`);
+        logger.warn(`⚠️ Failed to clean up temp files: ${cleanupError.message}`);
       }
       
       const fileSize = (await fs.stat(imagePath)).size;
@@ -261,6 +279,8 @@ class RunPodLoraService {
   detectCryptoNetwork(title, content) {
     const text = `${title} ${content}`.toLowerCase();
     
+    logger.info(`🔍 Network detection - Full text: "${text}"`);
+    
     // Training data network mapping (based on your files)
     const networkDetection = {
       'aave': ['aave', 'ghost token', 'defi lending'],
@@ -279,11 +299,15 @@ class RunPodLoraService {
     
     // Check each network for matches
     for (const [network, keywords] of Object.entries(networkDetection)) {
-      if (keywords.some(keyword => text.includes(keyword))) {
-        return network;
+      for (const keyword of keywords) {
+        if (text.includes(keyword)) {
+          logger.info(`✅ Found keyword "${keyword}" for network "${network}"`);
+          return network;
+        }
       }
     }
     
+    logger.info(`❌ No network detected from text`);
     return 'generic';
   }
 
@@ -301,19 +325,19 @@ class RunPodLoraService {
     
     // Match training data style - 3D crypto symbols with digital backgrounds
     const networkPrompts = {
-      'aave': '3D glowing ghost symbol, aave protocol logo, ethereal white ghost token floating in digital space',
+      'aave': 'AAVE PROTOCOL ONLY, 3D glowing ghost symbol, aave protocol logo, ethereal white ghost token floating in digital space, ABSOLUTELY NO BITCOIN',
       'bitcoin': '3D golden bitcoin symbol, digital hands exchanging bitcoin, geometric orange background',
-      'ripple': '3D ripple XRP logo, dynamic blue wave patterns, flowing cryptocurrency energy',
-      'xrp': '3D purple XRP symbol, rippling water effects, futuristic payment network visualization',
-      'ethereum': '3D ethereum symbol, blue digital architecture, smart contract visualization',
-      'dogecoin': '3D dogecoin symbol, playful digital environment',
-      'solana': '3D solana logo, purple gradient background, high-speed blockchain visualization',
-      'hedera': '3D hedera hashgraph symbol, black and white digital network',
-      'bybit': '3D bybit trading platform visualization, digital exchange interface',
-      'hyperliquid': '3D hyperliquid protocol symbol, liquid trading visualization', 
-      'pump.fun': '3D pump.fun logo, vibrant meme token visualization',
-      'pi': '3D pi network symbol, mobile mining visualization',
-      'generic': '3D cryptocurrency symbol, futuristic blockchain visualization'
+      'ripple': 'RIPPLE XRP ONLY, 3D ripple XRP logo, dynamic blue wave patterns, flowing cryptocurrency energy, NO BITCOIN SYMBOLS',
+      'xrp': 'XRP ONLY, 3D purple XRP symbol, rippling water effects, futuristic payment network visualization, NO BITCOIN',
+      'ethereum': 'ETHEREUM ONLY, 3D ethereum symbol, blue digital architecture, smart contract visualization, NO BITCOIN',
+      'dogecoin': 'DOGECOIN ONLY, 3D dogecoin symbol, playful digital environment, NO BITCOIN',
+      'solana': 'SOLANA ONLY, 3D solana logo, purple gradient background, high-speed blockchain visualization, NO BITCOIN',
+      'hedera': 'HEDERA ONLY, 3D hedera hashgraph symbol, black and white digital network, NO BITCOIN',
+      'bybit': 'BYBIT ONLY, 3D bybit trading platform visualization, digital exchange interface, NO BITCOIN',
+      'hyperliquid': 'HYPERLIQUID ONLY, 3D hyperliquid protocol symbol, liquid trading visualization, NO BITCOIN', 
+      'pump.fun': 'PUMP.FUN ONLY, 3D pump.fun logo, vibrant meme token visualization, NO BITCOIN',
+      'pi': 'PI NETWORK ONLY, 3D pi network symbol, mobile mining visualization, NO BITCOIN',
+      'generic': '3D cryptocurrency symbol, futuristic blockchain visualization, NO BITCOIN'
     };
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
