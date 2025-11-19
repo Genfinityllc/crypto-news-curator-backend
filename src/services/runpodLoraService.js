@@ -349,21 +349,38 @@ class RunPodLoraService {
     logger.info(`📝 Article content: "${content}"`);
     logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
     
-    // ULTRA-SPECIFIC SYMBOL PROMPTS - No backgrounds, focus on exact symbols from training
+    // VARIED COMPOSITION PROMPTS - Different forms, not always coins
+    const compositionVariations = [
+      'floating holographic symbol, no physical coin',
+      'glowing logo projection, ethereal design',
+      'geometric symbol structure, architectural form',
+      'digital emblem display, screen interface',
+      'neon light symbol, glowing outline',
+      'crystalline symbol formation, transparent structure'
+    ];
+    
+    // Randomly select composition variation (but deterministic based on title hash)
+    const titleHash = title.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
+    const compositionIndex = Math.abs(titleHash) % compositionVariations.length;
+    const selectedComposition = compositionVariations[compositionIndex];
+    
+    logger.info(`🎨 Selected composition: "${selectedComposition}"`);
+    
+    // BASE SYMBOL PROMPTS - Focus on symbols in varied forms
     const networkPrompts = {
-      'aave': 'aave ghost symbol only, white ethereal ghost floating, ghost token design, minimalist ghost icon, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'bitcoin': 'bitcoin symbol ₿, golden bitcoin coin, orange cryptocurrency',
-      'ripple': 'ripple logo only, teal company branding, ripple network symbol, flowing design elements, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'xrp': 'XRP coin symbol only, purple XRP token design, XRP logo on coin surface, minimalist purple coin, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'ethereum': 'ethereum diamond symbol only, ETH logo design, geometric diamond shape, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'dogecoin': 'dogecoin symbol only, shiba inu coin design, DOGE branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'solana': 'solana symbol only, SOL logo design, minimalist purple branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'hedera': 'hedera symbol only, HBAR logo design, hashgraph branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'bybit': 'bybit logo only, exchange branding, trading platform symbol, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'hyperliquid': 'hyperliquid symbol only, protocol logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿', 
-      'pump.fun': 'pump.fun logo only, meme platform branding, vibrant design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
-      'pi': 'PI SYMBOL ONLY π, mathematical pi character π, golden pi coin π design, pi network branding π, NO BITCOIN EVER, NO BTC EVER, NO ₿ EVER, NO ORANGE COIN, ONLY PI SYMBOL π',
-      'generic': 'modern cryptocurrency symbol, minimalist design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿'
+      'aave': `aave ghost symbol, ${selectedComposition}, white ethereal ghost, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'bitcoin': `bitcoin symbol ₿, ${selectedComposition}, golden orange design`,
+      'ripple': `ripple logo, ${selectedComposition}, teal company branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'xrp': `XRP symbol, ${selectedComposition}, purple token design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'ethereum': `ethereum diamond symbol, ${selectedComposition}, ETH logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'dogecoin': `dogecoin symbol, ${selectedComposition}, DOGE branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'solana': `solana symbol, ${selectedComposition}, SOL logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'hedera': `hedera symbol, ${selectedComposition}, HBAR logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'bybit': `bybit logo, ${selectedComposition}, exchange branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'hyperliquid': `hyperliquid symbol, ${selectedComposition}, protocol logo, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`, 
+      'pump.fun': `pump.fun logo, ${selectedComposition}, meme platform branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'pi': `PI SYMBOL π, ${selectedComposition}, mathematical pi character π, NO BITCOIN EVER, NO BTC EVER, NO ₿ EVER, ONLY PI SYMBOL π`,
+      'generic': `cryptocurrency symbol, ${selectedComposition}, minimalist design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`
     };
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
