@@ -368,9 +368,20 @@ class RunPodLoraService {
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
     
-    // NO BACKGROUNDS - focus only on the symbol/token
+    // SMART BACKGROUND DETECTION - only add when article context suggests it
+    const articleText = `${title} ${content}`.toLowerCase();
+    const chartKeywords = ['chart', 'sentiment', 'trend', 'analysis', 'price action', 'technical analysis', 'market data', 'trading view', 'graph', 'statistics'];
     
-    // Minimal quality terms only - no backgrounds, no extra styling
+    const hasChartContext = chartKeywords.some(keyword => articleText.includes(keyword));
+    
+    if (hasChartContext) {
+      prompt += ', digital trading charts background, market analysis interface';
+      logger.info(`📊 Added chart background - found chart/analysis keywords in article`);
+    } else {
+      logger.info(`🎯 Clean symbol focus - no chart keywords detected`);
+    }
+    
+    // Minimal quality terms
     prompt += ', 3D render, high quality';
     
     // Explicitly exclude Bitcoin for non-Bitcoin articles
