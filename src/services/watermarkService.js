@@ -39,13 +39,20 @@ class WatermarkService {
       // Get watermark (from HF Spaces or local) - ADD FIRST so it goes UNDER the title
       const watermarkBuffer = await this.getWatermarkBuffer();
       
-      // Use watermark at NATIVE size (no resizing) - it's already designed for 1800x900
-      // The PNG overlay is pre-designed to land perfectly at full size
-      logger.info(`🎯 Adding watermark UNDER title to avoid interference`);
+      // Resize watermark to match main image dimensions to avoid composite error
+      logger.info(`🎯 Resizing watermark to match image dimensions: ${mainWidth}x${mainHeight}`);
+      
+      const resizedWatermarkBuffer = await sharp(watermarkBuffer)
+        .resize(mainWidth, mainHeight, { 
+          fit: 'fill',
+          background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+        })
+        .png()
+        .toBuffer();
       
       // Add watermark to composite operations FIRST (so it goes under title)
       compositeOperations.push({
-        input: watermarkBuffer, // Use directly without resizing
+        input: resizedWatermarkBuffer, // Use resized watermark
         left: 0,
         top: 0,
         blend: 'over' // Normal blend since it's under the title
