@@ -29,67 +29,47 @@ class WatermarkService {
       const { title } = options;
       logger.info(`🏷️ Adding Genfinity watermark${title ? ' and title' : ''} to: ${path.basename(inputImagePath)}`);
       
-      // Load main image info
+      // STEP 1: Resize image to 1800x900 FIRST
+      logger.info(`🔧 STEP 1: Resizing image to 1800x900 first`);
       const mainImage = sharp(inputImagePath);
-      const { width: mainWidth, height: mainHeight } = await mainImage.metadata();
+      const { width: originalWidth, height: originalHeight } = await mainImage.metadata();
+      logger.info(`📏 Original image dimensions: ${originalWidth}x${originalHeight}`);
       
-      // Create composite layers array
-      const compositeOperations = [];
+      // Create 1800x900 base image
+      const resizedImageBuffer = await mainImage
+        .resize(1800, 900, {
+          fit: 'fill',
+          background: { r: 0, g: 0, b: 0, alpha: 1 }
+        })
+        .png()
+        .toBuffer();
       
-      // Get watermark (from HF Spaces or local) - ADD FIRST so it goes UNDER the title
+      logger.info(`✅ Image resized to 1800x900`);
+      
+      // STEP 2: Apply watermark to the 1800x900 canvas
+      logger.info(`🎯 STEP 2: Applying watermark to 1800x900 canvas`);
+      
+      // Get watermark (from HF Spaces or local)
       const watermarkBuffer = await this.getWatermarkBuffer();
-      
-      // Position watermark in BOTTOM CENTER like the example
-      logger.info(`🎯 Positioning watermark at bottom center for ${mainWidth}x${mainHeight} image`);
-      
-      // Get watermark dimensions
       const watermarkMetadata = await sharp(watermarkBuffer).metadata();
       const watermarkWidth = watermarkMetadata.width;
       const watermarkHeight = watermarkMetadata.height;
       
-      logger.info(`📏 Original watermark dimensions: ${watermarkWidth}x${watermarkHeight}`);
+      logger.info(`📏 Watermark dimensions: ${watermarkWidth}x${watermarkHeight}`);
       
-      let finalWatermarkBuffer;
-      let finalWatermarkWidth;
-      let finalWatermarkHeight;
+      // Calculate position for 1800x900 canvas: center horizontally, bottom with padding
+      const leftPosition = Math.round((1800 - watermarkWidth) / 2);
+      const topPosition = 900 - watermarkHeight - 40; // 40px padding from bottom
       
-      // Ensure watermark fits within image bounds
-      if (watermarkWidth > mainWidth || watermarkHeight > mainHeight) {
-        // Watermark is too big, resize it to fit
-        const scale = Math.min(mainWidth / watermarkWidth, mainHeight / watermarkHeight) * 0.8; // 80% of max size
-        finalWatermarkWidth = Math.round(watermarkWidth * scale);
-        finalWatermarkHeight = Math.round(watermarkHeight * scale);
-        
-        logger.info(`📏 Resizing watermark to fit: ${finalWatermarkWidth}x${finalWatermarkHeight}`);
-        
-        finalWatermarkBuffer = await sharp(watermarkBuffer)
-          .resize(finalWatermarkWidth, finalWatermarkHeight, {
-            fit: 'inside',
-            withoutEnlargement: false
-          })
-          .png()
-          .toBuffer();
-      } else {
-        // Watermark fits, use as-is
-        finalWatermarkBuffer = watermarkBuffer;
-        finalWatermarkWidth = watermarkWidth;
-        finalWatermarkHeight = watermarkHeight;
-        logger.info(`✅ Using watermark at original size: ${finalWatermarkWidth}x${finalWatermarkHeight}`);
-      }
+      logger.info(`📍 Watermark position on 1800x900 canvas: left=${leftPosition}, top=${topPosition}`);
       
-      // Calculate position: center horizontally, bottom with some padding
-      const leftPosition = Math.max(0, Math.round((mainWidth - finalWatermarkWidth) / 2));
-      const topPosition = Math.max(0, mainHeight - finalWatermarkHeight - 40); // 40px padding from bottom
-      
-      logger.info(`📍 Watermark position: left=${leftPosition}, top=${topPosition}`);
-      
-      // Add watermark to composite operations - positioned at bottom center
-      compositeOperations.push({
-        input: finalWatermarkBuffer,
+      // Create composite layers array
+      const compositeOperations = [{
+        input: watermarkBuffer, // Use at actual size on 1800x900 canvas
         left: leftPosition,
         top: topPosition,
         blend: 'over'
-      });
+      }];
       
       // TEMPORARILY DISABLE TITLE OVERLAY TO DEBUG WHITE BAR
       if (false && title) {
@@ -109,22 +89,11 @@ class WatermarkService {
         }
       }
       
-      // Apply all overlays (with fallback for empty operations)
-      let processedImage;
-      if (compositeOperations.length > 0) {
-        processedImage = mainImage.composite(compositeOperations);
-      } else {
-        // No overlays to apply, use original
-        processedImage = mainImage;
-      }
+      // STEP 3: Apply watermark to the 1800x900 resized image
+      logger.info(`🔧 STEP 3: Compositing watermark onto 1800x900 image`);
       
-      // FORCE final output to exactly 1800x900px
-      logger.info(`🔧 FORCING final output to exactly 1800x900px`);
-      await processedImage
-        .resize(1800, 900, {
-          fit: 'fill',
-          background: { r: 0, g: 0, b: 0, alpha: 1 }
-        })
+      await sharp(resizedImageBuffer)
+        .composite(compositeOperations)
         .png({ quality: 95 })
         .toFile(finalOutputPath);
         
