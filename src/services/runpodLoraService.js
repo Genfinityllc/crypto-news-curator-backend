@@ -87,10 +87,10 @@ class RunPodLoraService {
       logger.info(`🎯 Network: "${network}", Style: "${style}"`);
       
       // Step 1: Submit job to RunPod
-      // NUCLEAR ANTI-BITCOIN + NO TEXT for non-Bitcoin articles
+      // NUCLEAR ANTI-BITCOIN + ABSOLUTE TEXT ELIMINATION for non-Bitcoin articles
       const negativePrompt = network !== 'bitcoin' 
-        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions, text, words, letters, spelling, readable text, written words'
-        : 'low quality, blurry, distorted, card platform, trading card, text, words, letters, spelling, readable text, written words';
+        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions, text, words, letters, spelling, readable text, written words, typography, font, alphabet, characters, writing, script, label, caption, title text, name tag, branding text, logo text, coin text, symbol text, any text, all text, readable letters, visible words, legible text, printed text, displayed text, shown text, written characters, letter symbols, word symbols, textual elements, linguistic content'
+        : 'low quality, blurry, distorted, card platform, trading card, text, words, letters, spelling, readable text, written words, typography, font, alphabet, characters, writing, script, label, caption, title text, name tag, branding text, logo text, coin text, symbol text, any text, all text, readable letters, visible words, legible text, printed text, displayed text, shown text, written characters, letter symbols, word symbols, textual elements, linguistic content';
       
       const jobPayload = {
         input: {
@@ -380,21 +380,21 @@ class RunPodLoraService {
     
     logger.info(`🎨 Selected composition: "${selectedComposition}"`);
     
-    // PURE VISUAL SYMBOL PROMPTS - NO TEXT/WORDS, only symbols and visual elements
+    // NUCLEAR TEXT-FREE + BITCOIN-FREE VISUAL SYMBOL PROMPTS
     const networkPrompts = {
-      'aave': `aave ghost symbol, ${selectedComposition}, white ethereal ghost figure, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'bitcoin': `bitcoin symbol ₿, ${selectedComposition}, golden orange design, no text, no words`,
-      'ripple': `ripple logo symbol, ${selectedComposition}, teal blue branding, flowing design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'xrp': `XRP symbol with X pattern, ${selectedComposition}, purple token design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'ethereum': `ethereum diamond symbol, ${selectedComposition}, geometric diamond shape, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'dogecoin': `dogecoin symbol, ${selectedComposition}, shiba inu design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'solana': `solana symbol, ${selectedComposition}, purple gradient design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'hedera': `hedera symbol, ${selectedComposition}, hashgraph design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'bybit': `bybit symbol, ${selectedComposition}, exchange logo, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'hyperliquid': `hyperliquid symbol, ${selectedComposition}, protocol logo, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`, 
-      'pump.fun': `pump.fun symbol, ${selectedComposition}, vibrant design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'pi': `pi symbol π, ${selectedComposition}, mathematical pi character, golden design, no text, no words, NO BITCOIN SYMBOL EVER, NO ₿ EVER, ONLY π SYMBOL`,
-      'generic': `cryptocurrency symbol, ${selectedComposition}, minimalist design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`
+      'aave': `pure aave ghost symbol only, ${selectedComposition}, white ethereal ghost figure, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'bitcoin': `pure bitcoin symbol ₿ only, ${selectedComposition}, golden orange design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY`,
+      'ripple': `pure ripple logo symbol only, ${selectedComposition}, teal blue branding, flowing design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'xrp': `pure XRP symbol with X pattern only, ${selectedComposition}, purple token design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin, ONLY XRP symbol`,
+      'ethereum': `pure ethereum diamond symbol only, ${selectedComposition}, geometric diamond shape, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'dogecoin': `pure dogecoin symbol only, ${selectedComposition}, shiba inu design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'solana': `pure solana symbol only, ${selectedComposition}, purple gradient design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'hedera': `pure hedera symbol only, ${selectedComposition}, hashgraph design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'bybit': `pure bybit symbol only, ${selectedComposition}, exchange logo, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'hyperliquid': `pure hyperliquid symbol only, ${selectedComposition}, protocol logo, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`, 
+      'pump.fun': `pure pump.fun symbol only, ${selectedComposition}, vibrant design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'pi': `pure pi symbol π only, ${selectedComposition}, mathematical pi character, golden design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO BITCOIN SYMBOLS EVER, ZERO ₿ EVER, ONLY π SYMBOL, NEVER show bitcoin`,
+      'generic': `pure cryptocurrency symbol only, ${selectedComposition}, minimalist design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`
     };
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
@@ -412,12 +412,15 @@ class RunPodLoraService {
       logger.info(`🎯 Clean symbol focus - no chart keywords detected`);
     }
     
-    // Minimal quality terms
+    // Minimal quality terms with MAXIMUM text blocking
     prompt += ', 3D render, high quality';
     
-    // Explicitly exclude Bitcoin for non-Bitcoin articles
+    // NUCLEAR text blocking for ALL networks
+    prompt += ', pure visual symbol only, no typography whatsoever, no readable text anywhere, no letters, no words, no alphabet characters, no linguistic elements';
+    
+    // NUCLEAR Bitcoin exclusion for non-Bitcoin articles 
     if (network !== 'bitcoin') {
-      prompt += ', NOT bitcoin symbol, NOT BTC logo, NOT orange bitcoin';
+      prompt += ', NEVER EVER show bitcoin symbol, NEVER EVER show ₿, NEVER EVER show BTC, NEVER EVER show orange cryptocurrency, NEVER EVER show bitcoin logo, FORBIDDEN bitcoin elements, BANNED bitcoin imagery, PROHIBITED bitcoin symbols';
     }
     
     return prompt;
