@@ -349,40 +349,29 @@ class RunPodLoraService {
     logger.info(`📝 Article content: "${content}"`);
     logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
     
-    // EXACT TRAINING DATA PROMPTS - Match filenames exactly to override Bitcoin bias
+    // ULTRA-SPECIFIC SYMBOL PROMPTS - No backgrounds, focus on exact symbols from training
     const networkPrompts = {
-      'aave': 'aave protocol, 3D glowing white ghost symbol, ethereal ghost token, purple neon lighting, digital space background, NEVER bitcoin, NEVER BTC symbol, NEVER ₿, NEVER orange coin',
-      'bitcoin': '3D golden bitcoin symbol, digital hands exchanging bitcoin, geometric orange background, ₿ symbol',
-      'ripple': 'ripple network, 3D teal blue ripple effects, flowing water ripples, ripple company logo, network visualization, blue red energy waves, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
-      'xrp': 'XRP token, 3D purple XRP coin symbol, purple cryptocurrency token, XRP logo on coin, stacked purple coins, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin',
-      'ethereum': 'ethereum, 3D diamond ETH symbol, blue purple gradient, smart contract visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
-      'dogecoin': 'dogecoin DOGE, 3D golden shiba inu coin, playful meme cryptocurrency, NEVER bitcoin, NEVER BTC, NEVER ₿',
-      'solana': 'solana SOL, 3D purple gradient symbol, high-speed blockchain, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
-      'hedera': 'hedera HBAR, 3D hashgraph network symbol, black white colors, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
-      'bybit': 'bybit exchange, 3D trading platform interface, digital exchange, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin',
-      'hyperliquid': 'hyperliquid protocol, 3D liquid trading visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin', 
-      'pump.fun': 'pump.fun platform, 3D vibrant meme token visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
-      'pi': 'pi network coin, 3D golden pi symbol π, mobile mining, yellow golden colors, mathematical pi symbol π NOT bitcoin, NEVER ₿, NEVER BTC, NEVER orange bitcoin coin',
-      'generic': '3D modern cryptocurrency visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin'
+      'aave': 'aave ghost symbol only, white ethereal ghost floating, ghost token design, minimalist ghost icon, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'bitcoin': 'bitcoin symbol ₿, golden bitcoin coin, orange cryptocurrency',
+      'ripple': 'ripple logo only, teal company branding, ripple network symbol, flowing design elements, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'xrp': 'XRP coin symbol only, purple XRP token design, XRP logo on coin surface, minimalist purple coin, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'ethereum': 'ethereum diamond symbol only, ETH logo design, geometric diamond shape, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'dogecoin': 'dogecoin symbol only, shiba inu coin design, DOGE branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'solana': 'solana symbol only, SOL logo design, minimalist purple branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'hedera': 'hedera symbol only, HBAR logo design, hashgraph branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'bybit': 'bybit logo only, exchange branding, trading platform symbol, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'hyperliquid': 'hyperliquid symbol only, protocol logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿', 
+      'pump.fun': 'pump.fun logo only, meme platform branding, vibrant design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿',
+      'pi': 'PI SYMBOL ONLY π, mathematical pi character π, golden pi coin π design, pi network branding π, NO BITCOIN EVER, NO BTC EVER, NO ₿ EVER, NO ORANGE COIN, ONLY PI SYMBOL π',
+      'generic': 'modern cryptocurrency symbol, minimalist design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿'
     };
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
     
-    // Add digital trading background (matching training data)
-    prompt += ', digital trading charts background, glowing price graphs, futuristic cryptocurrency market interface';
+    // NO BACKGROUNDS - focus only on the symbol/token
     
-    // Add lighting and style (matching training data aesthetic)
-    const lightingStyles = {
-      'modern': 'clean lighting, minimalist glow',
-      'futuristic': 'neon lighting effects, cyberpunk atmosphere', 
-      'classic': 'elegant soft lighting',
-      'professional': 'studio lighting, premium finish'
-    };
-    
-    prompt += `, ${lightingStyles[style] || lightingStyles['professional']}`;
-    
-    // Final quality terms (NO magazine references)
-    prompt += ', high quality, detailed 3D render, professional cryptocurrency visualization, digital art';
+    // Minimal quality terms only - no backgrounds, no extra styling
+    prompt += ', 3D render, high quality';
     
     // Explicitly exclude Bitcoin for non-Bitcoin articles
     if (network !== 'bitcoin') {
