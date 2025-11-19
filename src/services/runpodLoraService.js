@@ -250,55 +250,86 @@ class RunPodLoraService {
   }
 
   /**
-   * Create enhanced prompt for LoRA model
+   * Detect crypto network from article title and content
    */
-  createEnhancedPrompt(title, content, network, style) {
-    // Network-specific base prompts
-    const networkBases = {
-      'bitcoin': 'bitcoin digital currency cover',
-      'ethereum': 'ethereum blockchain platform cover', 
-      'solana': 'solana high-performance blockchain cover',
-      'hedera': 'hedera hashgraph enterprise cover',
-      'algorand': 'algorand pure proof of stake cover',
-      'constellation': 'constellation DAG network cover',
-      'generic': 'cryptocurrency technology cover'
+  detectCryptoNetwork(title, content) {
+    const text = `${title} ${content}`.toLowerCase();
+    
+    // Training data network mapping (based on your files)
+    const networkDetection = {
+      'aave': ['aave', 'ghost token', 'defi lending'],
+      'bitcoin': ['bitcoin', 'btc'],
+      'ripple': ['ripple', 'xrp'],
+      'xrp': ['ripple', 'xrp'], 
+      'ethereum': ['ethereum', 'eth'],
+      'dogecoin': ['dogecoin', 'doge'],
+      'solana': ['solana', 'sol'],
+      'hedera': ['hedera', 'hbar'],
+      'bybit': ['bybit'],
+      'hyperliquid': ['hyperliquid'],
+      'pump.fun': ['pump.fun', 'pumpfun'],
+      'pi': ['pi network', 'pi coin']
     };
     
-    const basePrompt = networkBases[network] || networkBases['generic'];
-    let prompt = `${basePrompt}, ${title}`;
-    
-    if (content) {
-      prompt += `, ${content}`;
+    // Check each network for matches
+    for (const [network, keywords] of Object.entries(networkDetection)) {
+      if (keywords.some(keyword => text.includes(keyword))) {
+        return network;
+      }
     }
     
-    // Add network-specific styling
-    const networkStyles = {
-      'bitcoin': 'golden orange colors, digital gold, secure blockchain',
-      'ethereum': 'blue purple colors, smart contracts, NOT bitcoin, NOT BTC',
-      'solana': 'purple pink colors, high performance, NOT bitcoin, NOT BTC',
-      'hedera': 'black white colors, hashgraph, NOT bitcoin, NOT BTC',
-      'algorand': 'green blue colors, proof of stake, NOT bitcoin, NOT BTC',
-      'constellation': 'purple cosmic colors, DAG technology, NOT bitcoin, NOT BTC',
-      'generic': 'professional crypto design, modern blockchain technology'
+    return 'generic';
+  }
+
+  /**
+   * Create enhanced prompt matching training data style
+   */
+  createEnhancedPrompt(title, content, networkParam, style) {
+    // Detect actual network from content
+    const detectedNetwork = this.detectCryptoNetwork(title, content);
+    const network = detectedNetwork !== 'generic' ? detectedNetwork : networkParam;
+    
+    logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
+    
+    // Match training data style - 3D crypto symbols with digital backgrounds
+    const networkPrompts = {
+      'aave': '3D glowing ghost symbol, aave protocol logo, ethereal white ghost token floating in digital space',
+      'bitcoin': '3D golden bitcoin symbol, digital hands exchanging bitcoin, geometric orange background',
+      'ripple': '3D ripple XRP logo, dynamic blue wave patterns, flowing cryptocurrency energy',
+      'xrp': '3D purple XRP symbol, rippling water effects, futuristic payment network visualization',
+      'ethereum': '3D ethereum symbol, blue digital architecture, smart contract visualization',
+      'dogecoin': '3D dogecoin symbol, playful digital environment',
+      'solana': '3D solana logo, purple gradient background, high-speed blockchain visualization',
+      'hedera': '3D hedera hashgraph symbol, black and white digital network',
+      'bybit': '3D bybit trading platform visualization, digital exchange interface',
+      'hyperliquid': '3D hyperliquid protocol symbol, liquid trading visualization', 
+      'pump.fun': '3D pump.fun logo, vibrant meme token visualization',
+      'pi': '3D pi network symbol, mobile mining visualization',
+      'generic': '3D cryptocurrency symbol, futuristic blockchain visualization'
     };
     
-    if (networkStyles[network]) {
-      prompt += `, ${networkStyles[network]}`;
-    }
+    let prompt = networkPrompts[network] || networkPrompts['generic'];
     
-    // Style keywords
-    const styleKeywords = {
-      'modern': 'clean design, minimalist',
-      'futuristic': 'advanced technology, sci-fi',
-      'classic': 'elegant, sophisticated',
-      'professional': 'premium quality, editorial'
+    // Add digital trading background (matching training data)
+    prompt += ', digital trading charts background, glowing price graphs, futuristic cryptocurrency market interface';
+    
+    // Add lighting and style (matching training data aesthetic)
+    const lightingStyles = {
+      'modern': 'clean lighting, minimalist glow',
+      'futuristic': 'neon lighting effects, cyberpunk atmosphere', 
+      'classic': 'elegant soft lighting',
+      'professional': 'studio lighting, premium finish'
     };
     
-    if (styleKeywords[style]) {
-      prompt += `, ${styleKeywords[style]}`;
-    }
+    prompt += `, ${lightingStyles[style] || lightingStyles['professional']}`;
     
-    prompt += ', high quality, detailed, magazine cover design';
+    // Final quality terms (NO magazine references)
+    prompt += ', high quality, detailed 3D render, professional cryptocurrency visualization, digital art';
+    
+    // Explicitly exclude Bitcoin for non-Bitcoin articles
+    if (network !== 'bitcoin') {
+      prompt += ', NOT bitcoin symbol, NOT BTC logo, NOT orange bitcoin';
+    }
     
     return prompt;
   }
