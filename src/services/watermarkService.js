@@ -110,17 +110,25 @@ class WatermarkService {
       }
       
       // Apply all overlays (with fallback for empty operations)
+      let processedImage;
       if (compositeOperations.length > 0) {
-        await mainImage
-          .composite(compositeOperations)
-          .png({ quality: 95 })
-          .toFile(finalOutputPath);
+        processedImage = mainImage.composite(compositeOperations);
       } else {
-        // No overlays to apply, just copy the original
-        await mainImage
-          .png({ quality: 95 })
-          .toFile(finalOutputPath);
+        // No overlays to apply, use original
+        processedImage = mainImage;
       }
+      
+      // FORCE final output to exactly 1800x900px
+      logger.info(`🔧 FORCING final output to exactly 1800x900px`);
+      await processedImage
+        .resize(1800, 900, {
+          fit: 'fill',
+          background: { r: 0, g: 0, b: 0, alpha: 1 }
+        })
+        .png({ quality: 95 })
+        .toFile(finalOutputPath);
+        
+      logger.info(`✅ Final watermarked image saved at 1800x900: ${finalOutputPath}`);
       
       // If we created a temp file, replace the original
       if (!outputImagePath && finalOutputPath !== inputImagePath) {
