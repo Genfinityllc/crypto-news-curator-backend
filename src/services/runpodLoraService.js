@@ -87,10 +87,10 @@ class RunPodLoraService {
       logger.info(`🎯 Network: "${network}", Style: "${style}"`);
       
       // Step 1: Submit job to RunPod
-      // NUCLEAR ANTI-BITCOIN for non-Bitcoin articles
+      // NUCLEAR ANTI-BITCOIN + NO TEXT for non-Bitcoin articles
       const negativePrompt = network !== 'bitcoin' 
-        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions'
-        : 'low quality, blurry, distorted, card platform, trading card';
+        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions, text, words, letters, spelling, readable text, written words'
+        : 'low quality, blurry, distorted, card platform, trading card, text, words, letters, spelling, readable text, written words';
       
       const jobPayload = {
         input: {
@@ -380,21 +380,21 @@ class RunPodLoraService {
     
     logger.info(`🎨 Selected composition: "${selectedComposition}"`);
     
-    // BASE SYMBOL PROMPTS - Focus on symbols in varied forms
+    // PURE VISUAL SYMBOL PROMPTS - NO TEXT/WORDS, only symbols and visual elements
     const networkPrompts = {
-      'aave': `aave ghost symbol, ${selectedComposition}, white ethereal ghost, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'bitcoin': `bitcoin symbol ₿, ${selectedComposition}, golden orange design`,
-      'ripple': `ripple logo, ${selectedComposition}, teal company branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'xrp': `XRP token symbol exactly like training data, ${selectedComposition}, correct XRP logo design with X pattern, purple cryptocurrency token, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿, NOT ripple waves`,
-      'ethereum': `ethereum diamond symbol, ${selectedComposition}, ETH logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'dogecoin': `dogecoin symbol, ${selectedComposition}, DOGE branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'solana': `solana symbol, ${selectedComposition}, SOL logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'hedera': `hedera symbol, ${selectedComposition}, HBAR logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'bybit': `bybit logo, ${selectedComposition}, exchange branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'hyperliquid': `hyperliquid symbol, ${selectedComposition}, protocol logo, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`, 
-      'pump.fun': `pump.fun logo, ${selectedComposition}, meme platform branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'pi': `PI NETWORK symbol π exactly like training data, ${selectedComposition}, mathematical pi character π, golden pi coin design π, NO BITCOIN SYMBOL EVER, NO ₿ EVER, NO BTC EVER, NO ORANGE COIN, ONLY π SYMBOL, NOT bitcoin`,
-      'generic': `cryptocurrency symbol, ${selectedComposition}, minimalist design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`
+      'aave': `aave ghost symbol, ${selectedComposition}, white ethereal ghost figure, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'bitcoin': `bitcoin symbol ₿, ${selectedComposition}, golden orange design, no text, no words`,
+      'ripple': `ripple logo symbol, ${selectedComposition}, teal blue branding, flowing design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'xrp': `XRP symbol with X pattern, ${selectedComposition}, purple token design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'ethereum': `ethereum diamond symbol, ${selectedComposition}, geometric diamond shape, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'dogecoin': `dogecoin symbol, ${selectedComposition}, shiba inu design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'solana': `solana symbol, ${selectedComposition}, purple gradient design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'hedera': `hedera symbol, ${selectedComposition}, hashgraph design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'bybit': `bybit symbol, ${selectedComposition}, exchange logo, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'hyperliquid': `hyperliquid symbol, ${selectedComposition}, protocol logo, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`, 
+      'pump.fun': `pump.fun symbol, ${selectedComposition}, vibrant design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'pi': `pi symbol π, ${selectedComposition}, mathematical pi character, golden design, no text, no words, NO BITCOIN SYMBOL EVER, NO ₿ EVER, ONLY π SYMBOL`,
+      'generic': `cryptocurrency symbol, ${selectedComposition}, minimalist design, no text, no words, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`
     };
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
