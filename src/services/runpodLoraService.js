@@ -291,12 +291,28 @@ class RunPodLoraService {
     
     logger.info(`🔍 Network detection - Full text: "${text}"`);
     
-    // Training data network mapping (based on your files)
+    // PRIORITY-BASED network detection - more specific matches first
+    
+    // Check XRP token mentions first (higher priority than Ripple network)
+    if (text.includes('xrp token') || text.includes('xrp price') || text.includes('xrp trading') || 
+        text.includes('xrp coin') || text.includes('xrp cryptocurrency') || 
+        (text.includes('xrp') && !text.includes('ripple'))) {
+      logger.info(`✅ Found XRP TOKEN keywords - using XRP training image`);
+      return 'xrp';
+    }
+    
+    // Check Ripple network mentions (when "ripple" is mentioned)
+    if (text.includes('ripple network') || text.includes('ripple labs') || text.includes('ripple company') ||
+        text.includes('ripple protocol') || text.includes('ripple payment') || text.includes('ripple blockchain') ||
+        (text.includes('ripple') && !text.includes('xrp token'))) {
+      logger.info(`✅ Found RIPPLE NETWORK keywords - using Ripple training image`);
+      return 'ripple';
+    }
+    
+    // Other network detection
     const networkDetection = {
       'aave': ['aave', 'ghost token', 'defi lending'],
       'bitcoin': ['bitcoin', 'btc'],
-      'ripple': ['ripple', 'xrp'],
-      'xrp': ['ripple', 'xrp'], 
       'ethereum': ['ethereum', 'eth'],
       'dogecoin': ['dogecoin', 'doge'],
       'solana': ['solana', 'sol'],
@@ -337,8 +353,8 @@ class RunPodLoraService {
     const networkPrompts = {
       'aave': 'aave protocol, 3D glowing white ghost symbol, ethereal ghost token, purple neon lighting, digital space background, NEVER bitcoin, NEVER BTC symbol, NEVER ₿, NEVER orange coin',
       'bitcoin': '3D golden bitcoin symbol, digital hands exchanging bitcoin, geometric orange background, ₿ symbol',
-      'ripple': 'ripple XRP, 3D blue wave ripple effects, XRP symbol, teal blue colors, water rippling animation, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
-      'xrp': 'XRP symbol, 3D purple XRP logo, rippling liquid effects, payment network visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin',
+      'ripple': 'ripple network, 3D teal blue ripple effects, flowing water ripples, ripple company logo, network visualization, blue red energy waves, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
+      'xrp': 'XRP token, 3D purple XRP coin symbol, purple cryptocurrency token, XRP logo on coin, stacked purple coins, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin',
       'ethereum': 'ethereum, 3D diamond ETH symbol, blue purple gradient, smart contract visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
       'dogecoin': 'dogecoin DOGE, 3D golden shiba inu coin, playful meme cryptocurrency, NEVER bitcoin, NEVER BTC, NEVER ₿',
       'solana': 'solana SOL, 3D purple gradient symbol, high-speed blockchain, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
