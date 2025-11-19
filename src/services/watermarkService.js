@@ -39,21 +39,31 @@ class WatermarkService {
       // Get watermark (from HF Spaces or local) - ADD FIRST so it goes UNDER the title
       const watermarkBuffer = await this.getWatermarkBuffer();
       
-      // Resize watermark to maintain aspect ratio and fit within image bounds
-      logger.info(`🎯 Preparing watermark for ${mainWidth}x${mainHeight} image`);
+      // Use watermark at ACTUAL SIZE (no resizing) - designed for 1800x900
+      logger.info(`🎯 Using watermark at actual size for ${mainWidth}x${mainHeight} image`);
       
-      const resizedWatermarkBuffer = await sharp(watermarkBuffer)
-        .resize(mainWidth, mainHeight, { 
-          fit: 'inside', // Maintain aspect ratio, scale to fit inside bounds
-          withoutEnlargement: false, // Allow enlarging if watermark is smaller
-          background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
-        })
-        .png()
-        .toBuffer();
+      // Only resize if image is NOT 1800x900, otherwise use watermark at actual size
+      let watermarkToUse;
+      if (mainWidth === 1800 && mainHeight === 900) {
+        // Perfect match - use watermark at actual size
+        watermarkToUse = watermarkBuffer;
+        logger.info(`✅ Image is 1800x900 - using watermark at actual size`);
+      } else {
+        // Resize watermark to match image dimensions
+        watermarkToUse = await sharp(watermarkBuffer)
+          .resize(mainWidth, mainHeight, { 
+            fit: 'inside',
+            withoutEnlargement: false,
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+          })
+          .png()
+          .toBuffer();
+        logger.info(`⚠️ Image is ${mainWidth}x${mainHeight} - resizing watermark to match`);
+      }
       
       // Add watermark to composite operations FIRST (so it goes under title)
       compositeOperations.push({
-        input: resizedWatermarkBuffer, // Use resized watermark
+        input: watermarkToUse,
         left: 0,
         top: 0,
         blend: 'over' // Normal blend since it's under the title

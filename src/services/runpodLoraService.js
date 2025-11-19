@@ -87,9 +87,15 @@ class RunPodLoraService {
       logger.info(`🎯 Network: "${network}", Style: "${style}"`);
       
       // Step 1: Submit job to RunPod
+      // Add negative prompt for non-Bitcoin articles
+      const negativePrompt = network !== 'bitcoin' 
+        ? 'bitcoin, BTC, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden coin, B symbol, bitcoin icon, btc icon'
+        : 'low quality, blurry';
+      
       const jobPayload = {
         input: {
           prompt: prompt,
+          negative_prompt: negativePrompt,
           title: title,
           width: 1800,
           height: 900,
@@ -289,6 +295,8 @@ class RunPodLoraService {
     const detectedNetwork = this.detectCryptoNetwork(title, content);
     const network = detectedNetwork !== 'generic' ? detectedNetwork : networkParam;
     
+    logger.info(`📝 Article title: "${title}"`);
+    logger.info(`📝 Article content: "${content}"`);
     logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
     
     // Match training data style - 3D crypto symbols with digital backgrounds
