@@ -57,11 +57,11 @@ class WatermarkService {
       
       logger.info(`📏 Watermark dimensions: ${watermarkWidth}x${watermarkHeight}`);
       
-      // Calculate position for 1800x900 canvas: center horizontally, very bottom like example
+      // Calculate position for 1800x900 canvas: center horizontally, move down 15px more
       const leftPosition = Math.round((1800 - watermarkWidth) / 2);
-      const topPosition = 900 - watermarkHeight - 10; // Only 10px padding from bottom edge (like example)
+      const topPosition = 900 - watermarkHeight + 5; // Move down 15px more (was -10, now +5)
       
-      logger.info(`📍 Watermark position on 1800x900 canvas: left=${leftPosition}, top=${topPosition} (10px from bottom)`);
+      logger.info(`📍 Watermark position on 1800x900 canvas: left=${leftPosition}, top=${topPosition} (moved down 15px)`);
       
       // Create composite layers array
       const compositeOperations = [{
