@@ -150,15 +150,25 @@ class RunPodLoraService {
       const metadata = await sharp(tempImagePath).metadata();
       logger.info(`📏 Original RunPod dimensions: ${metadata.width}x${metadata.height}`);
       
-      await sharp(tempImagePath)
-        .resize(1800, 900, { 
-          fit: 'fill',
-          background: { r: 0, g: 0, b: 0, alpha: 1 }
-        })
-        .png()
-        .toFile(resizedImagePath);
+      if (metadata.width === 1800 && metadata.height === 900) {
+        // Already correct size, just copy
+        logger.info(`✅ Already 1800x900 - copying without resize`);
+        await sharp(tempImagePath).png().toFile(resizedImagePath);
+      } else {
+        // Force resize to 1800x900
+        logger.info(`🔧 FORCING resize from ${metadata.width}x${metadata.height} to 1800x900`);
+        await sharp(tempImagePath)
+          .resize(1800, 900, { 
+            fit: 'fill',
+            background: { r: 0, g: 0, b: 0, alpha: 1 }
+          })
+          .png()
+          .toFile(resizedImagePath);
+      }
       
-      logger.info(`✅ FORCED resize to 1800x900: ${resizedImagePath}`);
+      // Verify the resize worked
+      const resizedMetadata = await sharp(resizedImagePath).metadata();
+      logger.info(`✅ Final image dimensions: ${resizedMetadata.width}x${resizedMetadata.height}`);
       
       // Apply watermark overlay to resized image
       const imagePath = path.join(this.imageStorePath, `${imageId}.png`);

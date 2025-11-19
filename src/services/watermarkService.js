@@ -39,34 +39,28 @@ class WatermarkService {
       // Get watermark (from HF Spaces or local) - ADD FIRST so it goes UNDER the title
       const watermarkBuffer = await this.getWatermarkBuffer();
       
-      // Use watermark at ACTUAL SIZE (no resizing) - designed for 1800x900
-      logger.info(`🎯 Using watermark at actual size for ${mainWidth}x${mainHeight} image`);
+      // Position watermark in BOTTOM CENTER like the example
+      logger.info(`🎯 Positioning watermark at bottom center for ${mainWidth}x${mainHeight} image`);
       
-      // Only resize if image is NOT 1800x900, otherwise use watermark at actual size
-      let watermarkToUse;
-      if (mainWidth === 1800 && mainHeight === 900) {
-        // Perfect match - use watermark at actual size
-        watermarkToUse = watermarkBuffer;
-        logger.info(`✅ Image is 1800x900 - using watermark at actual size`);
-      } else {
-        // Resize watermark to match image dimensions
-        watermarkToUse = await sharp(watermarkBuffer)
-          .resize(mainWidth, mainHeight, { 
-            fit: 'inside',
-            withoutEnlargement: false,
-            background: { r: 0, g: 0, b: 0, alpha: 0 }
-          })
-          .png()
-          .toBuffer();
-        logger.info(`⚠️ Image is ${mainWidth}x${mainHeight} - resizing watermark to match`);
-      }
+      // Get watermark dimensions
+      const watermarkMetadata = await sharp(watermarkBuffer).metadata();
+      const watermarkWidth = watermarkMetadata.width;
+      const watermarkHeight = watermarkMetadata.height;
       
-      // Add watermark to composite operations FIRST (so it goes under title)
+      logger.info(`📏 Watermark dimensions: ${watermarkWidth}x${watermarkHeight}`);
+      
+      // Calculate position: center horizontally, bottom with some padding
+      const leftPosition = Math.max(0, Math.round((mainWidth - watermarkWidth) / 2));
+      const topPosition = Math.max(0, mainHeight - watermarkHeight - 40); // 40px padding from bottom
+      
+      logger.info(`📍 Watermark position: left=${leftPosition}, top=${topPosition}`);
+      
+      // Add watermark to composite operations - positioned at bottom center
       compositeOperations.push({
-        input: watermarkToUse,
-        left: 0,
-        top: 0,
-        blend: 'over' // Normal blend since it's under the title
+        input: watermarkBuffer, // Use at actual size
+        left: leftPosition,
+        top: topPosition,
+        blend: 'over'
       });
       
       // TEMPORARILY DISABLE TITLE OVERLAY TO DEBUG WHITE BAR
