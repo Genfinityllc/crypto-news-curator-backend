@@ -87,10 +87,10 @@ class RunPodLoraService {
       logger.info(`🎯 Network: "${network}", Style: "${style}"`);
       
       // Step 1: Submit job to RunPod
-      // Add EXTREMELY strong negative prompts for non-Bitcoin articles
+      // NUCLEAR ANTI-BITCOIN for non-Bitcoin articles
       const negativePrompt = network !== 'bitcoin' 
-        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology'
-        : 'low quality, blurry, distorted';
+        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology, card platform, trading card, platform base, similar compositions'
+        : 'low quality, blurry, distorted, card platform, trading card';
       
       const jobPayload = {
         input: {
@@ -349,14 +349,28 @@ class RunPodLoraService {
     logger.info(`📝 Article content: "${content}"`);
     logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
     
-    // VARIED COMPOSITION PROMPTS - Different forms, not always coins
+    // ULTRA-VARIED COMPOSITIONS - 20+ unique styles for maximum diversity
     const compositionVariations = [
-      'floating holographic symbol, no physical coin',
-      'glowing logo projection, ethereal design',
-      'geometric symbol structure, architectural form',
-      'digital emblem display, screen interface',
-      'neon light symbol, glowing outline',
-      'crystalline symbol formation, transparent structure'
+      'floating holographic symbol in space, no platform',
+      'glowing energy symbol radiating light, ethereal',
+      'geometric wireframe symbol, architectural lines',
+      'liquid metal symbol formation, flowing design',
+      'neon light outline symbol, glowing edges',
+      'crystalline transparent symbol, glass structure',
+      'particle effect symbol, swirling elements',
+      'fire/flame symbol design, burning energy',
+      'ice crystal symbol formation, frozen structure',
+      'smoke/vapor symbol, misty appearance',
+      'electric lightning symbol, energy bolts',
+      'galaxy nebula symbol, cosmic background',
+      'abstract art symbol, artistic interpretation',
+      'minimalist line symbol, simple design',
+      'origami folded symbol, paper craft style',
+      'graffiti street art symbol, urban style',
+      'nature organic symbol, plant-like growth',
+      'mechanical gear symbol, steampunk style',
+      'water droplet symbol, liquid form',
+      'shadow silhouette symbol, dark outline'
     ];
     
     // Randomly select composition variation (but deterministic based on title hash)
@@ -371,7 +385,7 @@ class RunPodLoraService {
       'aave': `aave ghost symbol, ${selectedComposition}, white ethereal ghost, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
       'bitcoin': `bitcoin symbol ₿, ${selectedComposition}, golden orange design`,
       'ripple': `ripple logo, ${selectedComposition}, teal company branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'xrp': `XRP symbol, ${selectedComposition}, purple token design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
+      'xrp': `XRP token symbol exactly like training data, ${selectedComposition}, correct XRP logo design with X pattern, purple cryptocurrency token, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿, NOT ripple waves`,
       'ethereum': `ethereum diamond symbol, ${selectedComposition}, ETH logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
       'dogecoin': `dogecoin symbol, ${selectedComposition}, DOGE branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
       'solana': `solana symbol, ${selectedComposition}, SOL logo design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
@@ -379,7 +393,7 @@ class RunPodLoraService {
       'bybit': `bybit logo, ${selectedComposition}, exchange branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
       'hyperliquid': `hyperliquid symbol, ${selectedComposition}, protocol logo, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`, 
       'pump.fun': `pump.fun logo, ${selectedComposition}, meme platform branding, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`,
-      'pi': `PI SYMBOL π, ${selectedComposition}, mathematical pi character π, NO BITCOIN EVER, NO BTC EVER, NO ₿ EVER, ONLY PI SYMBOL π`,
+      'pi': `PI NETWORK symbol π exactly like training data, ${selectedComposition}, mathematical pi character π, golden pi coin design π, NO BITCOIN SYMBOL EVER, NO ₿ EVER, NO BTC EVER, NO ORANGE COIN, ONLY π SYMBOL, NOT bitcoin`,
       'generic': `cryptocurrency symbol, ${selectedComposition}, minimalist design, ZERO bitcoin, ZERO orange, ZERO BTC, ZERO ₿`
     };
     
