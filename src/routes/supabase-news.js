@@ -1102,13 +1102,13 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
 
     logger.info(`🎨 Generating LoRA AI image for: ${article.title}`);
 
-    // ✅ USE YOUR TRAINED LORA SERVICE ONLY - NO FALLBACKS
-    const TrainedLoraService = require('../services/trainedLoraService');
-    const trainedLoraService = new TrainedLoraService();
+    // ✅ USE RUNPOD LORA SERVICE - WORKING SERVICE
+    const RunPodLoraService = require('../services/runpodLoraService');
+    const runPodLoraService = new RunPodLoraService();
     
-    logger.info(`🎨 Calling YOUR trained LoRA on HF Spaces: ${article.title}`);
+    logger.info(`🎨 Calling RunPod LoRA service: ${article.title}`);
     
-    const hostedResult = await trainedLoraService.generateLoraImage(
+    const hostedResult = await runPodLoraService.generateLoraImage(
       article.title,
       article.content || article.category || 'crypto news',
       article.network || 'generic',
@@ -1118,9 +1118,9 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
     if (!hostedResult.success) {
       return res.status(500).json({
         success: false,
-        message: 'YOUR trained LoRA generation failed',
+        message: 'RunPod LoRA generation failed',
         error: hostedResult.error || 'Unknown error',
-        service: 'trained_lora'
+        service: 'runpod_lora'
       });
     }
 
@@ -1136,8 +1136,8 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
         },
         selectedSize: size,
         style,
-        service: 'trained_lora',
-        generationMethod: hostedResult.metadata?.method || 'trained_lora_hf_spaces',
+        service: 'runpod_lora',
+        generationMethod: hostedResult.metadata?.method || 'runpod_serverless',
         article: {
           id: article.id,
           title: article.title,
