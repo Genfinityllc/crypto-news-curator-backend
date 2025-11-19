@@ -87,10 +87,10 @@ class RunPodLoraService {
       logger.info(`🎯 Network: "${network}", Style: "${style}"`);
       
       // Step 1: Submit job to RunPod
-      // Add negative prompt for non-Bitcoin articles
+      // Add EXTREMELY strong negative prompts for non-Bitcoin articles
       const negativePrompt = network !== 'bitcoin' 
-        ? 'bitcoin, BTC, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden coin, B symbol, bitcoin icon, btc icon'
-        : 'low quality, blurry';
+        ? 'bitcoin, BTC, ₿, bitcoin symbol, bitcoin logo, orange cryptocurrency, golden bitcoin coin, B symbol, bitcoin icon, btc icon, orange coin, yellow bitcoin, golden bitcoin, bitcoin network, btc network, bitcoin trading, bitcoin price, bitcoin chart, bitcoin mining, cryptocurrency bitcoin, bitcoin blockchain, bitcoin digital currency, orange circular coin, golden circular coin with B, bitcoin cash, bitcoin core, bitcoin technology'
+        : 'low quality, blurry, distorted';
       
       const jobPayload = {
         input: {
@@ -333,21 +333,21 @@ class RunPodLoraService {
     logger.info(`📝 Article content: "${content}"`);
     logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
     
-    // Match training data style - 3D crypto symbols with digital backgrounds
+    // EXACT TRAINING DATA PROMPTS - Match filenames exactly to override Bitcoin bias
     const networkPrompts = {
-      'aave': 'AAVE PROTOCOL ONLY, 3D glowing ghost symbol, aave protocol logo, ethereal white ghost token floating in digital space, ABSOLUTELY NO BITCOIN',
-      'bitcoin': '3D golden bitcoin symbol, digital hands exchanging bitcoin, geometric orange background',
-      'ripple': 'RIPPLE XRP ONLY, 3D ripple XRP logo, dynamic blue wave patterns, flowing cryptocurrency energy, NO BITCOIN SYMBOLS',
-      'xrp': 'XRP ONLY, 3D purple XRP symbol, rippling water effects, futuristic payment network visualization, NO BITCOIN',
-      'ethereum': 'ETHEREUM ONLY, 3D ethereum symbol, blue digital architecture, smart contract visualization, NO BITCOIN',
-      'dogecoin': 'DOGECOIN ONLY, 3D dogecoin symbol, playful digital environment, NO BITCOIN',
-      'solana': 'SOLANA ONLY, 3D solana logo, purple gradient background, high-speed blockchain visualization, NO BITCOIN',
-      'hedera': 'HEDERA ONLY, 3D hedera hashgraph symbol, black and white digital network, NO BITCOIN',
-      'bybit': 'BYBIT ONLY, 3D bybit trading platform visualization, digital exchange interface, NO BITCOIN',
-      'hyperliquid': 'HYPERLIQUID ONLY, 3D hyperliquid protocol symbol, liquid trading visualization, NO BITCOIN', 
-      'pump.fun': 'PUMP.FUN ONLY, 3D pump.fun logo, vibrant meme token visualization, NO BITCOIN',
-      'pi': 'PI NETWORK ONLY, 3D pi network symbol, mobile mining visualization, NO BITCOIN',
-      'generic': '3D cryptocurrency symbol, futuristic blockchain visualization, NO BITCOIN'
+      'aave': 'aave protocol, 3D glowing white ghost symbol, ethereal ghost token, purple neon lighting, digital space background, NEVER bitcoin, NEVER BTC symbol, NEVER ₿, NEVER orange coin',
+      'bitcoin': '3D golden bitcoin symbol, digital hands exchanging bitcoin, geometric orange background, ₿ symbol',
+      'ripple': 'ripple XRP, 3D blue wave ripple effects, XRP symbol, teal blue colors, water rippling animation, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
+      'xrp': 'XRP symbol, 3D purple XRP logo, rippling liquid effects, payment network visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin',
+      'ethereum': 'ethereum, 3D diamond ETH symbol, blue purple gradient, smart contract visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
+      'dogecoin': 'dogecoin DOGE, 3D golden shiba inu coin, playful meme cryptocurrency, NEVER bitcoin, NEVER BTC, NEVER ₿',
+      'solana': 'solana SOL, 3D purple gradient symbol, high-speed blockchain, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
+      'hedera': 'hedera HBAR, 3D hashgraph network symbol, black white colors, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
+      'bybit': 'bybit exchange, 3D trading platform interface, digital exchange, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin',
+      'hyperliquid': 'hyperliquid protocol, 3D liquid trading visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin', 
+      'pump.fun': 'pump.fun platform, 3D vibrant meme token visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange',
+      'pi': 'pi network coin, 3D golden pi symbol π, mobile mining, yellow golden colors, mathematical pi symbol π NOT bitcoin, NEVER ₿, NEVER BTC, NEVER orange bitcoin coin',
+      'generic': '3D modern cryptocurrency visualization, NEVER bitcoin, NEVER BTC, NEVER ₿, NEVER orange coin'
     };
     
     let prompt = networkPrompts[network] || networkPrompts['generic'];
