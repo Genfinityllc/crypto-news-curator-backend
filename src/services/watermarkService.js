@@ -47,17 +47,45 @@ class WatermarkService {
       const watermarkWidth = watermarkMetadata.width;
       const watermarkHeight = watermarkMetadata.height;
       
-      logger.info(`📏 Watermark dimensions: ${watermarkWidth}x${watermarkHeight}`);
+      logger.info(`📏 Original watermark dimensions: ${watermarkWidth}x${watermarkHeight}`);
+      
+      let finalWatermarkBuffer;
+      let finalWatermarkWidth;
+      let finalWatermarkHeight;
+      
+      // Ensure watermark fits within image bounds
+      if (watermarkWidth > mainWidth || watermarkHeight > mainHeight) {
+        // Watermark is too big, resize it to fit
+        const scale = Math.min(mainWidth / watermarkWidth, mainHeight / watermarkHeight) * 0.8; // 80% of max size
+        finalWatermarkWidth = Math.round(watermarkWidth * scale);
+        finalWatermarkHeight = Math.round(watermarkHeight * scale);
+        
+        logger.info(`📏 Resizing watermark to fit: ${finalWatermarkWidth}x${finalWatermarkHeight}`);
+        
+        finalWatermarkBuffer = await sharp(watermarkBuffer)
+          .resize(finalWatermarkWidth, finalWatermarkHeight, {
+            fit: 'inside',
+            withoutEnlargement: false
+          })
+          .png()
+          .toBuffer();
+      } else {
+        // Watermark fits, use as-is
+        finalWatermarkBuffer = watermarkBuffer;
+        finalWatermarkWidth = watermarkWidth;
+        finalWatermarkHeight = watermarkHeight;
+        logger.info(`✅ Using watermark at original size: ${finalWatermarkWidth}x${finalWatermarkHeight}`);
+      }
       
       // Calculate position: center horizontally, bottom with some padding
-      const leftPosition = Math.max(0, Math.round((mainWidth - watermarkWidth) / 2));
-      const topPosition = Math.max(0, mainHeight - watermarkHeight - 40); // 40px padding from bottom
+      const leftPosition = Math.max(0, Math.round((mainWidth - finalWatermarkWidth) / 2));
+      const topPosition = Math.max(0, mainHeight - finalWatermarkHeight - 40); // 40px padding from bottom
       
       logger.info(`📍 Watermark position: left=${leftPosition}, top=${topPosition}`);
       
       // Add watermark to composite operations - positioned at bottom center
       compositeOperations.push({
-        input: watermarkBuffer, // Use at actual size
+        input: finalWatermarkBuffer,
         left: leftPosition,
         top: topPosition,
         blend: 'over'
