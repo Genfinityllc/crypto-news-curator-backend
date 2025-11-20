@@ -384,12 +384,14 @@ class RunPodLoraService {
     
     logger.info(`🎨 Selected composition: "${selectedComposition}"`);
     
-    // NUCLEAR TEXT-FREE + BITCOIN-FREE VISUAL SYMBOL PROMPTS
+    // XRP TRAINING DATA PROMPTS - Using your actual training captions for better results
     const networkPrompts = {
       'aave': `pure aave ghost symbol only, ${selectedComposition}, white ethereal ghost figure, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'bitcoin': `pure bitcoin symbol ₿ only, ${selectedComposition}, golden orange design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY`,
       'ripple': `pure ripple logo symbol only, ${selectedComposition}, teal blue branding, flowing design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'xrp': `official XRP cryptocurrency logo only, sharp angular X shape with four triangular segments, geometric XRP design, clean edges, official XRP proportions, ${selectedComposition}, purple token design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin, authentic XRP logo shape`,
+      'xrp': `Ultra-realistic XRP coin in vibrant purple glow, cyberpunk lighting, metallic reflections, deep shadows, mining rig background, crisp 3D detailing, high-contrast neon edges, futuristic finance aesthetic, no bitcoin, no text, no words`,
+      'xrp_alt1': `Minimalistic glowing XRP symbol over dark holographic surface, teal and violet light streaks, digital rain effect, sleek futuristic interface style, sharp contrast, tech-forward atmosphere, no bitcoin, no text`,
+      'xrp_alt2': `Surreal digital hands reaching toward glowing XRP orb, warm neon gradient, soft diffusion, dreamlike atmosphere, luminous symbol core, stylized yet realistic lighting, no bitcoin, no text`,
       'ethereum': `pure ethereum diamond symbol only, ${selectedComposition}, geometric diamond shape, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'dogecoin': `pure dogecoin symbol only, ${selectedComposition}, shiba inu design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'solana': `pure solana symbol only, ${selectedComposition}, purple gradient design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
@@ -401,7 +403,16 @@ class RunPodLoraService {
       'generic': `pure cryptocurrency symbol only, ${selectedComposition}, minimalist design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`
     };
     
+    // For XRP, rotate between your 3 training prompt variations
     let prompt = networkPrompts[network] || networkPrompts['generic'];
+    
+    if (network === 'xrp') {
+      const xrpVariations = ['xrp', 'xrp_alt1', 'xrp_alt2'];
+      const variationIndex = Math.abs(titleHash) % xrpVariations.length;
+      const selectedVariation = xrpVariations[variationIndex];
+      prompt = networkPrompts[selectedVariation];
+      logger.info(`🎯 Using XRP variation ${variationIndex + 1}/3: ${selectedVariation}`);
+    }
     
     // SMART BACKGROUND DETECTION - only add when article context suggests it
     const articleText = `${title} ${content}`.toLowerCase();
