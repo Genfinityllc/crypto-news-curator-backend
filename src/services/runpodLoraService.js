@@ -11,8 +11,8 @@ const WatermarkService = require('./watermarkService');
  */
 class RunPodLoraService {
   constructor() {
-    // RunPod Configuration
-    this.runpodEndpoint = 'https://api.runpod.ai/v2/dr3yg58suwkise/run';
+    // RunPod Configuration - Updated to new SDXL endpoint
+    this.runpodEndpoint = 'https://api.runpod.ai/v2/fnj041fg4ox7sn/run';
     // RunPod API key from environment variables
     this.runpodApiKey = process.env.RUNPOD_API_KEY;
     
@@ -230,7 +230,7 @@ class RunPodLoraService {
   async pollRunPodJob(jobId) {
     const maxAttempts = 12; // 1 minute max for quick fallback
     const pollInterval = 5000; // 5 seconds
-    const statusUrl = `https://api.runpod.ai/v2/dr3yg58suwkise/status/${jobId}`;
+    const statusUrl = `https://api.runpod.ai/v2/fnj041fg4ox7sn/status/${jobId}`;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
