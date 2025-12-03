@@ -196,6 +196,40 @@ class SVGLogoService {
   }
 
   /**
+   * Get SVG logo info for Direct SVG service
+   * Returns logo data with file path information
+   */
+  async getSvgLogoInfo(symbol) {
+    try {
+      const logoData = await this.getLogoBySymbol(symbol);
+      if (!logoData) {
+        logger.warn(`⚠️ No logo found for ${symbol}`);
+        return null;
+      }
+
+      // Return formatted info for Direct SVG service
+      return {
+        symbol: logoData.symbol,
+        name: logoData.name,
+        svgContent: logoData.svg_data,
+        svgPath: `database://${logoData.symbol}`, // Virtual path for database-stored SVG
+        metadata: {
+          hash: logoData.svg_hash,
+          preprocessed: {
+            canny: logoData.preprocessed_canny,
+            depth: logoData.preprocessed_depth,
+            normal: logoData.preprocessed_normal,
+            mask: logoData.preprocessed_mask
+          }
+        }
+      };
+    } catch (error) {
+      logger.error(`❌ Failed to get SVG logo info for ${symbol}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Add or update cryptocurrency logo
    */
   async upsertLogo(symbol, name, svgContent) {
