@@ -243,6 +243,7 @@ app.use('/api/logos', require('./routes/logos')); // SVG logo management and Con
 app.use('/api/vectorfusion', require('./routes/vectorfusion')); // VectorFusion mathematical SVG geometry preservation
 app.use('/api/vector-native', require('./routes/vector-native')); // Vector-native AI generation for exact geometry
 app.use('/api/direct-svg', require('./routes/direct-svg')); // Direct SVG rendering with 3D effects (Option 1)
+app.use('/api/direct-svg-test', require('./routes/direct-svg-test')); // Test route for debugging
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
 
 // Conditionally add Firebase auth routes if available
