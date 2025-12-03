@@ -114,6 +114,36 @@ app.use('/temp/lora-images', (req, res, next) => {
 // Serve working LoRA generated images
 app.use('/temp/working-lora', express.static(path.join(__dirname, '..', 'temp', 'working-lora')));
 
+// Serve VectorFusion generated images with CORS headers
+app.use('/temp/vectorfusion-images', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+}, express.static(path.join(__dirname, '..', 'temp', 'vectorfusion-images')));
+
+// Serve Direct SVG rendered images with CORS headers
+app.use('/temp/direct-svg-renders', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+}, express.static(path.join(__dirname, '..', 'temp', 'direct-svg-renders')));
+
+// Serve Simple SVG rendered images with CORS headers
+app.use('/temp/simple-svg-renders', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+}, express.static(path.join(__dirname, '..', 'temp', 'simple-svg-renders')));
+
 // Serve screenshot images for fallback cases
 app.use('/screenshots', express.static(path.join(__dirname, '..', 'screenshots')));
 
@@ -209,6 +239,10 @@ app.use('/api/auto-update', require('./routes/auto-update'));
 app.use('/api/temp-cleanup', require('./routes/temp-cleanup')); // Temp file management for Railway
 app.use('/api/press-releases', require('./routes/press-releases')); // Legal PRNewswire workaround - keyword extraction
 app.use('/api/client-networks', require('./routes/client-networks')); // Client network metadata with logos
+app.use('/api/logos', require('./routes/logos')); // SVG logo management and ControlNet preprocessing v1.1
+app.use('/api/vectorfusion', require('./routes/vectorfusion')); // VectorFusion mathematical SVG geometry preservation
+app.use('/api/vector-native', require('./routes/vector-native')); // Vector-native AI generation for exact geometry
+app.use('/api/direct-svg', require('./routes/direct-svg')); // Direct SVG rendering with 3D effects (Option 1)
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
 
 // Conditionally add Firebase auth routes if available

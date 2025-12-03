@@ -1,0 +1,508 @@
+const { getSupabaseClient } = require('../config/supabase');
+const SVGPreprocessor = require('./svgPreprocessor');
+const logger = require('../utils/logger');
+
+/**
+ * SVG Logo Service - CRUD operations for cryptocurrency logos
+ * Handles SVG storage, preprocessing, and retrieval for ControlNet conditioning
+ */
+class SVGLogoService {
+  constructor() {
+    this.preprocessor = new SVGPreprocessor();
+    logger.info('🎨 SVG Logo Service initialized');
+  }
+
+  /**
+   * Get all cryptocurrency logos
+   */
+  async getAllLogos() {
+    try {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
+      const { data, error } = await supabase
+        .from('crypto_logos')
+        .select('*')
+        .order('symbol', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      logger.info(`📋 Retrieved ${data.length} crypto logos`);
+      return data;
+    } catch (error) {
+      logger.error('❌ Failed to get all logos:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Detect cryptocurrency from article and get corresponding logo data
+   * NEW: Used by ControlNet for automatic SVG conditioning
+   */
+  async detectAndGetLogo(title, content) {
+    try {
+      // Network detection logic (same as RunPod service)
+      const text = `${title} ${content}`.toLowerCase();
+      logger.info(`🔍 Detecting crypto from: "${text}"`);
+      
+      const networkMappings = {
+        // XRP variants
+        'xrp token': 'XRP',
+        'xrp price': 'XRP', 
+        'xrp trading': 'XRP',
+        'xrp coin': 'XRP',
+        'xrp cryptocurrency': 'XRP',
+        'xrp': 'XRP',
+        'ripple network': 'XRP',
+        'ripple labs': 'XRP',
+        'ripple': 'XRP',
+        
+        // USDT/Tether - CRITICAL MISSING!
+        'usdt': 'USDT',
+        'tether': 'USDT',
+        'tether token': 'USDT',
+        'usdt token': 'USDT',
+        'tether usdt': 'USDT',
+        
+        // Major cryptocurrencies
+        'ethereum': 'ETH',
+        'eth': 'ETH',
+        'bitcoin': 'BTC',
+        'btc': 'BTC',
+        'bnb': 'BNB',
+        'binance coin': 'BNB',
+        'binance': 'BNB',
+        'solana': 'SOL',
+        'sol': 'SOL',
+        'cardano': 'ADA',
+        'ada': 'ADA',
+        'hbar': 'HBAR',
+        'hedera': 'HBAR',
+        'hashgraph': 'HBAR',
+        
+        // Additional cryptocurrencies from our 43 logo database
+        'algorand': 'ALGO',
+        'algo': 'ALGO',
+        'chainlink': 'LINK',
+        'link': 'LINK',
+        'polkadot': 'DOT',
+        'dot': 'DOT',
+        'avalanche': 'AVAX',
+        'avax': 'AVAX',
+        'dogecoin': 'DOGE',
+        'doge': 'DOGE',
+        'shiba': 'DOGE',
+        'filecoin': 'FIL',
+        'fil': 'FIL',
+        'monero': 'XMR',
+        'xmr': 'XMR',
+        'stellar': 'XLM',
+        'xlm': 'XLM',
+        'near protocol': 'NEAR',
+        'near': 'NEAR',
+        'cronos': 'CRO',
+        'cro': 'CRO',
+        'crypto.com': 'CRO',
+        'aptos': 'APT',
+        'apt': 'APT',
+        'sui': 'SUI',
+        'immutable': 'IMX',
+        'imx': 'IMX',
+        'bittensor': 'TAO',
+        'tao': 'TAO',
+        'ondo': 'ONDO',
+        'quant': 'QNT',
+        'qnt': 'QNT',
+        'constellation': 'DAG',
+        'dag': 'DAG',
+        'thorchain': 'RUNE',
+        'rune': 'RUNE',
+        'toncoin': 'TON',
+        'ton': 'TON',
+        'tron': 'TRX',
+        'trx': 'TRX',
+        'uniswap': 'UNI',
+        'uni': 'UNI',
+        'xdc network': 'XDC',
+        'xdc': 'XDC'
+      };
+      
+      let detectedSymbol = null;
+      for (const [keyword, symbol] of Object.entries(networkMappings)) {
+        if (text.includes(keyword)) {
+          detectedSymbol = symbol;
+          logger.info(`✅ Detected ${symbol} from keyword: ${keyword}`);
+          break;
+        }
+      }
+      
+      if (!detectedSymbol) {
+        logger.warn(`❌ No cryptocurrency detected from text`);
+        return null;
+      }
+      
+      // Get the logo data
+      const logo = await this.getLogoBySymbol(detectedSymbol);
+      if (!logo) {
+        logger.warn(`❌ No logo found for detected symbol: ${detectedSymbol}`);
+        return null;
+      }
+      
+      return {
+        detected: detectedSymbol,
+        logo: logo
+      };
+      
+    } catch (error) {
+      logger.error('❌ Failed to detect and get logo:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get logo by cryptocurrency symbol
+   */
+  async getLogoBySymbol(symbol) {
+    try {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
+      const { data, error } = await supabase
+        .from('crypto_logos')
+        .select('*')
+        .eq('symbol', symbol.toUpperCase())
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No logo found
+          return null;
+        }
+        throw error;
+      }
+
+      logger.info(`🎯 Retrieved logo for ${symbol}`);
+      return data;
+    } catch (error) {
+      logger.error(`❌ Failed to get logo for ${symbol}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Add or update cryptocurrency logo
+   */
+  async upsertLogo(symbol, name, svgContent) {
+    try {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
+      logger.info(`🎨 Processing logo for ${symbol}...`);
+
+      // Preprocess SVG for ControlNet
+      const processed = await this.preprocessor.processSVGForControlNet(svgContent, symbol);
+
+      // Prepare data for insertion
+      const logoData = {
+        symbol: symbol.toUpperCase(),
+        name: name,
+        svg_data: svgContent,
+        svg_hash: processed.svgHash,
+        preprocessed_canny: processed.preprocessedCanny,
+        preprocessed_depth: processed.preprocessedDepth,
+        brand_colors: processed.brandColors,
+        dimensions: processed.dimensions,
+        metadata: processed.metadata,
+        updated_at: new Date().toISOString()
+      };
+
+      // Upsert the logo
+      const { data, error } = await supabase
+        .from('crypto_logos')
+        .upsert([logoData], {
+          onConflict: 'symbol',
+          ignoreDuplicates: false
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      logger.info(`✅ Logo successfully processed and stored for ${symbol}`);
+      return data[0];
+    } catch (error) {
+      logger.error(`❌ Failed to upsert logo for ${symbol}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete logo by symbol
+   */
+  async deleteLogo(symbol) {
+    try {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
+      const { error } = await supabase
+        .from('crypto_logos')
+        .delete()
+        .eq('symbol', symbol.toUpperCase());
+
+      if (error) {
+        throw error;
+      }
+
+      logger.info(`🗑️ Logo deleted for ${symbol}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to delete logo for ${symbol}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Detect ALL cryptocurrencies/companies from article content and get corresponding logos
+   * Enhanced to support multiple entity detection in a single article
+   * Based on SVG collection: '/Users/valorkopeny/Desktop/SVG CRYPTO LOGOS'
+   */
+  async detectAndGetLogo(title, content = '') {
+    try {
+      const fullText = `${title} ${content}`.toLowerCase();
+      
+      // Detection patterns based EXACTLY on uploaded SVG files
+      const cryptoPatterns = [
+        // Companies & Institutions (from your uploaded SVGs)
+        { symbols: ['21shares'], crypto: '21SHARES', name: '21Shares' },
+        { symbols: ['blackrock'], crypto: 'BLACKROCK', name: 'BlackRock' },
+        { symbols: ['bitmine'], crypto: 'BITMINE', name: 'Bitmine' },
+        { symbols: ['grayscale'], crypto: 'GRAYSCALE', name: 'Grayscale' },
+        { symbols: ['moonpay'], crypto: 'MOONPAY', name: 'MoonPay' },
+        { symbols: ['nvidia'], crypto: 'NVIDIA', name: 'NVIDIA' },
+        { symbols: ['paxos'], crypto: 'PAXOS', name: 'Paxos' },
+        { symbols: ['robinhood'], crypto: 'ROBINHOOD', name: 'Robinhood' },
+        
+        // Cryptocurrencies (from your uploaded SVGs)
+        { symbols: ['algorand', 'algo'], crypto: 'ALGORAND', name: 'Algorand' },
+        { symbols: ['aptos', 'apt'], crypto: 'APTOS', name: 'Aptos' },
+        { symbols: ['avalanche', 'avax'], crypto: 'AVALANCHE', name: 'Avalanche' },
+        { symbols: ['bittensor', 'tao'], crypto: 'BITTENSOR', name: 'Bittensor' },
+        { symbols: ['bnb', 'binance', 'binance smart chain', 'bsc'], crypto: 'BNB', name: 'BNB' },
+        { symbols: ['cardano', 'ada'], crypto: 'CARDANO', name: 'Cardano' },
+        { symbols: ['chainlink', 'link'], crypto: 'CHAINLINK', name: 'Chainlink' },
+        { symbols: ['constellation', 'dag'], crypto: 'CONSTELLATION', name: 'Constellation' },
+        { symbols: ['cronos', 'cro'], crypto: 'CRONOS', name: 'Cronos' },
+        { symbols: ['dogecoin', 'doge'], crypto: 'DOGECOIN', name: 'Dogecoin' },
+        { symbols: ['ethereum', 'eth'], crypto: 'ETH', name: 'Ethereum' },
+        { symbols: ['filecoin', 'fil'], crypto: 'FILECOIN', name: 'Filecoin' },
+        { symbols: ['hashpack'], crypto: 'HASHPACK', name: 'HashPack' },
+        { symbols: ['hbar', 'hedera', 'hashgraph'], crypto: 'HBAR', name: 'Hedera' },
+        { symbols: ['hedera', 'hashgraph'], crypto: 'HEDERA', name: 'Hedera' },
+        { symbols: ['immutable', 'imx'], crypto: 'IMMUTABLE', name: 'Immutable X' },
+        { symbols: ['monero', 'xmr'], crypto: 'MONERO', name: 'Monero' },
+        { symbols: ['near', 'near protocol'], crypto: 'NEAR', name: 'NEAR Protocol' },
+        { symbols: ['ondo'], crypto: 'ONDO', name: 'Ondo' },
+        { symbols: ['polkadot', 'dot'], crypto: 'POLKADOT', name: 'Polkadot' },
+        { symbols: ['quant', 'qnt'], crypto: 'QUANT', name: 'Quant' },
+        { symbols: ['sei'], crypto: 'SEI', name: 'Sei' },
+        { symbols: ['solana', 'sol'], crypto: 'SOLANA', name: 'Solana' },
+        { symbols: ['stellar', 'xlm'], crypto: 'STELLAR', name: 'Stellar' },
+        { symbols: ['sui'], crypto: 'SUI', name: 'Sui' },
+        { symbols: ['thorchain', 'rune'], crypto: 'THORCHAIN', name: 'THORChain' },
+        { symbols: ['toncoin', 'ton'], crypto: 'TONCOIN', name: 'Toncoin' },
+        { symbols: ['tron', 'trx'], crypto: 'TRON', name: 'Tron' },
+        { symbols: ['uniswap', 'uni'], crypto: 'UNISWAP', name: 'Uniswap' },
+        { symbols: ['usdc', 'usd coin'], crypto: 'USDC', name: 'USD Coin' },
+        { symbols: ['usdt', 'tether'], crypto: 'USDT', name: 'Tether' },
+        { symbols: ['xdc', 'xdc network'], crypto: 'XDC', name: 'XDC Network' },
+        { symbols: ['ripple', 'xrp'], crypto: 'XRP', name: 'Ripple' }
+      ];
+
+      const foundKeywords = new Set(); // To avoid duplicate detections
+
+      // Find ALL matching cryptocurrencies/companies in the text
+      // PRIORITY 1: Exact symbol matches (3-4 letter tokens like XRP, BTC, ETH)
+      const exactSymbolMatches = [];
+      // PRIORITY 2: Full name matches (like "ripple", "bitcoin")
+      const nameMatches = [];
+      
+      for (const pattern of cryptoPatterns) {
+        for (const keyword of pattern.symbols) {
+          // Check for exact symbol match with word boundaries (prioritize ticker symbols)
+          const symbolRegex = new RegExp(`\\b${keyword.toUpperCase()}\\b`, 'i');
+          const exactMatch = symbolRegex.test(fullText.toUpperCase());
+          
+          // Check for substring match (for full names)
+          const substringMatch = fullText.includes(keyword) && !exactMatch;
+          
+          if ((exactMatch || substringMatch) && !foundKeywords.has(pattern.crypto)) {
+            logger.info(`🎯 Detected ${pattern.crypto} (${pattern.name}) from keyword: ${keyword}${exactMatch ? ' [EXACT]' : ' [SUBSTRING]'}`);
+            const logo = await this.getLogoBySymbol(pattern.crypto);
+            
+            if (logo) {
+              const entityData = {
+                detected: pattern.crypto,
+                logo: logo,
+                keyword: keyword,
+                name: pattern.name,
+                priority: exactMatch ? 1 : 2 // EXACT matches get priority
+              };
+              
+              if (exactMatch) {
+                exactSymbolMatches.push(entityData);
+              } else {
+                nameMatches.push(entityData);
+              }
+              foundKeywords.add(pattern.crypto);
+            } else {
+              logger.warn(`⚠️ Logo not found for detected entity: ${pattern.crypto}`);
+            }
+            break; // Move to next pattern once we find a match
+          }
+        }
+      }
+      
+      // Combine results with EXACT matches first (higher priority)
+      const detectedEntities = [...exactSymbolMatches, ...nameMatches];
+
+      if (detectedEntities.length > 0) {
+        if (detectedEntities.length === 1) {
+          // Single entity detected - return as before for backward compatibility
+          return detectedEntities[0];
+        } else {
+          // Multiple entities detected - return array
+          logger.info(`🎉 Multiple entities detected: ${detectedEntities.map(e => e.name).join(', ')}`);
+          return {
+            multiple: true,
+            entities: detectedEntities,
+            count: detectedEntities.length
+          };
+        }
+      }
+
+      logger.info('🤷 No specific cryptocurrency or company detected in content');
+      return null;
+    } catch (error) {
+      logger.error('❌ Failed to detect cryptocurrency and get logo:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get ControlNet conditioning image for a cryptocurrency (Enhanced version)
+   * Now supports enhanced conditioning formats from metadata
+   */
+  async getControlNetImage(symbol, type = 'canny') {
+    try {
+      const logo = await this.getLogoBySymbol(symbol);
+      if (!logo) {
+        throw new Error(`Logo not found for ${symbol}`);
+      }
+
+      // Enhanced field mapping with support for new formats
+      const fieldMap = {
+        'canny': 'preprocessed_canny',
+        'depth': 'preprocessed_depth',
+        'normal': null, // From enhanced conditioning metadata
+        'mask': null,   // From enhanced conditioning metadata
+        'pose': 'preprocessed_pose'
+      };
+
+      const field = fieldMap[type];
+      let base64Data = null;
+
+      if (field) {
+        // Standard format from direct column
+        base64Data = logo[field];
+      } else if (type === 'normal' && logo.metadata?.enhanced_conditioning?.normal_map) {
+        // Enhanced normal map from metadata
+        base64Data = logo.metadata.enhanced_conditioning.normal_map;
+      } else if (type === 'mask' && logo.metadata?.enhanced_conditioning?.mask) {
+        // Enhanced mask from metadata
+        base64Data = logo.metadata.enhanced_conditioning.mask;
+      }
+
+      if (!base64Data) {
+        throw new Error(`No ${type} conditioning data available for ${symbol}`);
+      }
+
+      return this.preprocessor.getControlNetImage(base64Data, type);
+    } catch (error) {
+      logger.error(`❌ Failed to get ControlNet image for ${symbol}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Reprocess all logos (useful for updates)
+   */
+  async reprocessAllLogos() {
+    try {
+      const logos = await this.getAllLogos();
+      const results = [];
+
+      for (const logo of logos) {
+        try {
+          logger.info(`🔄 Reprocessing logo for ${logo.symbol}`);
+          const updated = await this.upsertLogo(logo.symbol, logo.name, logo.svg_data);
+          results.push({ symbol: logo.symbol, status: 'success', data: updated });
+        } catch (error) {
+          logger.error(`❌ Failed to reprocess ${logo.symbol}:`, error.message);
+          results.push({ symbol: logo.symbol, status: 'error', error: error.message });
+        }
+      }
+
+      logger.info(`✅ Reprocessing completed: ${results.length} logos processed`);
+      return results;
+    } catch (error) {
+      logger.error('❌ Failed to reprocess all logos:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get logo statistics (Enhanced version)
+   * Now includes enhanced conditioning format stats
+   */
+  async getLogoStats() {
+    try {
+      const logos = await this.getAllLogos();
+      
+      const stats = {
+        totalLogos: logos.length,
+        withCanny: logos.filter(logo => logo.preprocessed_canny).length,
+        withDepth: logos.filter(logo => logo.preprocessed_depth).length,
+        withPose: logos.filter(logo => logo.preprocessed_pose).length,
+        // Enhanced conditioning stats
+        withNormal: logos.filter(logo => logo.metadata?.enhanced_conditioning?.normal_map).length,
+        withMask: logos.filter(logo => logo.metadata?.enhanced_conditioning?.mask).length,
+        enhanced: logos.filter(logo => logo.metadata?.enhanced).length,
+        byCategory: {}
+      };
+
+      // Count by category
+      logos.forEach(logo => {
+        const category = logo.metadata?.category || 'unknown';
+        stats.byCategory[category] = (stats.byCategory[category] || 0) + 1;
+      });
+
+      return stats;
+    } catch (error) {
+      logger.error('❌ Failed to get logo stats:', error.message);
+      throw error;
+    }
+  }
+}
+
+module.exports = SVGLogoService;

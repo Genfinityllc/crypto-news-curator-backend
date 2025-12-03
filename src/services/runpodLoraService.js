@@ -58,15 +58,50 @@ class RunPodLoraService {
   }
 
   /**
-   * Generate image using RunPod serverless endpoint with OpenAI fallback
+   * Generate image using PRIORITY: 1) ControlNet SVG, 2) RunPod, 3) OpenAI fallback
+   * NEW: ControlNet gets maximum priority for 100% logo accuracy
    */
   async generateLoraImage(title, content = '', network = 'generic', style = 'modern') {
-    // Try RunPod first, with quick timeout, then fallback to OpenAI
+    const detectedNetwork = this.detectCryptoNetwork(title, content);
+    const finalNetwork = detectedNetwork !== 'generic' ? detectedNetwork : network;
+    
+    // PRIORITY 1: Try Wavespeed ControlNet for HBAR and XRP (best accuracy with SVG conditioning)
+    if (finalNetwork.toUpperCase() === 'HBAR' || finalNetwork.toUpperCase() === 'XRP') {
+      try {
+        logger.info(`🎯 PRIORITY 1: Attempting Wavespeed ControlNet for ${finalNetwork.toUpperCase()} (SVG conditioning for maximum accuracy)...`);
+        
+        const ControlNetService = require('./controlNetService');
+        const controlNetService = new ControlNetService();
+        
+        const result = await controlNetService.generateWithSVGGuidance(title, content, style, {
+          controlnet_strength: 0.7,
+          guidance_scale: 3.5,
+          steps: 28
+        });
+        
+        if (result && result.success) {
+          logger.info(`✅ Wavespeed ControlNet succeeded for ${finalNetwork.toUpperCase()} - SVG conditioning accuracy!`);
+          return result;
+        } else {
+          logger.warn(`⚠️ Wavespeed ControlNet failed for ${finalNetwork.toUpperCase()}, falling back to RunPod`);
+          throw new Error(`Wavespeed ControlNet failed - trying RunPod fallback`);
+        }
+        
+      } catch (controlNetError) {
+        logger.warn(`⚠️ Wavespeed ControlNet failed for ${finalNetwork.toUpperCase()}: ${controlNetError.message}, trying RunPod LoRA`);
+        // If Wavespeed fails, still try RunPod as fallback
+      }
+    } else {
+      logger.info(`📝 Detected ${finalNetwork.toUpperCase()} - Using RunPod LoRA directly (ControlNet reserved for HBAR/XRP)`);
+    }
+
+    // PRIORITY 2: Try RunPod LoRA as fallback
     try {
-      return await this.tryRunPodGeneration(title, content, network, style);
+      logger.info(`🎯 PRIORITY 2: Attempting RunPod LoRA generation...`);
+      return await this.tryRunPodGeneration(title, content, finalNetwork, style);
     } catch (runpodError) {
       logger.warn(`⚠️ RunPod failed: ${runpodError.message}, falling back to OpenAI DALL-E`);
-      return await this.generateWithOpenAI(title, content, network, style);
+      return await this.generateWithOpenAI(title, content, finalNetwork, style);
     }
   }
 
@@ -80,8 +115,8 @@ class RunPodLoraService {
     logger.info(`🚀 Generating with RunPod LoRA: "${title}"`);
     
     try {
-      // Create enhanced prompt for the LoRA model
-      const prompt = this.createEnhancedPrompt(title, content, network, style);
+      // Create enhanced prompt for the LoRA model (now async for SVG data)
+      const prompt = await this.createEnhancedPrompt(title, content, network, style);
       
       logger.info(`🔤 Prompt: "${prompt}"`);
       logger.info(`🎯 Network: "${network}", Style: "${style}"`);
@@ -105,7 +140,7 @@ class RunPodLoraService {
           height: 900,
           num_inference_steps: 25,
           guidance_scale: 7.5,
-          lora_scale: 1.0
+          lora_scale: 1.2
         }
       };
       
@@ -320,7 +355,8 @@ class RunPodLoraService {
       'ethereum': ['ethereum', 'eth'],
       'dogecoin': ['dogecoin', 'doge'],
       'solana': ['solana', 'sol'],
-      'hedera': ['hedera', 'hbar'],
+      'hedera': ['hedera', 'hashgraph'],
+      'hbar': ['hbar', 'hedera hashgraph', 'hbar token', 'hbar coin', 'hbar price', 'hbar network'],
       'bybit': ['bybit'],
       'hyperliquid': ['hyperliquid'],
       'pump.fun': ['pump.fun', 'pumpfun'],
@@ -343,11 +379,80 @@ class RunPodLoraService {
 
   /**
    * Create enhanced prompt matching training data style
+   * NEW: Uses SVG database for 100% logo accuracy across ALL cryptocurrencies
    */
-  createEnhancedPrompt(title, content, networkParam, style) {
+  async createEnhancedPrompt(title, content, networkParam, style) {
     // Detect actual network from content
     const detectedNetwork = this.detectCryptoNetwork(title, content);
     const network = detectedNetwork !== 'generic' ? detectedNetwork : networkParam;
+    
+    // NEW: Always try to get SVG data for ANY detected cryptocurrency
+    let svgGuidedPrompting = '';
+    const cryptoMappings = {
+      'xrp': 'XRP',
+      'ripple': 'XRP',
+      'ethereum': 'ETH', 
+      'eth': 'ETH',
+      'bitcoin': 'BTC',
+      'btc': 'BTC',
+      'bnb': 'BNB',
+      'solana': 'SOL',
+      'sol': 'SOL',
+      'hbar': 'HBAR',
+      'hedera': 'HBAR',
+      'cardano': 'ADA',
+      'ada': 'ADA'
+    };
+    
+    const cryptoSymbol = cryptoMappings[network.toLowerCase()] || network.toUpperCase();
+    
+    try {
+      // Always query database for SVG logo data - for 100% accuracy
+      const { getSupabaseClient } = require('../config/supabase');
+      const supabase = getSupabaseClient();
+      
+      if (supabase) {
+        const { data: logoData } = await supabase
+          .from('crypto_logos')
+          .select('brand_colors, metadata, name, svg_data')
+          .eq('symbol', cryptoSymbol)
+          .single();
+          
+        if (logoData) {
+          const colors = logoData.brand_colors || {};
+          const metadata = logoData.metadata || {};
+          const description = metadata.description || '';
+          
+          logger.info(`✅ Found SVG data for ${cryptoSymbol}: ${description.substring(0, 100)}...`);
+          
+          // Generate precise SVG-based prompts using actual design characteristics
+          if (cryptoSymbol === 'XRP') {
+            svgGuidedPrompting = `XRP logo: exactly two flat triangular shapes forming simple X, solid dark gray ${colors.primary} color, COMPLETELY FLAT design, NO circles, NO rings, NO holographic effects, NO 3D, NO lighting, simple geometric X only, minimal vector design, `;
+          } else if (cryptoSymbol === 'ETH') {
+            svgGuidedPrompting = `ultra-precise Ethereum logo featuring exact multi-faceted diamond crystal design with multiple polygons in ${colors.primary} dark gray and ${colors.secondary} medium gray, complex 3D diamond geometry exactly matching SVG specifications, `;
+          } else if (cryptoSymbol === 'BNB') {
+            svgGuidedPrompting = `ultra-precise BNB logo featuring exact 3D geometric cube design on bright yellow ${colors.primary} circular background, white geometric cube with multiple facets exactly matching SVG specifications, `;
+          } else if (cryptoSymbol === 'SOL') {
+            svgGuidedPrompting = `ultra-precise Solana logo featuring exact three flowing gradient bars design from ${colors.primary} bright green to ${colors.secondary} purple, dynamic S-like flowing motion pattern exactly matching SVG specifications, `;
+          } else if (cryptoSymbol === 'ADA') {
+            svgGuidedPrompting = `ultra-precise Cardano logo featuring exact scattered blue circles pattern in ${colors.primary} blue, multiple circles of varying sizes in organic constellation-like arrangement exactly matching SVG specifications, `;
+          } else if (cryptoSymbol === 'HBAR') {
+            svgGuidedPrompting = `ultra-precise HBAR logo featuring exact simple geometric H-shape with two vertical rectangular bars connected by single horizontal crossbar in ${colors.primary} color, flat minimalist design exactly matching SVG specifications, `;
+          } else {
+            // Universal SVG-guided prompting for any cryptocurrency with data
+            const designType = metadata.design_type || 'geometric';
+            const primaryColor = colors.primary || '#000000';
+            svgGuidedPrompting = `ultra-precise ${logoData.name} logo with exact ${designType} design in ${primaryColor} color, ${description}, exactly matching official SVG specifications, `;
+          }
+          
+          logger.info(`🎯 SVG precision mode activated for ${cryptoSymbol}`);
+        } else {
+          logger.warn(`⚠️ No SVG data found for ${cryptoSymbol}, using standard prompting`);
+        }
+      }
+    } catch (error) {
+      logger.warn(`⚠️ SVG database query failed for ${cryptoSymbol}: ${error.message}`);
+    }
     
     logger.info(`📝 Article title: "${title}"`);
     logger.info(`📝 Article content: "${content}"`);
@@ -384,29 +489,41 @@ class RunPodLoraService {
     
     logger.info(`🎨 Selected composition: "${selectedComposition}"`);
     
-    // XRP TRAINING DATA PROMPTS - Using your actual training captions for better results
+    // COMPREHENSIVE NETWORK PROMPTS - Using training data style with anti-Bitcoin measures
     const networkPrompts = {
       'aave': `pure aave ghost symbol only, ${selectedComposition}, white ethereal ghost figure, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'bitcoin': `pure bitcoin symbol ₿ only, ${selectedComposition}, golden orange design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY`,
       'ripple': `pure ripple logo symbol only, ${selectedComposition}, teal blue branding, flowing design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'xrp': `Ultra-realistic XRP coin stacks in vibrant purple glow, cyberpunk mining rig environment, complex 3D background elements, metallic reflections, volumetric lighting, atmospheric particles, deep shadows, crisp environmental detailing, high-contrast neon edges, futuristic finance setting, industrial machinery background, glowing computer screens, complex composition, no bitcoin, no text`,
-      'xrp_alt1': `Minimalistic glowing XRP symbol floating over dark holographic surface, teal and violet light streaks, digital rain effect cascading, holographic data streams, sleek futuristic interface environment, atmospheric lighting, sharp contrast, tech-forward atmosphere, complex digital environment, floating UI elements, no bitcoin, no text`,
-      'xrp_alt2': `Surreal floating XRP coins in dynamic composition, warm neon gradient environment, soft atmospheric diffusion, dreamlike background effects, luminous symbol cores, stylized yet realistic lighting, complex 3D space, floating particles, environmental depth, atmospheric effects, dynamic composition, no bitcoin, no text`,
+      'xrp': `Pure flat geometric XRP X-symbol in exact triangular path design, sharp angular lines, clean vector graphics style, solid dark gray color fill, minimal 2D composition, no 3D effects, no metallic finish, no depth, pure logo symbol only, mathematical precision, no bitcoin, no text`,
+      'xrp_alt1': `Flat geometric XRP X-shaped logo with precise angular paths, minimal vector design, clean sharp edges, solid color fill, 2D flat illustration style, pure symbol focus, no shading, no gradients, exact SVG reproduction, no bitcoin, no text`,
+      'xrp_alt2': `Ultra-precise flat XRP logo featuring two triangular geometric paths forming perfect X symbol, completely flat 2D vector style, sharp mathematical angles, solid monochrome fill, minimal design approach, pure geometric accuracy, no bitcoin, no text`,
+      'bnb': `Ultra-realistic BNB coin with distinctive diamond logo design, vibrant golden yellow energy waves, cyberpunk exchange environment, complex 3D trading interface background, metallic reflections, volumetric lighting, atmospheric particles, deep shadows, crisp environmental detailing, high-contrast yellow edges, futuristic trading setting, glowing exchange screens, floating trading data, complex composition, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'ethereum': `pure ethereum diamond symbol only, ${selectedComposition}, geometric diamond shape, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'dogecoin': `pure dogecoin symbol only, ${selectedComposition}, shiba inu design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'solana': `pure solana symbol only, ${selectedComposition}, purple gradient design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'hedera': `pure hedera symbol only, ${selectedComposition}, hashgraph design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'hbar': `Ultra-realistic HBAR coin with distinctive hexagonal pattern, vibrant teal and purple energy waves, cyberpunk hashgraph network visualization, complex 3D molecular structures background, metallic reflections, volumetric lighting, atmospheric particles, deep shadows, crisp environmental detailing, high-contrast neon edges, futuristic distributed ledger setting, flowing data streams, glowing network nodes, complex composition, no bitcoin, no text`,
       'bybit': `pure bybit symbol only, ${selectedComposition}, exchange logo, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'hyperliquid': `pure hyperliquid symbol only, ${selectedComposition}, protocol logo, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`, 
       'pump.fun': `pure pump.fun symbol only, ${selectedComposition}, vibrant design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'pi': `pure pi symbol π only, ${selectedComposition}, mathematical pi character, golden design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO BITCOIN SYMBOLS EVER, ZERO ₿ EVER, ONLY π SYMBOL, NEVER show bitcoin`,
-      'generic': `pure cryptocurrency symbol only, ${selectedComposition}, minimalist design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`
+      'generic': `pure cryptocurrency symbol only, ${selectedComposition}, minimalist design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'generic_anti_bitcoin': `pure abstract cryptocurrency symbol only, ${selectedComposition}, neutral colors (blue, green, purple, teal), modern minimalist design, geometric shapes, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, MAXIMUM ANTI-BITCOIN MEASURES: ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, ZERO golden colors, FORBIDDEN bitcoin elements, BANNED bitcoin imagery, PROHIBITED orange cryptocurrency`
     };
     
-    // For XRP, rotate between your 3 training prompt variations
-    let prompt = networkPrompts[network] || networkPrompts['generic'];
+    // NEW: Prioritize SVG-guided prompting for 100% accuracy
+    let prompt;
+    if (svgGuidedPrompting) {
+      // Use SVG-guided prompting with composition variation
+      prompt = svgGuidedPrompting + selectedComposition + ', pure logo symbol only, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY';
+      logger.info(`🎯 Using SVG-guided prompting for maximum accuracy`);
+    } else {
+      // Fallback to legacy prompts if no SVG data available
+      prompt = networkPrompts[network] || networkPrompts['generic'];
+      logger.info(`⚠️ Using legacy prompts - no SVG data available`);
+    }
     
-    if (network === 'xrp') {
+    if (network === 'xrp' && !svgGuidedPrompting) {
       const xrpVariations = ['xrp', 'xrp_alt1', 'xrp_alt2'];
       const variationIndex = Math.abs(titleHash) % xrpVariations.length;
       const selectedVariation = xrpVariations[variationIndex];
@@ -425,6 +542,33 @@ class RunPodLoraService {
       logger.info(`📊 Added chart background - found chart/analysis keywords in article`);
     } else {
       logger.info(`🎯 Clean symbol focus - no chart keywords detected`);
+    }
+    
+    // NUCLEAR MATHEMATICAL CONSTRAINT INJECTION for exact geometric precision
+    if (network === 'xrp') {
+      logger.info(`🔬 Injecting NUCLEAR mathematical constraints for XRP`);
+      // ULTRA-ENHANCED MATHEMATICAL CONSTRAINT INJECTION for XRP
+      let mathematicalDescription = `MATHEMATICAL VECTOR SPECIFICATION for XRP logo: `;
+      mathematicalDescription += `COORDINATE SYSTEM: ViewBox 0,0,512,424 (width=512px, height=424px). `;
+      mathematicalDescription += `GEOMETRIC STRUCTURE: Exactly TWO independent triangular path elements forming X-shape. `;
+      mathematicalDescription += `PATH 1 COORDINATES: M437,0 h74 L357,152.48 c-55.77,55.19 -146.19,55.19 -202,0 L0.94,0 H75 L192,115.83 a91.11,91.11 0,0,0 127.91,0 Z `;
+      mathematicalDescription += `PATH 2 COORDINATES: M74.05,424 H0 L155,270.58 c55.77,-55.19 146.19,-55.19 202,0 L512,424 H438 L320,307.23 a91.11,91.11 0,0,0 -127.91,0 Z `;
+      mathematicalDescription += `MATHEMATICAL CONSTRAINTS: Path 1 starts at top (y=0), Path 2 starts at bottom (y=424). `;
+      mathematicalDescription += `Both paths are FLAT triangular shapes with curved connections, NO depth, NO roundness. `;
+      mathematicalDescription += `TOPOLOGY: Open X-shape formed by two separate triangular elements, NOT enclosed by circles. `;
+      mathematicalDescription += `FORBIDDEN ABSOLUTELY: Circular rings, round enclosures, enclosed circles, O-shapes, rings around the X. `;
+      mathematicalDescription += `REQUIRED: Pure flat X-shape made of exactly two triangular path elements, no additional geometry. `;
+      
+      // Triple reinforcement for mathematical precision
+      let constraintReinforcement = ` MATHEMATICAL PRECISION ENFORCEMENT: `;
+      constraintReinforcement += `Shape topology = exactly two triangular paths forming X. `;
+      constraintReinforcement += `NO circular elements whatsoever. NO rings. NO enclosures. `;
+      constraintReinforcement += `Width/height ratio = 512:424 = 1.21:1. `;
+      constraintReinforcement += `Geometric accuracy = exact SVG path mathematics. `;
+      constraintReinforcement += `FORBIDDEN shapes: circles, rings, enclosed shapes, O-letters, round elements. `;
+      constraintReinforcement += `MANDATORY shapes: flat triangular X-shape, open geometry, angular paths only.`;
+      
+      prompt = mathematicalDescription + prompt + constraintReinforcement + ` FINAL CONSTRAINT: The XRP logo is two flat triangular shapes forming an X - never circles or rings.`;
     }
     
     // Minimal quality terms with MAXIMUM text blocking
@@ -455,7 +599,7 @@ class RunPodLoraService {
           title: 'Test',
           num_inference_steps: 1,
           guidance_scale: 7.5,
-          lora_scale: 1.0
+          lora_scale: 1.2
         }
       };
       
@@ -555,8 +699,8 @@ class RunPodLoraService {
         throw new Error('OPENAI_API_KEY not configured - cannot use fallback');
       }
 
-      // Create enhanced prompt for DALL-E
-      const prompt = this.createEnhancedPrompt(title, content, network, style);
+      // Create enhanced prompt for DALL-E (now async for SVG data)
+      const prompt = await this.createEnhancedPrompt(title, content, network, style);
       const dallePrompt = `${prompt}, professional magazine cover design, high quality cryptocurrency illustration, detailed digital art`;
       
       logger.info(`🔤 DALL-E Prompt: "${dallePrompt}"`);

@@ -21,22 +21,18 @@ router.get('/status', (req, res) => {
     available: true,
     service: 'AI Cover Generator',
     supported_clients: [
-      'hedera', 'algorand', 'constellation',
+      'hedera', 'hbar', 'algorand', 'constellation',
       'bitcoin', 'ethereum', 'generic'
     ]
   });
 });
 
-// FastAPI-compatible generate cover endpoint - USING RUNPOD
+// FastAPI-compatible generate cover endpoint - SMART ROUTING
 router.post('/generate/cover', async (req, res) => {
-  console.log('🚀 RunPod LoRA Generate Cover Request:', req.body);
+  console.log('🚀 Smart LoRA Generate Cover Request:', req.body);
   
   try {
     const { title, subtitle, client_id, width, height } = req.body;
-    
-    // Use RunPod LoRA Service instead of HF Spaces
-    const RunPodLoraService = require('../services/runpodLoraService');
-    const runPodLoraService = new RunPodLoraService();
     
     const articleData = {
       title: title || 'Crypto News',
@@ -44,12 +40,41 @@ router.post('/generate/cover', async (req, res) => {
       network: client_id || 'generic'
     };
     
-    const result = await runPodLoraService.generateLoraImage(
-      articleData.title,
-      articleData.content || '',
-      articleData.network || 'generic',
-      'professional'
-    );
+    // SMART ROUTING: Detect HBAR content and use custom HBAR LoRA
+    const fullText = `${articleData.title} ${articleData.content}`.toLowerCase();
+    const isHbarArticle = fullText.includes('hbar') || 
+                         fullText.includes('hedera') || 
+                         fullText.includes('hashgraph') ||
+                         articleData.network === 'hbar' ||
+                         articleData.network === 'hedera';
+    
+    let result;
+    
+    if (isHbarArticle) {
+      // Use custom HBAR LoRA service
+      console.log('🎯 HBAR article detected - using custom HBAR LoRA');
+      const HbarLoraService = require('../services/hbarLoraService');
+      const hbarLoraService = new HbarLoraService();
+      
+      result = await hbarLoraService.generateHbarLoraImage(
+        articleData.title,
+        articleData.content || '',
+        'hbar',
+        'professional'
+      );
+    } else {
+      // Use standard RunPod LoRA Service for non-HBAR articles
+      console.log('🚀 Standard article - using RunPod LoRA');
+      const RunPodLoraService = require('../services/runpodLoraService');
+      const runPodLoraService = new RunPodLoraService();
+      
+      result = await runPodLoraService.generateLoraImage(
+        articleData.title,
+        articleData.content || '',
+        articleData.network || 'generic',
+        'professional'
+      );
+    }
     
     const response = {
       job_id: result.imageId,
