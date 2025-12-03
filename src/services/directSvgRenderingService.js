@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const logger = require('../utils/logger');
 // Canvas will be loaded dynamically to avoid deployment issues
 let createCanvas, loadImage;
 try {
@@ -9,7 +10,6 @@ try {
 } catch (error) {
   logger.warn('Canvas module not available, will use fallback rendering');
 }
-const logger = require('../utils/logger');
 const SVGLogoService = require('./svgLogoService');
 const WatermarkService = require('./watermarkService');
 
