@@ -172,6 +172,7 @@ app.get('/ai-service-proxy/*', async (req, res) => {
 });
 
 // Health check endpoint - Railway compatible
+console.log('🚀 Health endpoint registration complete');
 app.get('/health', async (req, res) => {
   try {
     // Basic health indicators
