@@ -242,8 +242,20 @@ app.use('/api/client-networks', require('./routes/client-networks')); // Client 
 app.use('/api/logos', require('./routes/logos')); // SVG logo management and ControlNet preprocessing v1.1
 app.use('/api/vectorfusion', require('./routes/vectorfusion')); // VectorFusion mathematical SVG geometry preservation
 app.use('/api/vector-native', require('./routes/vector-native')); // Vector-native AI generation for exact geometry
-app.use('/api/direct-svg', require('./routes/direct-svg')); // Direct SVG rendering with 3D effects (Option 1)
-app.use('/api/direct-svg-test', require('./routes/direct-svg-test')); // Test route for debugging
+// Direct SVG routes with error handling
+try {
+  app.use('/api/direct-svg', require('./routes/direct-svg')); // Direct SVG rendering with 3D effects (Option 1)
+  console.log('✅ Direct SVG routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading Direct SVG routes:', error.message);
+}
+
+try {
+  app.use('/api/direct-svg-test', require('./routes/direct-svg-test')); // Test route for debugging
+  console.log('✅ Direct SVG test routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading Direct SVG test routes:', error.message);
+}
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
 
 // Conditionally add Firebase auth routes if available
