@@ -128,7 +128,7 @@ class RunPodLoraService {
       
       // Add XRP-specific negative prompts to fix logo accuracy
       if (network === 'xrp') {
-        negativePrompt += ', generic X shape, rounded X, soft X, blurry X, abstract X, stylized X, decorative X, ornamental X, curved X edges, wrong X proportions, incorrect logo shape, fake XRP symbol, modified XRP design, distorted XRP logo';
+        negativePrompt += ', circular background, rings around X, enclosed X, X inside circle, X inside ring, holographic effects, 3D effects, lighting effects, glowing effects, purple effects, complex backgrounds, platform bases, extra geometry, rounded edges, curved lines, smooth curves, gradient fills, multiple colors, ornamental designs, decorative elements, stylized interpretations, artistic liberties, creative additions, modified proportions, wrong aspect ratio, incorrect coordinates, fake geometry';
       }
       
       const jobPayload = {
@@ -138,9 +138,11 @@ class RunPodLoraService {
           title: title,
           width: 1800,
           height: 900,
-          num_inference_steps: 25,
-          guidance_scale: 7.5,
-          lora_scale: 1.2
+          num_inference_steps: 50,        // Higher precision
+          guidance_scale: 15.0,           // Much stricter adherence
+          lora_scale: 0.8,                // Lower LoRA influence since it's HBAR-trained
+          cfg_scale: 15.0,                // Additional control parameter
+          strength: 1.0                   // Maximum strength
         }
       };
       
@@ -427,7 +429,7 @@ class RunPodLoraService {
           
           // Generate precise SVG-based prompts using actual design characteristics
           if (cryptoSymbol === 'XRP') {
-            svgGuidedPrompting = `XRP logo: exactly two flat triangular shapes forming simple X, solid dark gray ${colors.primary} color, COMPLETELY FLAT design, NO circles, NO rings, NO holographic effects, NO 3D, NO lighting, simple geometric X only, minimal vector design, `;
+            svgGuidedPrompting = `EXACT XRP LOGO SPECIFICATION: Two precise triangular path elements forming X-shape, mathematical coordinates: upper triangle (M437,0 h74 L357,152.48), lower triangle (M74.05,424 H0 L155,270.58), aspect ratio 512:424, solid fill #23292f, NO circles, NO rings, NO background elements, NO interpretation, pure geometric accuracy, flat vector design only, `;
           } else if (cryptoSymbol === 'ETH') {
             svgGuidedPrompting = `ultra-precise Ethereum logo featuring exact multi-faceted diamond crystal design with multiple polygons in ${colors.primary} dark gray and ${colors.secondary} medium gray, complex 3D diamond geometry exactly matching SVG specifications, `;
           } else if (cryptoSymbol === 'BNB') {
