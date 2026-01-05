@@ -101,6 +101,12 @@ app.use('/temp', express.static(path.join(__dirname, '..', 'temp')));
 // Serve generated cover images
 app.use('/temp/generated-covers', express.static(path.join(__dirname, '..', 'temp', 'generated-covers')));
 
+// Serve coin compositor images
+app.use('/temp/coin-images', express.static(path.join(__dirname, '..', 'temp', 'coin-images')));
+
+// Serve universal style images  
+app.use('/temp/universal-styles', express.static(path.join(__dirname, '..', 'temp', 'universal-styles')));
+
 // Serve downloaded LoRA images with CORS headers
 app.use('/temp/lora-images', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -241,6 +247,7 @@ app.use('/api/temp-cleanup', require('./routes/temp-cleanup')); // Temp file man
 app.use('/api/press-releases', require('./routes/press-releases')); // Legal PRNewswire workaround - keyword extraction
 app.use('/api/client-networks', require('./routes/client-networks')); // Client network metadata with logos
 app.use('/api/logos', require('./routes/logos')); // SVG logo management and ControlNet preprocessing v1.1
+app.use('/api/admin-svg', require('./routes/admin-svg-upload')); // Admin SVG bulk upload
 app.use('/api/vectorfusion', require('./routes/vectorfusion')); // VectorFusion mathematical SVG geometry preservation
 app.use('/api/vector-native', require('./routes/vector-native')); // Vector-native AI generation for exact geometry
 // Direct SVG routes with error handling
@@ -256,6 +263,41 @@ try {
   console.log('✅ Direct SVG test routes loaded successfully');
 } catch (error) {
   console.error('❌ Error loading Direct SVG test routes:', error.message);
+}
+
+// Two-Step Logo Generation - Perfect accuracy + Style scenes
+try {
+  app.use('/api/two-step-logo', require('./routes/two-step-logo')); // Perfect SVG isolation + Scene compositing
+  console.log('✅ Two-Step Logo routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading Two-Step Logo routes:', error.message);
+}
+
+// PNG ControlNet Logo Generation - 2024 Optimal Settings for Exact Logo Accuracy
+try {
+  app.use('/api/controlnet-png', require('./routes/controlnet-png')); // PNG logos with optimal ControlNet settings
+  console.log('✅ PNG ControlNet routes loaded successfully - 2024 Enhanced');
+} catch (error) {
+  console.error('❌ Error loading PNG ControlNet routes:', error.message);
+  console.error('❌ Full error:', error);
+}
+
+// Hyper-Realistic Coin Compositor - Two-Stage Exact Logo Compositing
+try {
+  app.use('/api/coin-compositor', require('./routes/coin-compositor')); // Hyper-realistic coins with exact logos
+  console.log('✅ Coin Compositor routes loaded successfully - Two-stage compositing');
+} catch (error) {
+  console.error('❌ Error loading Coin Compositor routes:', error.message);
+  console.error('❌ Full error:', error);
+}
+
+// Universal Style Compositor - Diverse Generation Types with Exact Logo Accuracy
+try {
+  app.use('/api/universal-styles', require('./routes/universal-styles')); // Diverse styles beyond just coins
+  console.log('✅ Universal Style Compositor routes loaded successfully - Multiple generation types');
+} catch (error) {
+  console.error('❌ Error loading Universal Style Compositor routes:', error.message);
+  console.error('❌ Full error:', error);
 }
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
 

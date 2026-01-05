@@ -18,6 +18,65 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+/**
+ * Intelligent style selection based on article content
+ */
+function selectStyleBasedOnContent(article, requestedStyle) {
+  // If user specifically requested a style, respect it
+  if (requestedStyle && requestedStyle !== 'default') {
+    return requestedStyle;
+  }
+  
+  const title = (article.title || '').toLowerCase();
+  const content = (article.content || article.category || '').toLowerCase();
+  const fullText = `${title} ${content}`;
+  
+  // Trading/Market focused content
+  if (fullText.includes('trading') || fullText.includes('price') || 
+      fullText.includes('market') || fullText.includes('exchange') ||
+      fullText.includes('chart') || fullText.includes('candlestick')) {
+    return 'trading';
+  }
+  
+  // Abstract/Artistic content  
+  if (fullText.includes('art') || fullText.includes('nft') || 
+      fullText.includes('creative') || fullText.includes('design') ||
+      fullText.includes('abstract') || fullText.includes('unique')) {
+    return 'abstract';
+  }
+  
+  // 3D/Typography content
+  if (fullText.includes('brand') || fullText.includes('logo') || 
+      fullText.includes('identity') || fullText.includes('typography') ||
+      fullText.includes('3d') || fullText.includes('holographic')) {
+    return 'typography';
+  }
+  
+  // Coin/Token specific content
+  if (fullText.includes('coin') || fullText.includes('token') || 
+      fullText.includes('currency') || fullText.includes('mint') ||
+      fullText.includes('launch') || fullText.includes('release')) {
+    return 'coin';
+  }
+  
+  // Space/Cosmic content
+  if (fullText.includes('space') || fullText.includes('cosmic') || 
+      fullText.includes('universe') || fullText.includes('stellar') ||
+      fullText.includes('lunar') || fullText.includes('galaxy')) {
+    return 'cosmic';
+  }
+  
+  // Minimal/Professional content
+  if (fullText.includes('enterprise') || fullText.includes('corporate') || 
+      fullText.includes('business') || fullText.includes('professional') ||
+      fullText.includes('clean') || fullText.includes('minimal')) {
+    return 'minimal';
+  }
+  
+  // Default to digital for tech/crypto content
+  return 'digital';
+}
+
 // REPLACED: Using Universal LoRA Service exclusively  
 // const loraAiService = new LoRAiService();
 
@@ -1167,12 +1226,12 @@ router.post('/generate-controlnet-image/:id?', async (req, res) => {
 
 router.post('/generate-lora-image/:id?', async (req, res) => {
   try {
-    // ✅ PURE LORA ONLY - NO FALLBACKS - USING YOUR TRAINED MODEL
+    // 🎯 ENHANCED: PNG CONTROLNET WITH 2024 OPTIMAL SETTINGS FOR EXACT LOGO ACCURACY
 
     const { id } = req.params;
     const { 
       size = '1792x896', 
-      style = 'professional', 
+      style = 'holographic', // Default to holographic for best visual impact
       title, 
       network, 
       category, 
@@ -1233,38 +1292,43 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
         logger.info(`🎯 Single entity detected: ${detectedEntity.detected} (${detectedEntity.logo?.name || 'Unknown'})`);
       }
       
-      // FORCE ALL CRYPTOS THROUGH CONTROLNET - Remove broken HBAR service
-      logger.info(`🎯 FORCING ControlNet SVG system for ${detectedEntity.detected} (bypassing all broken services)`);
+      // 🎯 ENHANCED: USE UNIVERSAL STYLE COMPOSITOR WITH DIVERSE GENERATION TYPES
+      logger.info(`🎨 Using Universal Style Compositor for ${detectedEntity.detected} with diverse style generation`);
       
-      const RunPodLoraService = require('../services/runpodLoraService');
-      const runPodLoraService = new RunPodLoraService();
+      const UniversalStyleCompositor = require('../services/universalStyleCompositor');
+      const universalStyleCompositor = new UniversalStyleCompositor();
       
-      hostedResult = await runPodLoraService.generateLoraImage(
+      // Intelligent style selection based on content
+      const selectedStyle = selectStyleBasedOnContent(article, style) || 'digital';
+      
+      hostedResult = await universalStyleCompositor.generateStyleWithLogo(
         article.title,
-        article.content || article.category || 'crypto news',
-        detectedEntity.detected.toLowerCase(), // Use detected entity directly
-        style || 'professional'
+        detectedEntity.detected,
+        selectedStyle
       );
     } else {
-      // No specific cryptocurrency detected - use generic generation with anti-Bitcoin prompting
-      logger.info('🚀 No specific cryptocurrency detected - using generic generation with anti-Bitcoin prompting');
-      const RunPodLoraService = require('../services/runpodLoraService');
-      const runPodLoraService = new RunPodLoraService();
+      // No specific cryptocurrency detected - use generic crypto generation
+      logger.info('🚀 No specific cryptocurrency detected - using universal style system with generic crypto');
+      const UniversalStyleCompositor = require('../services/universalStyleCompositor');
+      const universalStyleCompositor = new UniversalStyleCompositor();
       
-      hostedResult = await runPodLoraService.generateLoraImage(
+      // Intelligent style selection based on content
+      const selectedStyle = selectStyleBasedOnContent(article, style) || 'digital';
+      
+      // Use generic crypto visualization
+      hostedResult = await universalStyleCompositor.generateStyleWithLogo(
         article.title,
-        article.content || article.category || 'crypto news',
-        'generic_anti_bitcoin', // Special flag to avoid Bitcoin bias
-        style || 'professional'
+        'ETH', // Default to Ethereum for generic crypto articles (more neutral)
+        selectedStyle
       );
     }
 
     if (!hostedResult.success) {
       return res.status(500).json({
         success: false,
-        message: 'RunPod LoRA generation failed',
+        message: 'Universal style generation failed',
         error: hostedResult.error || 'Unknown error',
-        service: 'runpod_lora'
+        service: 'universal_style_compositor'
       });
     }
 
