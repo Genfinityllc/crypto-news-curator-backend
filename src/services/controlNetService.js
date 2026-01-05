@@ -297,38 +297,62 @@ class ControlNetService {
       
       logger.info(`🚀 REVOLUTIONARY Two-Stage Generation: ${logoSymbol} with ${style} style`);
       
-      // STAGE 1: Generate Environment
-      const environmentResult = await this.generateEnvironmentStage(style, options);
-      logger.info(`✅ Stage 1 Complete: Environment generated`);
+      // Check if RunPod is fully configured for revolutionary features
+      const runpodUrl = process.env.RUNPOD_ENDPOINT_URL;
+      const apiKey = process.env.RUNPOD_API_KEY;
       
-      // STAGE 2: Integrate Logo with Depth Awareness
-      const logoResult = await this.integrateLogoStage(environmentResult, logoSymbol, style, imageId, options);
-      logger.info(`✅ Stage 2 Complete: Logo integrated with depth awareness`);
+      if (!runpodUrl || !apiKey) {
+        logger.warn(`⚠️ Revolutionary features require full RunPod config. Falling back to ENHANCED ControlNet...`);
+        return await this.generateWithPngControlNet(title, logoSymbol, style, {
+          ...options,
+          enhancedMode: true,
+          revolutionaryFallback: true
+        });
+      }
       
-      const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.info(`🚀 REVOLUTIONARY Generation completed in ${totalTime}s for ${logoSymbol}`);
-      
-      return {
-        success: true,
-        imageId,
-        imageUrl: this.getImageUrl(imageId),
-        localPath: logoResult.localPath,
-        metadata: {
-          method: 'revolutionary_two_stage_depth_aware',
-          logoSymbol,
-          style,
-          stage1: environmentResult.metadata,
-          stage2: logoResult.metadata,
-          totalProcessingTime: totalTime,
-          improvements: [
-            'two_stage_generation',
-            'depth_aware_logo_integration', 
-            'perspective_correct_placement',
-            'environmental_interaction',
-            'cinematic_quality_scenes'
-          ]
-        }
-      };
+      try {
+        // STAGE 1: Generate Environment
+        const environmentResult = await this.generateEnvironmentStage(style, options);
+        logger.info(`✅ Stage 1 Complete: Environment generated`);
+        
+        // STAGE 2: Integrate Logo with Depth Awareness
+        const logoResult = await this.integrateLogoStage(environmentResult, logoSymbol, style, imageId, options);
+        logger.info(`✅ Stage 2 Complete: Logo integrated with depth awareness`);
+        
+        const totalTime = Math.round((Date.now() - startTime) / 1000);
+        logger.info(`🚀 REVOLUTIONARY Generation completed in ${totalTime}s for ${logoSymbol}`);
+        
+        return {
+          success: true,
+          imageId,
+          imageUrl: this.getImageUrl(imageId),
+          localPath: logoResult.localPath,
+          metadata: {
+            method: 'revolutionary_two_stage_depth_aware',
+            logoSymbol,
+            style,
+            stage1: environmentResult.metadata,
+            stage2: logoResult.metadata,
+            totalProcessingTime: totalTime,
+            improvements: [
+              'two_stage_generation',
+              'depth_aware_logo_integration', 
+              'perspective_correct_placement',
+              'environmental_interaction',
+              'cinematic_quality_scenes'
+            ]
+          }
+        };
+        
+      } catch (revolutionaryError) {
+        logger.warn(`⚠️ Revolutionary method failed, falling back to enhanced ControlNet:`, revolutionaryError.message);
+        return await this.generateWithPngControlNet(title, logoSymbol, style, {
+          ...options,
+          enhancedMode: true,
+          revolutionaryFallback: true,
+          fallbackReason: revolutionaryError.message
+        });
+      }
       
     } catch (error) {
       logger.error(`❌ REVOLUTIONARY Generation failed:`, error);
