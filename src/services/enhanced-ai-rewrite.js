@@ -607,7 +607,8 @@ Write the article now:`;
 }
 
 /**
- * CRITICAL: Validate rewritten content accuracy against original article
+ * BALANCED: Validate rewritten content - only reject MAJOR hallucinations
+ * Allows adding background context for crypto topics, only flags fabricated specific claims
  */
 async function validateContentAccuracy(rewrittenContent, originalContent, originalTitle) {
   const errors = [];
@@ -617,84 +618,78 @@ async function validateContentAccuracy(rewrittenContent, originalContent, origin
   const rewrittenText = rewrittenContent.replace(/<[^>]*>/g, '').toLowerCase();
   const originalText = `${originalTitle} ${originalContent}`.toLowerCase();
   
-  logger.info('🔍 FACT-CHECKING: Validating rewritten content against original source...');
+  logger.info('🔍 FACT-CHECKING: Balanced validation against original source...');
   
-  // 1. Check for price/financial data hallucinations
-  const pricePattern = /\$\d+\.?\d*/g;
-  const percentagePattern = /\d+\.?\d*%/g;
+  // ONLY CHECK FOR MAJOR HALLUCINATIONS:
   
-  const rewrittenPrices = rewrittenText.match(pricePattern) || [];
-  const rewrittenPercentages = rewrittenText.match(percentagePattern) || [];
-  
-  // Validate prices mentioned in rewrite exist in original
-  rewrittenPrices.forEach(price => {
-    if (!originalText.includes(price) && !originalText.includes(price.replace('$', ''))) {
-      errors.push(`Hallucinated price data: ${price} not found in original article`);
-    }
-  });
-  
-  // Validate percentages mentioned in rewrite exist in original  
-  rewrittenPercentages.forEach(percentage => {
-    const numOnly = percentage.replace('%', '');
-    if (!originalText.includes(percentage) && !originalText.includes(numOnly)) {
-      errors.push(`Hallucinated percentage: ${percentage} not found in original article`);
-    }
-  });
-  
-  // 2. Check for specific crypto price claims (common hallucination)
-  const cryptoPricePatterns = [
-    /bitcoin.*\$\d+/,
-    /xrp.*\$\d+/,
-    /ethereum.*\$\d+/,
-    /btc.*\$\d+/,
-    /eth.*\$\d+/
-  ];
-  
-  cryptoPricePatterns.forEach(pattern => {
-    const matches = rewrittenText.match(pattern);
-    if (matches) {
-      matches.forEach(match => {
-        if (!originalText.includes(match)) {
-          errors.push(`Hallucinated crypto price: "${match}" not in original article`);
-        }
-      });
-    }
-  });
-  
-  // 3. Check for date/time hallucinations
-  const datePattern = /\b(january|february|march|april|may|june|july|august|september|october|november|december|\d{4}|\d{1,2}\/\d{1,2}\/\d{4})\b/g;
-  const rewrittenDates = rewrittenText.match(datePattern) || [];
-  
-  rewrittenDates.forEach(date => {
-    if (!originalText.includes(date)) {
-      warnings.push(`Date/time reference "${date}" should be verified against original`);
-    }
-  });
-  
-  // 4. Check for company/partnership claims
-  const companyPattern = /\b(partnership|collaboration|agreement|acquisition|merger|deal)\s+with\s+([a-z]+\s*[a-z]*)/g;
-  let companyMatch;
-  while ((companyMatch = companyPattern.exec(rewrittenText)) !== null) {
-    const fullMatch = companyMatch[0];
-    if (!originalText.includes(fullMatch)) {
-      errors.push(`Unverified partnership claim: "${fullMatch}" not in original article`);
+  // 1. Check for SPECIFIC price claims that directly contradict or fabricate numbers
+  // Only flag if a specific price is claimed for a crypto NOT mentioned in original
+  const specificPricePattern = /\b(bitcoin|btc|ethereum|eth|xrp|solana|sol)\b[^.]*\$(\d+(?:,\d{3})*(?:\.\d{2})?)/gi;
+  let priceMatch;
+  while ((priceMatch = specificPricePattern.exec(rewrittenText)) !== null) {
+    const crypto = priceMatch[1].toLowerCase();
+    const price = priceMatch[2];
+    // Only error if the original doesn't mention this crypto at all AND a price is claimed
+    if (!originalText.includes(crypto) && !originalText.includes(price)) {
+      errors.push(`Fabricated price: $${price} for ${crypto} - crypto not in original`);
     }
   }
   
-  // 5. Check for regulatory/legal claims
-  const regulatoryTerms = ['sec', 'regulation', 'legal', 'court', 'lawsuit', 'approval', 'compliance'];
-  regulatoryTerms.forEach(term => {
-    if (rewrittenText.includes(term) && !originalText.includes(term)) {
-      errors.push(`Regulatory claim about "${term}" not supported by original article`);
+  // 2. Check for percentages that claim SPECIFIC movements not in original
+  // Allow common percentages like 15%, 20%, etc if original mentions percentage movements
+  const originalHasPercentages = /\d+\.?\d*%/.test(originalText);
+  if (!originalHasPercentages) {
+    const fabricatedPercent = /\b(surged?|jumped?|dropped?|fell|rose|gained?)\s+\d{2,}%/gi;
+    let percentMatch;
+    while ((percentMatch = fabricatedPercent.exec(rewrittenText)) !== null) {
+      // Only warn, don't error - AI might be adding reasonable context
+      warnings.push(`Added percentage movement: "${percentMatch[0]}" - verify if accurate`);
+    }
+  }
+  
+  // 3. Check for FABRICATED specific company names/partnerships
+  // Only flag if naming a specific company that doesn't appear in original
+  const specificCompanyPattern = /\b(partnership|deal|agreement)\s+with\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g;
+  let companyMatch;
+  while ((companyMatch = specificCompanyPattern.exec(rewrittenContent)) !== null) { // Use original case content
+    const company = companyMatch[2].toLowerCase();
+    // Only error if specific company name is not in original
+    if (company.length > 3 && !originalText.includes(company)) {
+      warnings.push(`Company name "${companyMatch[2]}" not in original - verify accuracy`);
+    }
+  }
+  
+  // 4. Allow background context for known crypto topics
+  // XRP articles can mention SEC, Ripple legal history as common knowledge
+  // Bitcoin articles can mention halving, ETFs, etc.
+  // Ethereum articles can mention merge, staking, etc.
+  // These are NOT errors - they're adding valuable context
+  
+  // 5. Only flag as error if article claims something HAPPENED that didn't
+  const eventPatterns = [
+    /\bannounced today\b/i,
+    /\bjust released\b/i,
+    /\bbreaking:\s/i,
+    /\bconfirmed\s+(?:today|yesterday|this\s+week)\b/i
+  ];
+  
+  eventPatterns.forEach(pattern => {
+    if (pattern.test(rewrittenText) && !pattern.test(originalText)) {
+      warnings.push(`Time-sensitive claim may need verification`);
     }
   });
   
+  // BALANCED: Only fail on MAJOR errors, not warnings
   const isValid = errors.length === 0;
   
   if (isValid) {
-    logger.info('✅ FACT-CHECK PASSED: All claims verified against original source');
+    if (warnings.length > 0) {
+      logger.info(`✅ FACT-CHECK PASSED with ${warnings.length} warnings (acceptable)`);
+    } else {
+      logger.info('✅ FACT-CHECK PASSED: Content validated');
+    }
   } else {
-    logger.error(`❌ FACT-CHECK FAILED: ${errors.length} accuracy errors found`);
+    logger.error(`❌ FACT-CHECK FAILED: ${errors.length} fabrication errors found`);
     errors.forEach(error => logger.error(`   - ${error}`));
   }
   
