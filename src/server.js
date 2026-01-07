@@ -400,6 +400,47 @@ app.post('/api/auto-cover', async (req, res) => {
   }
 });
 
+// 🧪 TEST ARTICLE REWRITE - Debug endpoint
+app.post('/api/test-rewrite', async (req, res) => {
+  const logger = require('./utils/logger');
+  
+  try {
+    const { title, content } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ success: false, error: 'Title and content required' });
+    }
+    
+    logger.info(`🧪 Testing article rewrite for: ${title.substring(0, 50)}...`);
+    
+    const { generateFullLengthRewrite } = require('./services/enhanced-ai-rewrite');
+    
+    const startTime = Date.now();
+    const result = await generateFullLengthRewrite(title, content);
+    const duration = Date.now() - startTime;
+    
+    res.json({
+      success: true,
+      duration: `${duration}ms`,
+      originalTitle: title,
+      rewrittenTitle: result.title,
+      wordCount: result.wordCount,
+      readabilityScore: result.readabilityScore,
+      factChecked: result.factChecked,
+      validationPassed: result.validationPassed,
+      model: result.model || 'fallback',
+      contentPreview: result.content?.substring(0, 500) + '...',
+      isFallback: !result.factChecked && !result.validationPassed
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack?.substring(0, 500)
+    });
+  }
+});
+
 // 🧪 FULL WAVESPEED CONTROLNET TEST - Debug endpoint
 app.get('/api/test-controlnet-full', async (req, res) => {
   const axios = require('axios');
