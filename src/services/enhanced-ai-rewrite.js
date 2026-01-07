@@ -556,7 +556,16 @@ Write the article now:`;
     return result;
 
   } catch (error) {
-    logger.error('❌ OpenAI API error:', error.message);
+    logger.error('❌ OpenAI API FAILED - Using fallback content');
+    logger.error(`   Error type: ${error.constructor.name}`);
+    logger.error(`   Error message: ${error.message}`);
+    logger.error(`   Error code: ${error.code || 'N/A'}`);
+    logger.error(`   Error status: ${error.status || 'N/A'}`);
+    if (error.response) {
+      logger.error(`   Response status: ${error.response.status}`);
+      logger.error(`   Response data: ${JSON.stringify(error.response.data || {}).substring(0, 300)}`);
+    }
+    logger.error(`   Stack trace: ${error.stack?.substring(0, 500)}`);
     
     // Enhanced fallback
     const cryptoElements = extractCryptoElements(content, title);
@@ -590,7 +599,9 @@ Write the article now:`;
       validationPassed: false, // Fallback content not validated
       originalTitle: title,
       cryptoElements: cryptoElements,
-      intelligentCoverPrompt: generateIntelligentCoverPrompt(shortTitle, cryptoElements)
+      intelligentCoverPrompt: generateIntelligentCoverPrompt(shortTitle, cryptoElements),
+      fallbackReason: error.message,
+      fallbackErrorCode: error.code || error.status || 'UNKNOWN'
     };
   }
 }

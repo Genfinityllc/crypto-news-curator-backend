@@ -430,7 +430,9 @@ app.post('/api/test-rewrite', async (req, res) => {
       validationPassed: result.validationPassed,
       model: result.model || 'fallback',
       contentPreview: result.content?.substring(0, 500) + '...',
-      isFallback: !result.factChecked && !result.validationPassed
+      isFallback: !result.factChecked && !result.validationPassed,
+      fallbackReason: result.fallbackReason || null,
+      fallbackErrorCode: result.fallbackErrorCode || null
     });
   } catch (error) {
     res.status(500).json({
