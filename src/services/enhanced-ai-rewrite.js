@@ -704,10 +704,7 @@ async function validateContentAccuracy(rewrittenContent, originalContent, origin
   return {
     isValid,
     errors,
-    warnings,
-    checkedPrices: rewrittenPrices.length,
-    checkedPercentages: rewrittenPercentages.length,
-    checkedDates: rewrittenDates.length
+    warnings
   };
 }
 
