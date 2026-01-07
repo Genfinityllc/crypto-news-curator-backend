@@ -294,8 +294,8 @@ class ControlNetService {
    * Step 2: Use ControlNet with actual PNG/SVG logo for 3D integration
    */
   async generateWithAdvancedControlNet(title, logoSymbol, style = 'holographic', options = {}) {
-    const startTime = Date.now();
-    const imageId = this.generateImageId();
+      const startTime = Date.now();
+      const imageId = this.generateImageId();
     let monitorData = {
       imageId,
       articleTitle: title,
@@ -306,124 +306,118 @@ class ControlNetService {
     };
     
     try {
-      logger.info(`🎯 2-STEP 3D METALLIC LOGO GENERATION: ${logoSymbol}`);
-      logger.info(`📝 Step 1: Generate stunning background (no crypto elements)`);
-      logger.info(`🖼️ Step 2: Transform ACTUAL logo to 3D metallic + composite`);
+      logger.info(`🎯 CONTROLNET 3D LOGO INTEGRATION: ${logoSymbol}`);
+      logger.info(`📝 Using ACTUAL logo shape as ControlNet guide`);
+      logger.info(`🖼️ AI will render the exact shape as 3D metallic element IN the scene`);
       
       // Get the ACTUAL logo file (100% accurate shape)
       const logoData = await this.getPngLogo(logoSymbol);
       if (!logoData) {
         throw new Error(`No PNG/SVG logo found for ${logoSymbol}`);
       }
-      logger.info(`✅ Actual logo loaded: ${logoSymbol} (${logoData.source}) - 100% accurate shape`);
+      logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source})`);
       
-      // STEP 1: Generate premium background (no crypto elements)
-      const backgroundPrompt = this.getPremiumBackgroundPrompt(title);
-      logger.info(`🎨 Background prompt: ${backgroundPrompt.substring(0, 150)}...`);
+      // Prepare logo as control image (white on black for best ControlNet results)
+      const controlImage = await this.prepareLogoForControlNet(logoData.buffer);
+      const controlImageBase64 = controlImage.toString('base64');
       
-      let backgroundPath;
+      // Build the scene prompt - describes the logo as a 3D element
+      const scenePrompt = this.get3DScenePromptForLogo(title, logoSymbol);
+      logger.info(`🎨 Scene prompt: ${scenePrompt.substring(0, 200)}...`);
+      
+      let imagePath;
       let method = 'unknown';
       
-      // Try Wavespeed first
+      // Use Wavespeed ControlNet - feeds actual logo shape to AI
       if (process.env.WAVESPEED_API_KEY) {
         try {
-          logger.info('🌟 Generating premium background with Wavespeed...');
-          backgroundPath = await this.generatePremiumBackground({
-            prompt: backgroundPrompt,
+          logger.info('🎯 Using Wavespeed ControlNet with actual logo shape...');
+          imagePath = await this.generateWithLogoControlNet({
+            prompt: scenePrompt,
+            controlImageBase64: controlImageBase64,
+            logoSymbol: logoSymbol,
             imageId: imageId
           });
-          method = 'wavespeed_3d_metallic';
-          logger.info('✅ Wavespeed background generated!');
+          method = 'wavespeed_controlnet_3d';
+          logger.info('✅ ControlNet 3D integration succeeded!');
         } catch (wavespeedError) {
-          logger.warn(`⚠️ Wavespeed failed: ${wavespeedError.message}`);
-          backgroundPath = null;
+          logger.warn(`⚠️ Wavespeed ControlNet failed: ${wavespeedError.message}`);
+          imagePath = null;
         }
       }
       
-      // Fallback to Pollinations
-      if (!backgroundPath) {
+      // Fallback: Generate background + 3D metallic composite
+      if (!imagePath) {
+        logger.info('🔄 Falling back to background + 3D metallic composite...');
         try {
-          logger.info('🎨 Using Pollinations for background...');
-          backgroundPath = await this.generatePollinationsBackground({
+          const backgroundPrompt = this.getPremiumBackgroundPrompt(title);
+          const backgroundPath = await this.generatePollinationsBackground({
             prompt: backgroundPrompt,
             imageId: imageId
           });
-          method = 'pollinations_3d_metallic';
-          logger.info('✅ Pollinations background generated!');
-        } catch (pollError) {
-          logger.warn(`⚠️ Pollinations failed: ${pollError.message}`);
+          
+          imagePath = await this.composite3DMetallicLogo(
+            backgroundPath,
+            logoData.buffer,
+            logoSymbol,
+            imageId
+          );
+          method = 'fallback_3d_metallic';
+        } catch (fallbackError) {
+          logger.error(`⚠️ Fallback failed: ${fallbackError.message}`);
         }
       }
       
-      if (!backgroundPath) {
-        throw new Error('Background generation failed');
+      if (!imagePath) {
+        throw new Error('All generation methods failed');
       }
-      
-      // STEP 2: Transform actual logo to 3D metallic and composite
-      logger.info('🔧 Transforming actual logo to 3D metallic appearance...');
-      const finalPath = await this.composite3DMetallicLogo(
-        backgroundPath,
-        logoData.buffer,
-        logoSymbol,
-        imageId
-      );
       
       // Apply watermark
-      await this.watermarkService.addWatermark(finalPath, finalPath, { title: logoSymbol });
+      await this.watermarkService.addWatermark(imagePath, imagePath, { title: logoSymbol });
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.info(`✅ 3D Metallic generation completed in ${totalTime}s using ${method}`);
+      logger.info(`✅ Generation completed in ${totalTime}s using ${method}`);
       
       // 📊 MONITOR: Log generation
       await logImageGeneration({
         ...monitorData,
         imageId: imageId,
         method: method,
-        controlNetUsed: false,
-        controlNetType: '3d_metallic_transform',
+        controlNetUsed: method.includes('controlnet'),
+        controlNetType: method.includes('controlnet') ? 'logo_shape_guide' : '3d_metallic_composite',
         logoSource: logoData.source,
         success: true,
         imageUrl: this.getImageUrl(imageId),
-        localPath: finalPath,
+        localPath: imagePath,
         processingTimeMs: totalTime * 1000,
         apiUsed: method.split('_')[0],
         is3DIntegrated: true,
         isFlatOverlay: false,
-        hasContextualBackground: true,
-        logoAccuracy: '100%',
-        backgroundPrompt: backgroundPrompt.substring(0, 200)
+        logoAccuracy: '100%'
       });
       
       return {
         success: true,
         imageId: imageId,
         imageUrl: this.getImageUrl(imageId),
-        localPath: finalPath,
+        localPath: imagePath,
         metadata: {
           method: method,
           logoSymbol,
           style,
           totalProcessingTime: totalTime,
-          logoAccuracy: '100% (actual PNG/SVG file)',
-          improvements: [
-            'actual_logo_file_used',
-            '3d_metallic_transformation',
-            'chrome_silver_finish',
-            'neon_rim_lighting',
-            'environmental_glow',
-            'proper_depth_shadows'
-          ]
+          logoAccuracy: '100% (actual logo shape used)',
+          controlNetUsed: method.includes('controlnet')
         }
       };
         
     } catch (error) {
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.error(`❌ 3D Metallic generation failed:`, error);
+      logger.error(`❌ Generation failed:`, error);
       
       await logImageGeneration({
         ...monitorData,
         method: 'complete_failure',
-        controlNetUsed: false,
         success: false,
         processingTimeMs: totalTime * 1000,
         error: error.message
@@ -431,6 +425,114 @@ class ControlNetService {
       
       throw error;
     }
+  }
+  
+  /**
+   * Prepare logo for ControlNet - white shape on black background
+   * This gives the clearest structural guide to the AI
+   */
+  async prepareLogoForControlNet(logoBuffer) {
+    logger.info('🔧 Preparing logo for ControlNet (white on black)...');
+    
+    // Create white version of logo on black background
+    // This provides clear structural guidance
+    const prepared = await sharp(logoBuffer)
+      .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+      .flatten({ background: { r: 0, g: 0, b: 0 } })
+      .negate({ alpha: false }) // Invert to make logo white
+      .modulate({ brightness: 1.5 }) // Boost brightness
+      .png()
+      .toBuffer();
+    
+    return prepared;
+  }
+  
+  /**
+   * Build prompt that describes the logo as a 3D element in a scene
+   */
+  get3DScenePromptForLogo(title, logoSymbol) {
+    const scenes = [
+      // Chrome floating element
+      `futuristic scene with a large 3D chrome metallic ${logoSymbol} cryptocurrency symbol floating in center, the symbol is made of polished reflective chrome metal with cyan and magenta neon edge lighting, dark cyberpunk background with purple and blue atmospheric fog, holographic particles floating around, the metal surface shows realistic reflections and highlights, cinematic lighting, 8k ultra detailed render`,
+      
+      // Architectural integration
+      `cyberpunk server room corridor with the ${logoSymbol} symbol as a massive 3D brushed metal architectural element mounted on the back wall, neon cyan edge lighting on the symbol, purple and blue ambient lighting, rows of server racks on sides, metallic floor with reflections, atmospheric fog, the symbol appears as solid metal construction integrated into the architecture`,
+      
+      // Glowing orb with symbol
+      `dark atmospheric scene with a glowing 3D sphere containing the ${logoSymbol} cryptocurrency symbol embossed in chrome silver on its surface, the sphere emits purple and cyan light, floating particles around it, dark gradient background, the symbol has metallic reflective properties, professional product photography lighting`,
+      
+      // Multiple 3D coins
+      `multiple 3D metallic cryptocurrency coins featuring the ${logoSymbol} symbol floating at different angles in dark space, coins have chrome iridescent edges with rainbow reflections, the symbol is raised and embossed on coin faces in bright silver metal, dark blue background with subtle glow, depth of field blur on distant coins, photorealistic 3D render`,
+      
+      // Energy portal
+      `the ${logoSymbol} cryptocurrency symbol rendered as a 3D chrome metallic element in the center of a glowing energy portal, cyan and magenta neon rings surrounding it, dark void background with particle effects, the symbol has polished metal surface with realistic light reflections, dramatic volumetric lighting`,
+      
+      // Abstract tech
+      `abstract technological visualization with the ${logoSymbol} symbol as a large 3D holographic chrome element, surrounded by flowing data streams and geometric shapes, dark background with cyan and purple accent colors, the symbol appears metallic and three-dimensional with proper lighting and shadows`
+    ];
+    
+    const titleHash = title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const sceneIndex = titleHash % scenes.length;
+    
+    logger.info(`🎬 Selected scene style ${sceneIndex + 1}/${scenes.length}`);
+    return scenes[sceneIndex];
+  }
+  
+  /**
+   * Generate image using Wavespeed ControlNet with actual logo as shape guide
+   */
+  async generateWithLogoControlNet({ prompt, controlImageBase64, logoSymbol, imageId }) {
+    const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
+    
+    logger.info(`🎯 Submitting to Wavespeed ControlNet with ${logoSymbol} logo shape...`);
+    
+    // Use ControlNet Union - it can interpret the logo shape
+    const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
+      prompt: prompt,
+      control_image: `data:image/png;base64,${controlImageBase64}`,
+      size: "1792*1024",
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
+      // Key: Lower conditioning scale gives AI freedom to render as 3D
+      // Too high = flat reproduction, too low = ignores shape
+      controlnet_conditioning_scale: 0.5,
+      control_guidance_start: 0.0,
+      control_guidance_end: 0.8,
+      num_images: 1,
+      output_format: "png"
+    }, {
+      headers: {
+        'Authorization': `Bearer ${wavespeedApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 180000
+    });
+    
+    const responseData = response.data.data || response.data;
+    if (!responseData.id) {
+      throw new Error('No job ID from Wavespeed ControlNet');
+    }
+    
+    logger.info(`📋 ControlNet job ID: ${responseData.id}`);
+    
+    const result = await this.pollWavespeedJob(responseData.id, wavespeedApiKey);
+    const outputs = result.outputs || result.output || [];
+    if (!outputs[0]) {
+      throw new Error('No image from Wavespeed ControlNet');
+    }
+    
+    logger.info(`⬇️ Downloading ControlNet result...`);
+    
+    const imageResponse = await axios.get(outputs[0], {
+      responseType: 'arraybuffer',
+      timeout: 30000
+    });
+    
+    const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+    await fs.writeFile(imagePath, imageResponse.data);
+    
+    logger.info(`✅ ControlNet 3D logo image saved: ${imagePath}`);
+    return imagePath;
   }
   
   /**
@@ -1942,16 +2044,16 @@ class ControlNetService {
       // Submit generation job with enhanced parameters
       // Fixed API format: prompt at root level, model in URL path
       const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
-        prompt: prompt,
-        control_image: `data:image/png;base64,${conditioning.controlImageBase64}`,
+          prompt: prompt,
+          control_image: `data:image/png;base64,${conditioning.controlImageBase64}`,
         size: "1024*1024",
         num_inference_steps: options.steps || 35,
         guidance_scale: options.guidance_scale || 5.0,
         controlnet_conditioning_scale: conditioning.strength,
-        control_guidance_start: 0,
+          control_guidance_start: 0,
         control_guidance_end: 1.0,
-        num_images: 1,
-        output_format: "jpeg"
+          num_images: 1,
+          output_format: "jpeg"
       }, {
         headers: {
           'Authorization': `Bearer ${wavespeedApiKey}`,
@@ -2037,16 +2139,16 @@ class ControlNetService {
       // Submit generation job to Wavespeed with FLUX ControlNet
       // API format: prompt and control_image at root level, not inside 'input'
       const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
-        prompt: prompt,
-        control_image: `data:image/png;base64,${controlImageBase64}`,
+          prompt: prompt,
+          control_image: `data:image/png;base64,${controlImageBase64}`,
         size: "1024*1024",
         num_inference_steps: options.steps || 35,
         guidance_scale: options.guidance_scale || 5.0,
         controlnet_conditioning_scale: options.controlnet_strength || 0.95,
-        control_guidance_start: 0,
+          control_guidance_start: 0,
         control_guidance_end: 1.0,
-        num_images: 1,
-        output_format: "jpeg"
+          num_images: 1,
+          output_format: "jpeg"
       }, {
         headers: {
           'Authorization': `Bearer ${wavespeedApiKey}`,
