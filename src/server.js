@@ -322,6 +322,82 @@ if (firebaseAuthRoutes) {
 // 📊 AI OUTPUT MONITORING DASHBOARD
 const outputMonitor = require('./services/outputMonitorService');
 
+// 🎨 AUTO-COVER GENERATION ENDPOINT
+// Frontend can call this to get/generate a cover for any article
+app.post('/api/auto-cover', async (req, res) => {
+  const logger = require('./utils/logger');
+  try {
+    const { title, network, cryptocurrency, content, articleId } = req.body;
+    
+    if (!title) {
+      return res.status(400).json({ success: false, error: 'Title is required' });
+    }
+    
+    // Detect cryptocurrency from title/network if not provided
+    let detectedCrypto = cryptocurrency;
+    if (!detectedCrypto) {
+      const cryptoPatterns = {
+        'BTC': /bitcoin|btc/i,
+        'ETH': /ethereum|eth/i,
+        'XRP': /ripple|xrp/i,
+        'SOL': /solana|sol/i,
+        'HBAR': /hedera|hbar/i,
+        'ADA': /cardano|ada/i,
+        'DOGE': /dogecoin|doge/i,
+        'AVAX': /avalanche|avax/i,
+        'DOT': /polkadot|dot/i,
+        'MATIC': /polygon|matic/i,
+        'LINK': /chainlink|link/i,
+        'UNI': /uniswap|uni/i
+      };
+      
+      const textToSearch = `${title} ${network || ''} ${content || ''}`;
+      for (const [symbol, pattern] of Object.entries(cryptoPatterns)) {
+        if (pattern.test(textToSearch)) {
+          detectedCrypto = symbol;
+          break;
+        }
+      }
+      detectedCrypto = detectedCrypto || 'BTC'; // Default to BTC
+    }
+    
+    logger.info(`🎨 Auto-cover generation for: ${title.substring(0, 50)}... (${detectedCrypto})`);
+    
+    // Use ControlNet service for generation
+    const ControlNetService = require('./services/controlNetService');
+    const controlNetService = new ControlNetService();
+    
+    const result = await controlNetService.generateWithAdvancedControlNet(
+      title,
+      content || '',
+      'professional'
+    );
+    
+    if (result.success) {
+      logger.info(`✅ 🎨 Auto-cover generated for ${detectedCrypto}: ${result.imageUrl}`);
+      return res.json({
+        success: true,
+        imageUrl: result.imageUrl,
+        localPath: result.localPath,
+        cryptocurrency: detectedCrypto,
+        method: result.metadata?.method || 'controlnet',
+        message: '🎨 Universal LoRA cover auto-generated!'
+      });
+    } else {
+      throw new Error(result.error || 'Generation failed');
+    }
+    
+  } catch (error) {
+    const logger = require('./utils/logger');
+    logger.error('Auto-cover generation failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Cover generation failed'
+    });
+  }
+});
+
 // 🧪 WAVESPEED API TEST ENDPOINT
 app.get('/api/test-wavespeed', async (req, res) => {
   const axios = require('axios');
