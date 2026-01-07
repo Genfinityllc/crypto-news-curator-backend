@@ -364,13 +364,15 @@ app.post('/api/auto-cover', async (req, res) => {
     logger.info(`🎨 Auto-cover generation for: ${title.substring(0, 50)}... (${detectedCrypto})`);
     
     // Use ControlNet service for generation
+    // Parameters: title, logoSymbol, style, options
     const ControlNetService = require('./services/controlNetService');
     const controlNetService = new ControlNetService();
     
     const result = await controlNetService.generateWithAdvancedControlNet(
       title,
-      content || '',
-      'professional'
+      detectedCrypto,  // logoSymbol is the second parameter
+      'professional',
+      { content: content || '' }
     );
     
     if (result.success) {
