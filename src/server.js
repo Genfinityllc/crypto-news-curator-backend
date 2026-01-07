@@ -150,6 +150,16 @@ app.use('/temp/simple-svg-renders', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, '..', 'temp', 'simple-svg-renders')));
 
+// Serve ControlNet generated images with CORS headers
+app.use('/temp/controlnet-images', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+}, express.static(path.join(__dirname, '..', 'temp', 'controlnet-images')));
+
 // Serve screenshot images for fallback cases
 app.use('/screenshots', express.static(path.join(__dirname, '..', 'screenshots')));
 

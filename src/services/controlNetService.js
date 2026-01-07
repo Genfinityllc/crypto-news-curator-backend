@@ -550,8 +550,8 @@ class ControlNetService {
         .jpeg({ quality: 95 })
         .toBuffer();
       
-      // Save composited image
-      const outputPath = path.join(this.imageStorePath, `${imageId}.jpg`);
+      // Save composited image as PNG for consistency with getImageUrl()
+      const outputPath = path.join(this.imageStorePath, `${imageId}.png`);
       await fs.writeFile(outputPath, compositedBuffer);
       
       // Apply watermark
@@ -602,8 +602,8 @@ class ControlNetService {
       );
       
       if (response.data && response.data.byteLength > 1000) {
-        // Save the generated image
-        const outputPath = path.join(this.imageStorePath, `${imageId}.jpg`);
+        // Save the generated image as PNG for consistency with getImageUrl()
+        const outputPath = path.join(this.imageStorePath, `${imageId}.png`);
         
         await sharp(response.data)
           .resize(1800, 900, { fit: 'cover' })
