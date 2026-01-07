@@ -332,6 +332,7 @@ class ControlNetService {
       if (process.env.WAVESPEED_API_KEY) {
         try {
           logger.info('🎯 Using Wavespeed ControlNet with actual logo conditioning...');
+          logger.info(`🔑 Wavespeed API key: ${process.env.WAVESPEED_API_KEY.substring(0, 8)}...`);
           result = await this.generateWithWavespeedControlNet({
             prompt: `${contentPrompt}, with ${logoSymbol} cryptocurrency logo integrated as 3D metallic element, the exact ${logoSymbol} symbol with proper branding, realistic lighting and shadows`,
             controlType: 'canny',
@@ -346,9 +347,18 @@ class ControlNetService {
           method = 'wavespeed_controlnet';
           logger.info('✅ Wavespeed ControlNet succeeded with actual logo!');
         } catch (wavespeedError) {
-          logger.warn(`⚠️ Wavespeed ControlNet failed: ${wavespeedError.message}`);
+          // Log full error details for debugging
+          logger.error(`❌ Wavespeed ControlNet FAILED:`);
+          logger.error(`   Error message: ${wavespeedError.message}`);
+          if (wavespeedError.response) {
+            logger.error(`   Status: ${wavespeedError.response.status}`);
+            logger.error(`   Status Text: ${wavespeedError.response.statusText}`);
+            logger.error(`   Response Data: ${JSON.stringify(wavespeedError.response.data || {}).substring(0, 500)}`);
+          }
           result = null;
         }
+      } else {
+        logger.warn('⚠️ WAVESPEED_API_KEY not set - skipping Wavespeed ControlNet');
       }
       
       // PRIORITY 2: Use HuggingFace ControlNet (if API key available)
