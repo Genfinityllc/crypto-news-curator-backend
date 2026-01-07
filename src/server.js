@@ -312,6 +312,51 @@ if (firebaseAuthRoutes) {
 // 📊 AI OUTPUT MONITORING DASHBOARD
 const outputMonitor = require('./services/outputMonitorService');
 
+// 🧪 WAVESPEED API TEST ENDPOINT
+app.get('/api/test-wavespeed', async (req, res) => {
+  const axios = require('axios');
+  
+  if (!process.env.WAVESPEED_API_KEY) {
+    return res.json({ success: false, error: 'WAVESPEED_API_KEY not set' });
+  }
+  
+  try {
+    // Simple test call to Wavespeed API
+    const response = await axios.post('https://api.wavespeed.ai/api/v3/predictions', {
+      model: "wavespeed-ai/flux-controlnet-union-pro-2.0",
+      input: {
+        prompt: "A simple blue circle on white background, test image",
+        size: "512*512",
+        num_inference_steps: 4,
+        num_images: 1
+      }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.WAVESPEED_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+    
+    res.json({
+      success: true,
+      message: 'Wavespeed API connection successful!',
+      jobId: response.data.id,
+      status: response.data.status,
+      response: response.data
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      apiKeyPrefix: process.env.WAVESPEED_API_KEY?.substring(0, 8)
+    });
+  }
+});
+
 // 🔑 API KEY DIAGNOSTIC ENDPOINT
 app.get('/api/verify-keys', (req, res) => {
   res.json({
