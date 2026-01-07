@@ -428,23 +428,12 @@ class ControlNetService {
   }
   
   /**
-   * Prepare logo for ControlNet - white shape on black background
-   * This gives the clearest structural guide to the AI
+   * Prepare logo for ControlNet - uses preprocessPngForControlNet which works
    */
   async prepareLogoForControlNet(logoBuffer) {
-    logger.info('🔧 Preparing logo for ControlNet (white on black)...');
-    
-    // Create white version of logo on black background
-    // This provides clear structural guidance
-    const prepared = await sharp(logoBuffer)
-      .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
-      .flatten({ background: { r: 0, g: 0, b: 0 } })
-      .negate({ alpha: false }) // Invert to make logo white
-      .modulate({ brightness: 1.5 }) // Boost brightness
-      .png()
-      .toBuffer();
-    
-    return prepared;
+    logger.info('🔧 Preparing logo for ControlNet...');
+    // Use the proven preprocessing method
+    return await this.preprocessPngForControlNet(logoBuffer, 1024);
   }
   
   /**
@@ -486,26 +475,25 @@ class ControlNetService {
     
     logger.info(`🎯 Submitting to Wavespeed ControlNet with ${logoSymbol} logo shape...`);
     
-    // Use ControlNet Union - it can interpret the logo shape
+    // Use ControlNet Union - parameters matched to working test endpoint
     const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
       prompt: prompt,
       control_image: `data:image/png;base64,${controlImageBase64}`,
-      size: "1792*1024",
-      num_inference_steps: 28,
-      guidance_scale: 3.5,
-      // Key: Lower conditioning scale gives AI freedom to render as 3D
-      // Too high = flat reproduction, too low = ignores shape
-      controlnet_conditioning_scale: 0.5,
-      control_guidance_start: 0.0,
-      control_guidance_end: 0.8,
+      size: "1024*1024",  // Square works best with ControlNet
+      num_inference_steps: 30,
+      guidance_scale: 7.5,
+      // 0.7 = good balance between logo accuracy and 3D creativity
+      controlnet_conditioning_scale: 0.7,
+      control_guidance_start: 0,
+      control_guidance_end: 1.0,
       num_images: 1,
-      output_format: "png"
+      output_format: "jpeg"
     }, {
       headers: {
         'Authorization': `Bearer ${wavespeedApiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 180000
+      timeout: 120000
     });
     
     const responseData = response.data.data || response.data;
