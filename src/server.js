@@ -321,15 +321,13 @@ app.get('/api/test-wavespeed', async (req, res) => {
   }
   
   try {
-    // Simple test call to Wavespeed API
-    const response = await axios.post('https://api.wavespeed.ai/api/v3/predictions', {
-      model: "wavespeed-ai/flux-controlnet-union-pro-2.0",
-      input: {
-        prompt: "A simple blue circle on white background, test image",
-        size: "512*512",
-        num_inference_steps: 4,
-        num_images: 1
-      }
+    // Try the correct Wavespeed API endpoint format
+    // Based on their docs, it should be /api/v2/ for image generation
+    const response = await axios.post('https://api.wavespeed.ai/api/v2/wavespeed-ai/flux-dev/text-to-image', {
+      prompt: "A simple blue circle on white background, test image",
+      size: "512*512",
+      num_inference_steps: 4,
+      num_images: 1
     }, {
       headers: {
         'Authorization': `Bearer ${process.env.WAVESPEED_API_KEY}`,
@@ -343,17 +341,46 @@ app.get('/api/test-wavespeed', async (req, res) => {
       message: 'Wavespeed API connection successful!',
       jobId: response.data.id,
       status: response.data.status,
-      response: response.data
+      data: response.data
     });
   } catch (error) {
-    res.json({
-      success: false,
-      error: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      responseData: error.response?.data,
-      apiKeyPrefix: process.env.WAVESPEED_API_KEY?.substring(0, 8)
-    });
+    // Try alternate endpoint
+    try {
+      const response2 = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
+        input: {
+          prompt: "A simple blue circle on white background",
+          size: "512*512"
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.WAVESPEED_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      });
+      
+      res.json({
+        success: true,
+        message: 'Wavespeed API v3 model endpoint works!',
+        data: response2.data
+      });
+    } catch (error2) {
+      res.json({
+        success: false,
+        error1: {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        },
+        error2: {
+          message: error2.message,
+          status: error2.response?.status,
+          data: error2.response?.data
+        },
+        apiKeyPrefix: process.env.WAVESPEED_API_KEY?.substring(0, 8),
+        suggestion: 'Check Wavespeed API documentation for correct endpoint format'
+      });
+    }
   }
 });
 
