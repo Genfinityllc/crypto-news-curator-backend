@@ -704,7 +704,8 @@ class ControlNetService {
   }
 
   /**
-   * Build environment prompt based on content analysis
+   * Build HIGH-QUALITY environment prompt with diverse scenes
+   * Based on professional crypto.news style outputs
    */
   buildEnvironmentPrompt(title, style, options = {}) {
     // Use dynamic background analysis if available
@@ -714,18 +715,50 @@ class ControlNetService {
       return analysis.fullPrompt;
     }
     
-    // Fallback to style-based environment
-    const styleEnvironments = {
-      holographic: 'futuristic digital environment with holographic displays and flowing data streams',
-      metallic: 'premium trading floor with sophisticated displays and professional lighting',
-      professional: 'modern corporate workspace with clean architecture and elegant lighting',
-      artistic: 'abstract artistic space with creative geometric elements and dramatic lighting'
-    };
+    // HIGH-QUALITY DIVERSE SCENE TEMPLATES - NOT generic trading floors!
+    const premiumScenes = [
+      // Cyberpunk/Futuristic
+      'massive cyberpunk cityscape at night with towering neon-lit skyscrapers, holographic billboards displaying crypto data, rain-slicked streets reflecting vibrant blue and purple lights, flying vehicles in the distance, atmospheric fog, Blade Runner aesthetic',
+      
+      // Abstract Digital
+      'abstract digital realm with flowing streams of golden light particles, geometric crystalline structures floating in a deep blue void, data visualization ribbons weaving through space, ethereal glow, minimalist futuristic aesthetic',
+      
+      // Space/Cosmic
+      'cosmic scene with a nebula backdrop in deep purples and blues, distant galaxies and stars, a massive translucent planetary ring structure, aurora-like energy waves, cinematic space photography',
+      
+      // Tech Minimal
+      'sleek minimalist environment with clean white surfaces and subtle blue accent lighting, floating geometric shapes casting soft shadows, professional product photography style, Apple-inspired aesthetic',
+      
+      // Underwater Tech
+      'underwater technology environment with bioluminescent elements, translucent structures, flowing caustic light patterns, deep ocean blue atmosphere, scattered light particles floating like plankton',
+      
+      // Crystal Cave
+      'magnificent crystal cavern with massive glowing crystalline formations in cyan and purple hues, light rays piercing through from above, reflective surfaces creating prismatic effects, mystical atmosphere',
+      
+      // Neural Network
+      'visualization of a vast neural network, interconnected nodes pulsing with energy, synaptic connections firing with golden light, deep purple background, abstract technological art',
+      
+      // Quantum Realm
+      'quantum realm environment with probability waves visualized as luminous ribbons, particle effects, mathematical equations floating as holographic displays, scientific visualization aesthetic',
+      
+      // Arctic Tech
+      'futuristic arctic research station at golden hour, pristine ice formations, aurora borealis in the sky, high-tech structures with warm interior lighting contrasting cold blue exterior',
+      
+      // Desert Oasis Tech
+      'modern architectural marvel in a desert setting at sunset, clean geometric buildings with reflective surfaces catching golden and pink light, sand dunes in background, cinematic wide shot'
+    ];
     
-    const environment = styleEnvironments[style] || styleEnvironments.professional;
-    logger.info(`🏢 Using style-based environment: ${environment}`);
+    // Select a scene based on title hash for consistency, or random for variety
+    const titleHash = title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const sceneIndex = titleHash % premiumScenes.length;
+    const selectedScene = premiumScenes[sceneIndex];
     
-    return `${environment}, photorealistic 3D scene with cinematic depth and atmosphere, professional photography quality, 8k resolution`;
+    // Quality modifiers
+    const qualityModifiers = 'ultra detailed, 8k resolution, photorealistic rendering, cinematic lighting, depth of field, volumetric lighting, ray tracing, professional photography, masterpiece quality';
+    
+    logger.info(`🎨 Selected premium scene ${sceneIndex + 1}/${premiumScenes.length}`);
+    
+    return `${selectedScene}, ${qualityModifiers}`;
   }
 
   /**
@@ -1711,11 +1744,14 @@ class ControlNetService {
       // Poll for completion
       const result = await this.pollWavespeedJob(jobId, wavespeedApiKey);
       
-      if (!result || !result.output || !result.output[0]) {
+      // Wavespeed returns 'outputs' (plural) not 'output'
+      const outputs = result.outputs || result.output || [];
+      if (!result || !outputs[0]) {
+        logger.error('Wavespeed result structure:', JSON.stringify(result).substring(0, 500));
         throw new Error('No image URL received from Wavespeed ControlNet');
       }
 
-      const imageUrl = result.output[0];
+      const imageUrl = outputs[0];
       logger.info(`⬇️ Downloading ControlNet image from: ${imageUrl}`);
       
       // Download and process image

@@ -400,6 +400,126 @@ app.post('/api/auto-cover', async (req, res) => {
   }
 });
 
+// 🧪 FULL WAVESPEED CONTROLNET TEST - Debug endpoint
+app.get('/api/test-controlnet-full', async (req, res) => {
+  const axios = require('axios');
+  const sharp = require('sharp');
+  const fs = require('fs').promises;
+  const path = require('path');
+  
+  const symbol = req.query.symbol || 'XRP';
+  const steps = [];
+  
+  try {
+    steps.push('Starting full ControlNet test...');
+    
+    // Step 1: Load logo
+    const ControlNetService = require('./services/controlNetService');
+    const controlNetService = new ControlNetService();
+    
+    steps.push(`Loading ${symbol} logo...`);
+    const logoData = await controlNetService.getPngLogo(symbol);
+    if (!logoData) {
+      return res.json({ success: false, error: `No logo found for ${symbol}`, steps });
+    }
+    steps.push(`✅ Logo loaded: ${logoData.source}, ${logoData.buffer.length} bytes`);
+    
+    // Step 2: Preprocess for ControlNet
+    steps.push('Preprocessing logo for ControlNet...');
+    const controlImage = await controlNetService.preprocessPngForControlNet(logoData.buffer, 1024);
+    const controlImageBase64 = controlImage.toString('base64');
+    steps.push(`✅ Control image: ${controlImage.length} bytes`);
+    
+    // Step 3: Build high-quality prompt
+    const prompt = `Futuristic cryptocurrency scene with ${symbol} logo as a glowing 3D holographic element floating in a cyberpunk environment, volumetric lighting, neon blue and purple accents, digital particles, ultra detailed, 8k, cinematic composition, the ${symbol} symbol is prominently featured as the centerpiece with realistic metallic and glass materials`;
+    steps.push(`✅ Prompt: ${prompt.substring(0, 100)}...`);
+    
+    // Step 4: Submit to Wavespeed
+    steps.push('Submitting to Wavespeed ControlNet...');
+    const wavespeedKey = process.env.WAVESPEED_API_KEY;
+    
+    const submitResponse = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
+      prompt: prompt,
+      control_image: `data:image/png;base64,${controlImageBase64}`,
+      size: "1024*1024",
+      num_inference_steps: 30,
+      guidance_scale: 7.5,
+      controlnet_conditioning_scale: 0.85,
+      control_guidance_start: 0,
+      control_guidance_end: 1.0,
+      num_images: 1,
+      output_format: "jpeg"
+    }, {
+      headers: {
+        'Authorization': `Bearer ${wavespeedKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    });
+    
+    const jobData = submitResponse.data.data || submitResponse.data;
+    steps.push(`✅ Job submitted: ${jobData.id}`);
+    
+    // Step 5: Poll for result
+    steps.push('Polling for result...');
+    let result = null;
+    let attempts = 0;
+    const maxAttempts = 20;
+    
+    while (attempts < maxAttempts) {
+      attempts++;
+      await new Promise(r => setTimeout(r, 3000));
+      
+      const statusResponse = await axios.get(`https://api.wavespeed.ai/api/v3/predictions/${jobData.id}/result`, {
+        headers: { 'Authorization': `Bearer ${wavespeedKey}` }
+      });
+      
+      const statusData = statusResponse.data.data || statusResponse.data;
+      steps.push(`Poll ${attempts}: status=${statusData.status}`);
+      
+      if (statusData.status === 'completed') {
+        result = statusData;
+        break;
+      } else if (statusData.status === 'failed') {
+        return res.json({ success: false, error: statusData.error || 'Generation failed', steps });
+      }
+    }
+    
+    if (!result || !result.outputs || !result.outputs[0]) {
+      return res.json({ success: false, error: 'Timeout waiting for result', steps });
+    }
+    
+    // Step 6: Download and save
+    steps.push(`Downloading image from: ${result.outputs[0]}`);
+    const imageResponse = await axios.get(result.outputs[0], { responseType: 'arraybuffer' });
+    
+    const imageId = `test_controlnet_${Date.now()}`;
+    const imagePath = path.join(__dirname, '..', 'temp', 'controlnet-images', `${imageId}.png`);
+    await fs.mkdir(path.dirname(imagePath), { recursive: true });
+    await fs.writeFile(imagePath, imageResponse.data);
+    
+    const imageUrl = `https://crypto-news-curator-backend-production.up.railway.app/temp/controlnet-images/${imageId}.png`;
+    steps.push(`✅ Image saved: ${imageUrl}`);
+    
+    res.json({
+      success: true,
+      imageUrl,
+      symbol,
+      steps,
+      jobId: jobData.id,
+      method: 'wavespeed_controlnet_full_test'
+    });
+    
+  } catch (error) {
+    steps.push(`❌ Error: ${error.message}`);
+    if (error.response) {
+      steps.push(`Response status: ${error.response.status}`);
+      steps.push(`Response data: ${JSON.stringify(error.response.data || {}).substring(0, 300)}`);
+    }
+    res.json({ success: false, error: error.message, steps });
+  }
+});
+
 // 🧪 WAVESPEED API TEST ENDPOINT
 app.get('/api/test-wavespeed', async (req, res) => {
   const axios = require('axios');
