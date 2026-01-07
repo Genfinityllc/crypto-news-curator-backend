@@ -312,6 +312,27 @@ if (firebaseAuthRoutes) {
 // 📊 AI OUTPUT MONITORING DASHBOARD
 const outputMonitor = require('./services/outputMonitorService');
 
+// 🔑 API KEY DIAGNOSTIC ENDPOINT
+app.get('/api/verify-keys', (req, res) => {
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    keys: {
+      WAVESPEED_API_KEY: process.env.WAVESPEED_API_KEY ? `✅ Set (${process.env.WAVESPEED_API_KEY.substring(0, 8)}...)` : '❌ Not set',
+      HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY ? `✅ Set (${process.env.HUGGINGFACE_API_KEY.substring(0, 8)}...)` : '❌ Not set',
+      HUGGINGFACE_LORA_MODEL: process.env.HUGGINGFACE_LORA_MODEL || '❌ Not set (using default)',
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Not set',
+      SUPABASE_URL: process.env.SUPABASE_URL ? '✅ Set' : '❌ Not set'
+    },
+    controlNetPriority: [
+      process.env.WAVESPEED_API_KEY ? '1. Wavespeed ControlNet ✅' : '1. Wavespeed ControlNet ❌ (skipped)',
+      process.env.HUGGINGFACE_API_KEY ? '2. HuggingFace ControlNet ✅' : '2. HuggingFace ControlNet ❌ (skipped)',
+      '3. Free LoRA + Logo Composite (fallback)',
+      '4. Emergency Composite (last resort)'
+    ]
+  });
+});
+
 // Get monitoring dashboard summary
 app.get('/api/monitor/dashboard', (req, res) => {
   try {
