@@ -377,12 +377,27 @@ app.post('/api/auto-cover', async (req, res) => {
     
     if (result.success) {
       logger.info(`✅ 🎨 Auto-cover generated for ${detectedCrypto}: ${result.imageUrl}`);
+      
+      // If articleId provided, update the article in Supabase with the new cover
+      let databaseUpdated = false;
+      if (articleId) {
+        try {
+          const { updateArticleCoverImage } = require('./config/supabase');
+          await updateArticleCoverImage(articleId, result.imageUrl);
+          databaseUpdated = true;
+          logger.info(`✅ Article ${articleId} cover image updated in database`);
+        } catch (dbError) {
+          logger.warn(`⚠️ Failed to update article ${articleId} cover in database:`, dbError.message);
+        }
+      }
+      
       return res.json({
         success: true,
         imageUrl: result.imageUrl,
         localPath: result.localPath,
         cryptocurrency: detectedCrypto,
         method: result.metadata?.method || 'controlnet',
+        databaseUpdated: databaseUpdated,
         message: '🎨 Universal LoRA cover auto-generated!'
       });
     } else {

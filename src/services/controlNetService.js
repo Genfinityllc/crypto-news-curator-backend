@@ -333,15 +333,19 @@ class ControlNetService {
         try {
           logger.info('🎯 Using Wavespeed ControlNet with actual logo conditioning...');
           logger.info(`🔑 Wavespeed API key: ${process.env.WAVESPEED_API_KEY.substring(0, 8)}...`);
+          
+          // Enhanced 3D logo integration prompt
+          const logo3DPrompt = `${contentPrompt}, featuring a large 3D metallic ${logoSymbol} cryptocurrency coin floating in the scene, the coin has the ${logoSymbol} logo embossed on its surface with realistic metallic reflections, cinematic lighting illuminates the coin creating dramatic shadows and highlights, the coin appears to be made of polished gold and silver metal, depth of field with the coin as the focal point, professional product photography quality, volumetric lighting, 8k ultra detailed render`;
+          
           result = await this.generateWithWavespeedControlNet({
-            prompt: `${contentPrompt}, with ${logoSymbol} cryptocurrency logo integrated as 3D metallic element, the exact ${logoSymbol} symbol with proper branding, realistic lighting and shadows`,
+            prompt: logo3DPrompt,
             controlType: 'canny',
             controlImageBase64: controlImageBase64,
             detected: logoSymbol,
             imageId: imageId,
             options: {
               ...options,
-              controlnet_strength: 0.85 // High strength for accurate logo
+              controlnet_strength: 0.6 // Lower strength for creative 3D interpretation
             }
           });
           method = 'wavespeed_controlnet';
@@ -495,62 +499,109 @@ class ControlNetService {
    */
   async compositeLogoOntoBackground(backgroundPath, logoBuffer, logoSymbol, imageId) {
     try {
-      logger.info(`🔧 Compositing ${logoSymbol} logo onto background...`);
+      logger.info(`🔧 Creating professional 3D logo composite for ${logoSymbol}...`);
       
       // Read background image
       const backgroundBuffer = await fs.readFile(backgroundPath);
       const backgroundMeta = await sharp(backgroundBuffer).metadata();
+      const { width, height } = backgroundMeta;
       
-      // Calculate logo size (30% of image height for visibility)
-      const logoSize = Math.round(backgroundMeta.height * 0.35);
+      // Calculate logo size (40% of image height for prominent visibility like examples)
+      const logoSize = Math.round(height * 0.4);
       
-      // Resize logo with transparency preserved
+      // Create main logo - slightly brightened for metallic effect
       const resizedLogo = await sharp(logoBuffer)
         .resize(logoSize, logoSize, {
           fit: 'contain',
           background: { r: 0, g: 0, b: 0, alpha: 0 }
         })
+        .modulate({ brightness: 1.1, saturation: 1.1 })
         .png()
         .toBuffer();
       
-      // Create a glow effect for 3D appearance
-      const glowLogo = await sharp(logoBuffer)
-        .resize(Math.round(logoSize * 1.1), Math.round(logoSize * 1.1), {
+      // Create outer glow (soft cyan/white glow like holographic effect)
+      const outerGlow = await sharp(logoBuffer)
+        .resize(Math.round(logoSize * 1.3), Math.round(logoSize * 1.3), {
           fit: 'contain',
           background: { r: 0, g: 0, b: 0, alpha: 0 }
         })
-        .blur(15)
-        .modulate({ brightness: 1.5, saturation: 1.2 })
+        .blur(25)
+        .modulate({ brightness: 2.0, saturation: 0.5 })
+        .tint({ r: 100, g: 200, b: 255 }) // Cyan tint
         .png()
         .toBuffer();
       
-      // Center position
-      const logoX = Math.round((backgroundMeta.width - logoSize) / 2);
-      const logoY = Math.round((backgroundMeta.height - logoSize) / 2);
-      const glowX = Math.round((backgroundMeta.width - logoSize * 1.1) / 2);
-      const glowY = Math.round((backgroundMeta.height - logoSize * 1.1) / 2);
+      // Create inner glow (stronger, smaller)
+      const innerGlow = await sharp(logoBuffer)
+        .resize(Math.round(logoSize * 1.15), Math.round(logoSize * 1.15), {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .blur(12)
+        .modulate({ brightness: 1.8, saturation: 1.3 })
+        .png()
+        .toBuffer();
       
-      // Composite with glow effect for 3D look
+      // Create subtle shadow (offset down and right)
+      const shadow = await sharp(logoBuffer)
+        .resize(logoSize, logoSize, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .blur(20)
+        .modulate({ brightness: 0.3 })
+        .png()
+        .toBuffer();
+      
+      // Center position with slight upward offset for floating effect
+      const logoX = Math.round((width - logoSize) / 2);
+      const logoY = Math.round((height - logoSize) / 2) - Math.round(height * 0.02);
+      const outerGlowSize = Math.round(logoSize * 1.3);
+      const innerGlowSize = Math.round(logoSize * 1.15);
+      const outerGlowX = Math.round((width - outerGlowSize) / 2);
+      const outerGlowY = Math.round((height - outerGlowSize) / 2) - Math.round(height * 0.02);
+      const innerGlowX = Math.round((width - innerGlowSize) / 2);
+      const innerGlowY = Math.round((height - innerGlowSize) / 2) - Math.round(height * 0.02);
+      
+      // Shadow offset (down and right for 3D depth)
+      const shadowX = logoX + Math.round(logoSize * 0.03);
+      const shadowY = logoY + Math.round(logoSize * 0.08);
+      
+      // Composite with multiple layers for professional 3D look
       const compositedBuffer = await sharp(backgroundBuffer)
         .composite([
-          // Glow layer (behind logo)
+          // Layer 1: Shadow (bottom layer for depth)
           {
-            input: glowLogo,
-            left: glowX,
-            top: glowY,
+            input: shadow,
+            left: shadowX,
+            top: shadowY,
+            blend: 'multiply'
+          },
+          // Layer 2: Outer glow (holographic effect)
+          {
+            input: outerGlow,
+            left: outerGlowX,
+            top: outerGlowY,
             blend: 'screen'
           },
-          // Main logo
+          // Layer 3: Inner glow (edge highlight)
+          {
+            input: innerGlow,
+            left: innerGlowX,
+            top: innerGlowY,
+            blend: 'screen'
+          },
+          // Layer 4: Main logo (top)
           {
             input: resizedLogo,
             left: logoX,
             top: logoY
           }
         ])
-        .jpeg({ quality: 95 })
+        .png({ quality: 95 })
         .toBuffer();
       
-      // Save composited image as PNG for consistency with getImageUrl()
+      // Save composited image
       const outputPath = path.join(this.imageStorePath, `${imageId}.png`);
       await fs.writeFile(outputPath, compositedBuffer);
       
@@ -559,7 +610,7 @@ class ControlNetService {
         title: `${logoSymbol} Analysis`
       });
       
-      logger.info(`✅ Logo composite complete: ${outputPath}`);
+      logger.info(`✅ Professional 3D logo composite complete: ${outputPath}`);
       return outputPath;
       
     } catch (error) {
