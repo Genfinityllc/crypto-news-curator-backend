@@ -1583,26 +1583,24 @@ class ControlNetService {
       logger.info(`📤 Submitting Enhanced ControlNet job to Wavespeed (${conditioning.primary} strategy)...`);
 
       // Submit generation job with enhanced parameters
-      const response = await axios.post('https://api.wavespeed.ai/api/v3/predictions', {
-        model: "wavespeed-ai/flux-controlnet-union-pro-2.0",
-        input: {
-          prompt: prompt,
-          control_image: `data:image/png;base64,${conditioning.controlImageBase64}`,
-          size: "1024*1024",  // FLUX format
-          num_inference_steps: options.steps || 35, // MORE steps for MAXIMUM quality
-          guidance_scale: options.guidance_scale || 5.0, // MAXIMUM guidance for SVG accuracy
-          controlnet_conditioning_scale: conditioning.strength, // Use our NUCLEAR strength values
-          control_guidance_start: 0,
-          control_guidance_end: 1.0, // FULL GUIDANCE for perfect precision
-          num_images: 1,
-          output_format: "jpeg"
-        }
+      // Fixed API format: prompt at root level, model in URL path
+      const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
+        prompt: prompt,
+        control_image: `data:image/png;base64,${conditioning.controlImageBase64}`,
+        size: "1024*1024",
+        num_inference_steps: options.steps || 35,
+        guidance_scale: options.guidance_scale || 5.0,
+        controlnet_conditioning_scale: conditioning.strength,
+        control_guidance_start: 0,
+        control_guidance_end: 1.0,
+        num_images: 1,
+        output_format: "jpeg"
       }, {
         headers: {
           'Authorization': `Bearer ${wavespeedApiKey}`,
           'Content-Type': 'application/json'
         },
-        timeout: 60000
+        timeout: 120000
       });
 
       if (!response.data.id) {
@@ -1677,26 +1675,24 @@ class ControlNetService {
       logger.info(`📤 Submitting ControlNet generation job to Wavespeed...`);
 
       // Submit generation job to Wavespeed with FLUX ControlNet
-      const response = await axios.post('https://api.wavespeed.ai/api/v3/predictions', {
-        model: "wavespeed-ai/flux-controlnet-union-pro-2.0",
-        input: {
-          prompt: prompt,
-          control_image: `data:image/png;base64,${controlImageBase64}`,
-          size: "1024*1024",  // FLUX format
-          num_inference_steps: options.steps || 35, // MORE steps for MAXIMUM quality
-          guidance_scale: options.guidance_scale || 5.0, // MAXIMUM guidance for SVG accuracy  
-          controlnet_conditioning_scale: options.controlnet_strength || 0.95, // NUCLEAR strength
-          control_guidance_start: 0,
-          control_guidance_end: 1.0, // FULL GUIDANCE for perfect precision
-          num_images: 1,
-          output_format: "jpeg"
-        }
+      // API format: prompt and control_image at root level, not inside 'input'
+      const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
+        prompt: prompt,
+        control_image: `data:image/png;base64,${controlImageBase64}`,
+        size: "1024*1024",
+        num_inference_steps: options.steps || 35,
+        guidance_scale: options.guidance_scale || 5.0,
+        controlnet_conditioning_scale: options.controlnet_strength || 0.95,
+        control_guidance_start: 0,
+        control_guidance_end: 1.0,
+        num_images: 1,
+        output_format: "jpeg"
       }, {
         headers: {
           'Authorization': `Bearer ${wavespeedApiKey}`,
           'Content-Type': 'application/json'
         },
-        timeout: 60000
+        timeout: 120000 // 2 minutes for ControlNet generation
       });
 
       if (!response.data.id) {
