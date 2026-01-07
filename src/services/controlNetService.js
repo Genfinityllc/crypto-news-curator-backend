@@ -306,9 +306,8 @@ class ControlNetService {
     };
     
     try {
-      logger.info(`🎯 CONTROLNET 3D LOGO INTEGRATION: ${logoSymbol}`);
-      logger.info(`📝 Using ACTUAL logo shape as ControlNet guide`);
-      logger.info(`🖼️ AI will render the exact shape as 3D metallic element IN the scene`);
+      logger.info(`🎯 NANO-BANANA-PRO 3D LOGO GENERATION: ${logoSymbol}`);
+      logger.info(`📝 Using Google's image editing model for stunning 3D glass/liquid effect`);
       
       // Get the ACTUAL logo file (100% accurate shape)
       const logoData = await this.getPngLogo(logoSymbol);
@@ -317,21 +316,35 @@ class ControlNetService {
       }
       logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source})`);
       
-      // Prepare logo as control image (white on black for best ControlNet results)
-      const controlImage = await this.prepareLogoForControlNet(logoData.buffer);
-      const controlImageBase64 = controlImage.toString('base64');
-      
-      // Build the scene prompt - describes the logo as a 3D element
-      const scenePrompt = this.get3DScenePromptForLogo(title, logoSymbol);
-      logger.info(`🎨 Scene prompt: ${scenePrompt.substring(0, 200)}...`);
-      
       let imagePath;
       let method = 'unknown';
       
-      // Use Wavespeed ControlNet - feeds actual logo shape to AI
+      // PRIMARY: Use Google Nano-Banana-Pro Edit for stunning 3D glass effect
       if (process.env.WAVESPEED_API_KEY) {
         try {
-          logger.info('🎯 Using Wavespeed ControlNet with actual logo shape...');
+          logger.info('🌟 Using Nano-Banana-Pro image edit for 3D glass/liquid effect...');
+          imagePath = await this.generateWithNanoBananaPro({
+            logoBuffer: logoData.buffer,
+            logoSymbol: logoSymbol,
+            title: title,
+            imageId: imageId
+          });
+          method = 'nano_banana_pro_3d';
+          logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
+        } catch (nanoError) {
+          logger.warn(`⚠️ Nano-Banana-Pro failed: ${nanoError.message}`);
+          imagePath = null;
+        }
+      }
+      
+      // FALLBACK 1: Wavespeed ControlNet
+      if (!imagePath && process.env.WAVESPEED_API_KEY) {
+        try {
+          logger.info('🔄 Trying Wavespeed ControlNet fallback...');
+          const controlImage = await this.prepareLogoForControlNet(logoData.buffer);
+          const controlImageBase64 = controlImage.toString('base64');
+          const scenePrompt = this.get3DScenePromptForLogo(title, logoSymbol);
+          
           imagePath = await this.generateWithLogoControlNet({
             prompt: scenePrompt,
             controlImageBase64: controlImageBase64,
@@ -339,16 +352,16 @@ class ControlNetService {
             imageId: imageId
           });
           method = 'wavespeed_controlnet_3d';
-          logger.info('✅ ControlNet 3D integration succeeded!');
-        } catch (wavespeedError) {
-          logger.warn(`⚠️ Wavespeed ControlNet failed: ${wavespeedError.message}`);
+          logger.info('✅ ControlNet fallback succeeded!');
+        } catch (controlNetError) {
+          logger.warn(`⚠️ ControlNet fallback failed: ${controlNetError.message}`);
           imagePath = null;
         }
       }
       
-      // Fallback: Generate background + 3D metallic composite
+      // FALLBACK 2: Background + 3D metallic composite
       if (!imagePath) {
-        logger.info('🔄 Falling back to background + 3D metallic composite...');
+        logger.info('🔄 Final fallback: background + 3D metallic composite...');
         try {
           const backgroundPrompt = this.getPremiumBackgroundPrompt(title);
           const backgroundPath = await this.generatePollinationsBackground({
@@ -364,7 +377,7 @@ class ControlNetService {
           );
           method = 'fallback_3d_metallic';
         } catch (fallbackError) {
-          logger.error(`⚠️ Fallback failed: ${fallbackError.message}`);
+          logger.error(`⚠️ Final fallback failed: ${fallbackError.message}`);
         }
       }
       
@@ -465,6 +478,98 @@ class ControlNetService {
     
     logger.info(`🎬 Selected scene style ${sceneIndex + 1}/${scenes.length}`);
     return scenes[sceneIndex];
+  }
+  
+  /**
+   * Generate stunning 3D glass/liquid logo using Google Nano-Banana-Pro Edit
+   * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
+   */
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId }) {
+    const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
+    
+    logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
+    
+    // Get the logo URL (we need to host it or use a public URL)
+    // First, upload the logo to a temporary accessible location
+    const logoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
+    await fs.writeFile(logoPath, logoBuffer);
+    const logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
+    
+    // Build premium prompt for 3D glass/liquid effect
+    const prompt = this.getNanoBananaPrompt(logoSymbol, title);
+    logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
+    
+    // Submit to Nano-Banana-Pro Edit API
+    const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
+      prompt: prompt,
+      images: [logoUrl]
+    }, {
+      headers: {
+        'Authorization': `Bearer ${wavespeedApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 120000
+    });
+    
+    const responseData = response.data.data || response.data;
+    if (!responseData.id) {
+      throw new Error('No job ID from Nano-Banana-Pro');
+    }
+    
+    logger.info(`📋 Nano-Banana-Pro job ID: ${responseData.id}`);
+    
+    // Poll for result
+    const result = await this.pollWavespeedJob(responseData.id, wavespeedApiKey);
+    const outputs = result.outputs || result.output || [];
+    if (!outputs[0]) {
+      throw new Error('No image from Nano-Banana-Pro');
+    }
+    
+    logger.info(`⬇️ Downloading Nano-Banana-Pro result...`);
+    
+    const imageResponse = await axios.get(outputs[0], {
+      responseType: 'arraybuffer',
+      timeout: 30000
+    });
+    
+    const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+    await fs.writeFile(imagePath, imageResponse.data);
+    
+    // Clean up temp logo
+    try {
+      await fs.unlink(logoPath);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+    
+    logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
+    return imagePath;
+  }
+  
+  /**
+   * Build premium prompt for Nano-Banana-Pro 3D glass/liquid effect
+   */
+  getNanoBananaPrompt(logoSymbol, title) {
+    const prompts = [
+      // Crystal glass with liquid - BEST QUALITY
+      `A single ${logoSymbol} cryptocurrency logo transformed into stunning 3D crystal glass filled with glowing liquid, hovering above a dramatic reflective black surface scattered with metallic coins featuring the same ${logoSymbol} symbol, deep blue and purple neon lighting, photorealistic 3D render, cinematic lighting, 8k quality`,
+      
+      // Chrome metallic floating
+      `The ${logoSymbol} logo as a massive 3D chrome metallic sculpture floating in a dark void, surrounded by smaller holographic versions, dramatic rim lighting in cyan and magenta, reflective floor showing perfect mirror reflections, professional product photography, ultra detailed`,
+      
+      // Glass orb with symbol
+      `A transparent glass sphere containing a glowing 3D ${logoSymbol} cryptocurrency symbol made of liquid metal, the sphere hovers above a pool of reflective liquid with scattered ${logoSymbol} coins, volumetric fog, neon blue and purple lighting, photorealistic`,
+      
+      // Architectural element
+      `The ${logoSymbol} symbol as a giant 3D metallic architectural element rising from a sea of glowing cryptocurrency coins, dramatic cyberpunk lighting, chrome and glass materials, reflections everywhere, fog and particles, 8k cinematic render`
+    ];
+    
+    // Select based on title hash for variety
+    const hash = title.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const selectedPrompt = prompts[hash % prompts.length];
+    
+    logger.info(`🎬 Nano-Banana prompt style: ${hash % prompts.length + 1}/${prompts.length}`);
+    return selectedPrompt;
   }
   
   /**
