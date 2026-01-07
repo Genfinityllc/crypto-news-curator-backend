@@ -138,33 +138,46 @@ class UniversalStyleCompositor {
 
   /**
    * IMPROVED CONTROLNET: Generate 3D integrated scenes with exact logo accuracy
+   * Enhanced with dynamic background analysis based on article content
    */
   async generateStyleWithLogo(title, logoSymbol, style = 'digital', options = {}) {
     try {
       logger.info(`🎨 IMPROVED CONTROLNET: Generating 3D integrated ${logoSymbol} in ${style} style`);
-      logger.info(`🔧 Using exact logo positioning + reduced conditioning for 3D integration`);
+      logger.info(`🔧 Using exact logo positioning + dynamic content analysis for 3D integration`);
+      
+      // NEW: Analyze article content for dynamic background generation
+      const articleContent = options.articleContent || options.content || '';
+      const contentAnalysisOptions = { articleContent, content: articleContent };
+      const contentAnalysis = this.controlNetService.analyzeArticleForScene(title, contentAnalysisOptions);
+      const dynamicPrompt = {
+        environmentType: contentAnalysis.environment,
+        fullPrompt: contentAnalysis.fullScenePrompt,
+        keywords: contentAnalysis.keywords
+      };
       
       // Map universal styles to ControlNet styles for compatibility
       const controlNetStyle = this.mapToControlNetStyle(style);
       
-      // Use REVOLUTIONARY Two-Stage Depth-Aware ControlNet
+      // Use REVOLUTIONARY Two-Stage Depth-Aware ControlNet with dynamic background
       const result = await this.controlNetService.generateWithAdvancedControlNet(
         title,
         logoSymbol,
         controlNetStyle,
         {
           ...options,
+          dynamicBackgroundPrompt: dynamicPrompt,  // NEW: Dynamic background based on content
           width: 1600,  // High quality cinematic aspect
           height: 900,
           steps: 80,    // High steps for detailed 3D geometry
           guidance_scale: 7.5,
           // REVOLUTIONARY FEATURES:
-          // - Stage 1: Generate high-quality 3D environments
+          // - Stage 1: Generate dynamic content-based 3D environments
           // - Stage 2: Depth-aware logo integration using MiDaS depth maps
           // - Perspective-correct logo placement with environmental interaction
           // - Multiple logo instances at various depths and angles
           style_intensity: 'revolutionary',
-          quality_mode: 'cinematic_3d'
+          quality_mode: 'cinematic_3d',
+          contentAnalysis: dynamicPrompt  // Pass analysis for context
         }
       );
 
@@ -230,6 +243,126 @@ class UniversalStyleCompositor {
     const mappedStyle = styleMapping[universalStyle] || 'holographic';
     logger.info(`🎯 Mapped universal style '${universalStyle}' → ControlNet style '${mappedStyle}'`);
     return mappedStyle;
+  }
+
+  /**
+   * NEW: Analyze article content for dynamic background generation
+   * This replaces static ugly radial backgrounds with content-based environments
+   */
+  analyzeContentForBackground(title, content, logoSymbol, style) {
+    const fullText = `${title} ${content}`.toLowerCase();
+    
+    logger.info(`🧠 Analyzing article content for dynamic background: "${title.substring(0, 50)}..."`);
+    
+    // Detect article themes and generate appropriate backgrounds
+    let environmentType = '';
+    let atmosphereElements = '';
+    let lightingStyle = '';
+    let additionalElements = '';
+    
+    // Technology/Innovation themes
+    if (fullText.includes('technology') || fullText.includes('innovation') || 
+        fullText.includes('breakthrough') || fullText.includes('development') ||
+        fullText.includes('upgrade') || fullText.includes('protocol')) {
+      environmentType = 'high-tech laboratory with advanced holographic displays and floating data visualizations';
+      atmosphereElements = 'blue and white technological lighting, clean futuristic architecture';
+      lightingStyle = 'cool ambient lighting with bright accent highlights';
+    }
+    
+    // Trading/Market themes  
+    else if (fullText.includes('trading') || fullText.includes('market') || 
+             fullText.includes('price') || fullText.includes('exchange') ||
+             fullText.includes('volume') || fullText.includes('chart')) {
+      environmentType = 'sophisticated trading floor with multiple curved displays showing market data';
+      atmosphereElements = 'dynamic candlestick charts, flowing data streams, professional finance environment';
+      lightingStyle = 'dramatic professional lighting with green and red market indicators';
+    }
+    
+    // Financial/Banking themes
+    else if (fullText.includes('bank') || fullText.includes('payment') || 
+             fullText.includes('finance') || fullText.includes('institution') ||
+             fullText.includes('regulatory') || fullText.includes('compliance')) {
+      environmentType = 'premium corporate boardroom with sophisticated digital interfaces';
+      atmosphereElements = 'elegant marble surfaces, floating holographic financial reports, executive presentation setup';
+      lightingStyle = 'warm sophisticated lighting with golden accent tones';
+    }
+    
+    // Security/Privacy themes
+    else if (fullText.includes('security') || fullText.includes('privacy') || 
+             fullText.includes('encryption') || fullText.includes('hack') ||
+             fullText.includes('protection') || fullText.includes('safe')) {
+      environmentType = 'high-security cyber command center with encrypted data visualizations';
+      atmosphereElements = 'digital shield effects, secure network visualization, cyber security aesthetics';
+      lightingStyle = 'dramatic blue and purple cybersecurity lighting with digital effects';
+    }
+    
+    // Partnership/Collaboration themes
+    else if (fullText.includes('partnership') || fullText.includes('collaboration') || 
+             fullText.includes('alliance') || fullText.includes('agreement') ||
+             fullText.includes('integration') || fullText.includes('merge')) {
+      environmentType = 'modern conference space with interconnected digital networks';
+      atmosphereElements = 'flowing connection lines, network nodes, collaborative workspace visualization';
+      lightingStyle = 'bright collaborative lighting with warm interconnection highlights';
+    }
+    
+    // Regulatory/Legal themes
+    else if (fullText.includes('regulation') || fullText.includes('legal') || 
+             fullText.includes('government') || fullText.includes('law') ||
+             fullText.includes('policy') || fullText.includes('compliance')) {
+      environmentType = 'formal government chamber with digital policy documents';
+      atmosphereElements = 'official architecture, digital legislation displays, formal governmental setting';
+      lightingStyle = 'formal institutional lighting with authoritative ambiance';
+    }
+    
+    // Environmental/Sustainability themes
+    else if (fullText.includes('green') || fullText.includes('sustainable') || 
+             fullText.includes('environment') || fullText.includes('carbon') ||
+             fullText.includes('energy') || fullText.includes('eco')) {
+      environmentType = 'sustainable technology center with green energy visualizations';
+      atmosphereElements = 'flowing green energy patterns, eco-friendly tech displays, renewable energy aesthetics';
+      lightingStyle = 'natural green lighting with sustainable technology highlights';
+    }
+    
+    // Default: Modern professional environment
+    else {
+      environmentType = 'sleek modern digital workspace with clean professional architecture';
+      atmosphereElements = 'minimalist tech displays, professional presentation setup, contemporary design elements';
+      lightingStyle = 'clean professional lighting with modern accent highlights';
+    }
+    
+    // Build the complete dynamic prompt
+    const dynamicPrompt = `${environmentType}, ${atmosphereElements}, ${lightingStyle}, 
+    photorealistic 3D environment with cinematic depth and atmosphere, 
+    the ${logoSymbol} cryptocurrency logo naturally integrated into the scene architecture,
+    professional photography quality, 8k resolution, dramatic composition, 
+    absolutely no flat overlays or 2D elements, pure 3D environmental integration`;
+    
+    logger.info(`🎨 Generated dynamic background: ${environmentType}`);
+    return {
+      fullPrompt: dynamicPrompt,
+      environmentType,
+      atmosphereElements,
+      lightingStyle,
+      logoSymbol,
+      themes: this.extractThemes(fullText)
+    };
+  }
+  
+  /**
+   * Extract key themes from article content for background generation
+   */
+  extractThemes(text) {
+    const themes = [];
+    
+    if (text.includes('technology') || text.includes('innovation')) themes.push('technology');
+    if (text.includes('trading') || text.includes('market')) themes.push('trading');
+    if (text.includes('bank') || text.includes('finance')) themes.push('finance');
+    if (text.includes('security') || text.includes('privacy')) themes.push('security');
+    if (text.includes('partnership') || text.includes('collaboration')) themes.push('partnership');
+    if (text.includes('regulation') || text.includes('legal')) themes.push('regulatory');
+    if (text.includes('green') || text.includes('sustainable')) themes.push('environmental');
+    
+    return themes;
   }
 
   /**

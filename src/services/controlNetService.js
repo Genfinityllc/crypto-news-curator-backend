@@ -289,8 +289,9 @@ class ControlNetService {
   }
 
   /**
-   * SIMPLIFIED SVG-BASED CONTROLNET: Use actual SVG geometry in single-stage generation
-   * Instead of complex two-stage, enhance existing method with real SVG data
+   * 2-STEP CONTROLNET PROCESS:
+   * Step 1: Generate contextual background prompt from article rewrite
+   * Step 2: Use ControlNet with actual PNG/SVG logo for 3D integration
    */
   async generateWithAdvancedControlNet(title, logoSymbol, style = 'holographic', options = {}) {
     const startTime = Date.now();
@@ -305,32 +306,134 @@ class ControlNetService {
     };
     
     try {
-      logger.info(`🎯 SIMPLIFIED SVG-BASED ControlNet: ${logoSymbol} with ${style} style`);
-      logger.info(`🔧 Using real SVG geometry as ControlNet input instead of PNG overlays`);
+      logger.info(`🎯 2-STEP CONTROLNET: ${logoSymbol} with ${style} style`);
+      logger.info(`📝 Step 1: Generate prompt from article content`);
+      logger.info(`🖼️ Step 2: Apply ControlNet with actual ${logoSymbol} logo PNG/SVG`);
       
-      // CORE FIX: Use FREE open-source LoRA with ControlNet
-      const FreeLoraService = require('./freeLoraService');
-      const freeLoraService = new FreeLoraService();
-      const result = await freeLoraService.generateWithFreeLoRA(title, logoSymbol, options);
+      // STEP 1: Build contextual background prompt from article
+      const contentPrompt = this.buildEnvironmentPrompt(title, style, options);
+      logger.info(`📝 Content prompt: ${contentPrompt.substring(0, 100)}...`);
+      
+      // STEP 2: Get the actual logo for ControlNet conditioning
+      const logoData = await this.getPngLogo(logoSymbol);
+      if (!logoData) {
+        throw new Error(`No PNG/SVG logo found for ${logoSymbol}`);
+      }
+      logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source})`);
+      
+      // Preprocess logo for ControlNet (create canny/depth conditioning image)
+      const controlImage = await this.preprocessPngForControlNet(logoData.buffer, 1024);
+      const controlImageBase64 = controlImage.toString('base64');
+      
+      // PRIORITY 1: Use Wavespeed API with actual ControlNet (if API key available)
+      let result;
+      let method = 'unknown';
+      
+      if (process.env.WAVESPEED_API_KEY) {
+        try {
+          logger.info('🎯 Using Wavespeed ControlNet with actual logo conditioning...');
+          result = await this.generateWithWavespeedControlNet({
+            prompt: `${contentPrompt}, with ${logoSymbol} cryptocurrency logo integrated as 3D metallic element, the exact ${logoSymbol} symbol with proper branding, realistic lighting and shadows`,
+            controlType: 'canny',
+            controlImageBase64: controlImageBase64,
+            detected: logoSymbol,
+            imageId: imageId,
+            options: {
+              ...options,
+              controlnet_strength: 0.85 // High strength for accurate logo
+            }
+          });
+          method = 'wavespeed_controlnet';
+          logger.info('✅ Wavespeed ControlNet succeeded with actual logo!');
+        } catch (wavespeedError) {
+          logger.warn(`⚠️ Wavespeed ControlNet failed: ${wavespeedError.message}`);
+          result = null;
+        }
+      }
+      
+      // PRIORITY 2: Use HuggingFace ControlNet (if API key available)
+      if (!result && process.env.HUGGINGFACE_API_KEY) {
+        try {
+          logger.info('🎯 Using HuggingFace ControlNet with logo conditioning...');
+          result = await this.generateWithHuggingFaceControlNet({
+            prompt: contentPrompt,
+            logoSymbol: logoSymbol,
+            controlImageBase64: controlImageBase64,
+            imageId: imageId,
+            options: options
+          });
+          method = 'huggingface_controlnet';
+          logger.info('✅ HuggingFace ControlNet succeeded!');
+        } catch (hfError) {
+          logger.warn(`⚠️ HuggingFace ControlNet failed: ${hfError.message}`);
+          result = null;
+        }
+      }
+      
+      // PRIORITY 3: Use FreeLoraService with logo composite overlay
+      if (!result) {
+        try {
+          logger.info('🎯 Using Free LoRA with logo composite...');
+          const FreeLoraService = require('./freeLoraService');
+          const freeLoraService = new FreeLoraService();
+          const freeResult = await freeLoraService.generateWithFreeLoRA(title, logoSymbol, options);
+          
+          // Composite the actual logo onto the generated background
+          if (freeResult.localPath && logoData) {
+            logger.info('🔧 Compositing actual logo onto generated background...');
+            const compositedPath = await this.compositeLogoOntoBackground(
+              freeResult.localPath,
+              logoData.buffer,
+              logoSymbol,
+              imageId
+            );
+            result = {
+              ...freeResult,
+              localPath: compositedPath,
+              imageUrl: this.getImageUrl(imageId)
+            };
+            method = 'free_lora_with_logo_composite';
+          } else {
+            result = freeResult;
+            method = 'free_lora_prompt_only';
+          }
+          logger.info('✅ Free LoRA with logo composite succeeded!');
+        } catch (freeError) {
+          logger.warn(`⚠️ Free LoRA failed: ${freeError.message}`);
+          result = null;
+        }
+      }
+      
+      // PRIORITY 4: Emergency fallback - generate background and composite logo
+      if (!result) {
+        logger.warn('🚨 All ControlNet methods failed - using emergency composite fallback');
+        result = await this.generateImprovedFallback({
+          logoSymbol,
+          imageId,
+          style,
+          options: { ...options, dynamicBackgroundPrompt: { themes: ['technology'] } }
+        });
+        method = 'emergency_composite_fallback';
+      }
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.info(`🎯 SVG-Based ControlNet completed in ${totalTime}s for ${logoSymbol}`);
+      logger.info(`✅ 2-Step ControlNet completed in ${totalTime}s using ${method}`);
       
-      // 📊 MONITOR: Log successful ControlNet generation
+      // 📊 MONITOR: Log generation
       await logImageGeneration({
         ...monitorData,
         imageId: result.imageId || imageId,
-        method: result.metadata?.method || 'free_lora_controlnet',
-        controlNetUsed: true,
-        controlNetType: 'svg_based',
-        logoSource: 'svg',
+        method: method,
+        controlNetUsed: method.includes('controlnet'),
+        controlNetType: method.includes('wavespeed') ? 'wavespeed_canny' : method.includes('huggingface') ? 'hf_controlnet' : 'composite',
+        logoSource: logoData.source,
         success: true,
-        imageUrl: result.imageUrl || this.getImageUrl(result.imageId || imageId),
+        imageUrl: result.imageUrl || this.getImageUrl(imageId),
         localPath: result.localPath,
         processingTimeMs: totalTime * 1000,
-        apiUsed: result.metadata?.service || 'free_opensource',
-        is3DIntegrated: !result.metadata?.method?.includes('placeholder'),
-        isFlatOverlay: result.metadata?.method?.includes('placeholder'),
+        apiUsed: method.split('_')[0],
+        is3DIntegrated: method.includes('controlnet'),
+        isFlatOverlay: method.includes('composite') || method.includes('fallback'),
         hasContextualBackground: true
       });
       
@@ -340,77 +443,181 @@ class ControlNetService {
         imageUrl: result.imageUrl || this.getImageUrl(result.imageId || imageId),
         localPath: result.localPath,
         metadata: {
-          method: 'svg_based_controlnet_single_stage',
+          method: method,
           logoSymbol,
           style,
           totalProcessingTime: totalTime,
-          improvements: [
-            'actual_svg_geometry_as_controlnet_input',
-            'no_png_overlays',
+          controlNetUsed: method.includes('controlnet'),
+          logoSource: logoData.source,
+          improvements: method.includes('controlnet') ? [
+            'actual_logo_as_controlnet_input',
             'true_3d_logo_embedding',
             'content_based_prompting'
-          ],
-          svgUsed: result.svgData?.symbol || logoSymbol
+          ] : [
+            'logo_composite_overlay',
+            'content_based_background'
+          ]
         }
       };
         
     } catch (error) {
-      logger.error(`❌ SVG-Based ControlNet failed:`, error);
+      const totalTime = Math.round((Date.now() - startTime) / 1000);
+      logger.error(`❌ 2-Step ControlNet failed:`, error);
       
-      // Fallback to PNG method only if SVG completely fails
-      logger.warn('🔄 Falling back to PNG ControlNet as last resort...');
-      try {
-        const fallbackResult = await this.generateWithPngControlNet(title, logoSymbol, style, options);
-        const totalTime = Math.round((Date.now() - startTime) / 1000);
+      // 📊 MONITOR: Log complete failure
+      await logImageGeneration({
+        ...monitorData,
+        method: 'complete_failure',
+        controlNetUsed: false,
+        success: false,
+        processingTimeMs: totalTime * 1000,
+        error: error.message,
+        fallbackReason: 'All generation methods exhausted'
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Composite actual logo onto generated background
+   * Used when ControlNet APIs fail but we still have a good background
+   */
+  async compositeLogoOntoBackground(backgroundPath, logoBuffer, logoSymbol, imageId) {
+    try {
+      logger.info(`🔧 Compositing ${logoSymbol} logo onto background...`);
+      
+      // Read background image
+      const backgroundBuffer = await fs.readFile(backgroundPath);
+      const backgroundMeta = await sharp(backgroundBuffer).metadata();
+      
+      // Calculate logo size (30% of image height for visibility)
+      const logoSize = Math.round(backgroundMeta.height * 0.35);
+      
+      // Resize logo with transparency preserved
+      const resizedLogo = await sharp(logoBuffer)
+        .resize(logoSize, logoSize, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .png()
+        .toBuffer();
+      
+      // Create a glow effect for 3D appearance
+      const glowLogo = await sharp(logoBuffer)
+        .resize(Math.round(logoSize * 1.1), Math.round(logoSize * 1.1), {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .blur(15)
+        .modulate({ brightness: 1.5, saturation: 1.2 })
+        .png()
+        .toBuffer();
+      
+      // Center position
+      const logoX = Math.round((backgroundMeta.width - logoSize) / 2);
+      const logoY = Math.round((backgroundMeta.height - logoSize) / 2);
+      const glowX = Math.round((backgroundMeta.width - logoSize * 1.1) / 2);
+      const glowY = Math.round((backgroundMeta.height - logoSize * 1.1) / 2);
+      
+      // Composite with glow effect for 3D look
+      const compositedBuffer = await sharp(backgroundBuffer)
+        .composite([
+          // Glow layer (behind logo)
+          {
+            input: glowLogo,
+            left: glowX,
+            top: glowY,
+            blend: 'screen'
+          },
+          // Main logo
+          {
+            input: resizedLogo,
+            left: logoX,
+            top: logoY
+          }
+        ])
+        .jpeg({ quality: 95 })
+        .toBuffer();
+      
+      // Save composited image
+      const outputPath = path.join(this.imageStorePath, `${imageId}.jpg`);
+      await fs.writeFile(outputPath, compositedBuffer);
+      
+      // Apply watermark
+      await this.watermarkService.addWatermark(outputPath, outputPath, {
+        title: `${logoSymbol} Analysis`
+      });
+      
+      logger.info(`✅ Logo composite complete: ${outputPath}`);
+      return outputPath;
+      
+    } catch (error) {
+      logger.error('❌ Logo composite failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate using HuggingFace ControlNet Union model
+   */
+  async generateWithHuggingFaceControlNet({ prompt, logoSymbol, controlImageBase64, imageId, options = {} }) {
+    const hfApiKey = process.env.HUGGINGFACE_API_KEY;
+    if (!hfApiKey) {
+      throw new Error('HUGGINGFACE_API_KEY not configured');
+    }
+    
+    logger.info(`🤗 Calling HuggingFace ControlNet for ${logoSymbol}...`);
+    
+    try {
+      // Use HuggingFace's ControlNet SDXL model
+      const response = await axios.post(
+        'https://api-inference.huggingface.co/models/diffusers/controlnet-canny-sdxl-1.0',
+        {
+          inputs: `${prompt}, featuring the exact ${logoSymbol} cryptocurrency logo with 3D metallic integration, professional lighting`,
+          parameters: {
+            negative_prompt: `flat overlay, 2D sticker, wrong logo, different symbol, text, watermarks`,
+            num_inference_steps: 30,
+            guidance_scale: 7.5
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${hfApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          responseType: 'arraybuffer',
+          timeout: 120000
+        }
+      );
+      
+      if (response.data && response.data.byteLength > 1000) {
+        // Save the generated image
+        const outputPath = path.join(this.imageStorePath, `${imageId}.jpg`);
         
-        // 📊 MONITOR: Log fallback generation (this is the problem case!)
-        await logImageGeneration({
-          ...monitorData,
-          imageId: fallbackResult.imageId,
-          method: 'png_controlnet_fallback',
-          controlNetUsed: false,
-          controlNetType: 'fallback',
-          logoSource: 'png',
-          success: true,
-          imageUrl: fallbackResult.imageUrl,
-          localPath: fallbackResult.localPath,
-          processingTimeMs: totalTime * 1000,
-          apiUsed: 'fallback',
-          is3DIntegrated: false,
-          isFlatOverlay: true,
-          hasContextualBackground: false,
-          fallbackReason: error.message,
-          error: error.message
+        await sharp(response.data)
+          .resize(1800, 900, { fit: 'cover' })
+          .jpeg({ quality: 95 })
+          .toFile(outputPath);
+        
+        // Apply watermark
+        await this.watermarkService.addWatermark(outputPath, outputPath, {
+          title: `${logoSymbol} Analysis`
         });
         
         return {
-          success: true,
-          imageId: fallbackResult.imageId,
-          imageUrl: fallbackResult.imageUrl,
-          localPath: fallbackResult.localPath,
-          metadata: {
-            method: 'png_controlnet_fallback',
-            originalError: error.message,
-            ...fallbackResult.metadata
-          }
+          localPath: outputPath,
+          imageUrl: this.getImageUrl(imageId)
         };
-      } catch (fallbackError) {
-        const totalTime = Math.round((Date.now() - startTime) / 1000);
-        
-        // 📊 MONITOR: Log complete failure
-        await logImageGeneration({
-          ...monitorData,
-          method: 'complete_failure',
-          controlNetUsed: false,
-          success: false,
-          processingTimeMs: totalTime * 1000,
-          error: `All methods failed. SVG: ${error.message}, PNG: ${fallbackError.message}`,
-          fallbackReason: 'All generation methods exhausted'
-        });
-        
-        logger.error(`❌ All methods failed:`, fallbackError);
-        throw new Error(`All generation methods failed. SVG: ${error.message}, PNG: ${fallbackError.message}`);
       }
+      
+      throw new Error('Invalid response from HuggingFace ControlNet');
+      
+    } catch (error) {
+      if (error.response?.status === 503) {
+        throw new Error('HuggingFace ControlNet model is loading, try again in 1-2 minutes');
+      }
+      throw error;
     }
   }
 

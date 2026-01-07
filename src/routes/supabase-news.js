@@ -1304,7 +1304,12 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
       hostedResult = await universalStyleCompositor.generateStyleWithLogo(
         article.title,
         detectedEntity.detected,
-        selectedStyle
+        selectedStyle,
+        {
+          articleContent: article.content || article.description || '',  // NEW: Pass full content for analysis
+          category: article.category || '',
+          url: article.url || ''
+        }
       );
     } else {
       // No specific cryptocurrency detected - use generic crypto generation
@@ -1319,7 +1324,12 @@ router.post('/generate-lora-image/:id?', async (req, res) => {
       hostedResult = await universalStyleCompositor.generateStyleWithLogo(
         article.title,
         'ETH', // Default to Ethereum for generic crypto articles (more neutral)
-        selectedStyle
+        selectedStyle,
+        {
+          articleContent: article.content || article.description || '',  // NEW: Pass full content for analysis
+          category: article.category || '',
+          url: article.url || ''
+        }
       );
     }
 
