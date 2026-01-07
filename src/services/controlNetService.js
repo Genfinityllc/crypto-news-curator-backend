@@ -1603,11 +1603,14 @@ class ControlNetService {
         timeout: 120000
       });
 
-      if (!response.data.id) {
+      // Wavespeed API returns nested data structure: { code, message, data: { id, status, ... } }
+      const responseData = response.data.data || response.data;
+      if (!responseData.id) {
+        logger.error('Wavespeed response structure:', JSON.stringify(response.data).substring(0, 500));
         throw new Error('No job ID received from Enhanced Wavespeed ControlNet API');
       }
 
-      const jobId = response.data.id;
+      const jobId = responseData.id;
       logger.info(`✅ Enhanced ControlNet job submitted: ${jobId} (${conditioning.description})`);
       
       // Poll for completion
@@ -1695,11 +1698,14 @@ class ControlNetService {
         timeout: 120000 // 2 minutes for ControlNet generation
       });
 
-      if (!response.data.id) {
+      // Wavespeed API returns nested data structure: { code, message, data: { id, status, ... } }
+      const responseData = response.data.data || response.data;
+      if (!responseData.id) {
+        logger.error('Wavespeed response structure:', JSON.stringify(response.data).substring(0, 500));
         throw new Error('No job ID received from Wavespeed ControlNet API');
       }
 
-      const jobId = response.data.id;
+      const jobId = responseData.id;
       logger.info(`✅ ControlNet job submitted: ${jobId}`);
       
       // Poll for completion
