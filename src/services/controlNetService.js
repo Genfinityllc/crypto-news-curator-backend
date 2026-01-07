@@ -306,74 +306,60 @@ class ControlNetService {
     };
     
     try {
-      logger.info(`🎯 PREMIUM 2-STEP GENERATION: ${logoSymbol}`);
-      logger.info(`📝 Step 1: Generate stunning background (NO crypto logos)`);
-      logger.info(`🖼️ Step 2: Professional 3D logo composite with lighting effects`);
+      logger.info(`🎯 FULL 3D COIN GENERATION: ${logoSymbol}`);
+      logger.info(`📝 AI generates ENTIRE image including 3D metallic coin with logo`);
+      logger.info(`🚫 NO logo compositing - AI renders the 3D coin directly`);
       
-      // Get the logo first
-      const logoData = await this.getPngLogo(logoSymbol);
-      if (!logoData) {
-        throw new Error(`No PNG/SVG logo found for ${logoSymbol}`);
-      }
-      logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source})`);
+      // Get the FULL 3D coin prompt (includes logo description)
+      const coinPrompt = this.get3DCoinPrompt(title, logoSymbol);
+      const negativePrompt = this.getEnhancedNegativePrompt(logoSymbol);
       
-      // STEP 1: Generate STUNNING BACKGROUND (no logos, no crypto coins in prompt)
-      const backgroundPrompt = this.getPremiumBackgroundPrompt(title, logoSymbol);
-      const negativePrompt = this.getNegativePromptForCrypto(logoSymbol);
+      logger.info(`🎨 3D Coin prompt: ${coinPrompt.substring(0, 200)}...`);
       
-      logger.info(`🎨 Background prompt: ${backgroundPrompt.substring(0, 150)}...`);
-      logger.info(`🚫 Negative prompt: ${negativePrompt.substring(0, 100)}...`);
-      
-      let backgroundPath;
+      let imagePath;
       let method = 'unknown';
       
-      // Use Wavespeed for HIGH QUALITY background generation (no ControlNet)
+      // Use Wavespeed for HIGH QUALITY full image generation
       if (process.env.WAVESPEED_API_KEY) {
         try {
-          logger.info('🌟 Generating premium background with Wavespeed (no ControlNet)...');
-          backgroundPath = await this.generatePremiumBackground({
-            prompt: backgroundPrompt,
+          logger.info('🌟 Generating full 3D coin image with Wavespeed...');
+          imagePath = await this.generateFull3DCoinImage({
+            prompt: coinPrompt,
             negativePrompt: negativePrompt,
             imageId: imageId
           });
-          method = 'wavespeed_premium_composite';
-          logger.info('✅ Premium background generated!');
+          method = 'wavespeed_full_3d_coin';
+          logger.info('✅ Full 3D coin image generated!');
         } catch (wavespeedError) {
-          logger.warn(`⚠️ Wavespeed background failed: ${wavespeedError.message}`);
-          backgroundPath = null;
+          logger.warn(`⚠️ Wavespeed failed: ${wavespeedError.message}`);
+          imagePath = null;
         }
       }
       
-      // Fallback to Pollinations for background
-      if (!backgroundPath) {
+      // Fallback to Pollinations
+      if (!imagePath) {
         try {
-          logger.info('🎨 Using Pollinations for background...');
-          backgroundPath = await this.generatePollinationsBackground({
-            prompt: backgroundPrompt,
+          logger.info('🎨 Using Pollinations for 3D coin generation...');
+          imagePath = await this.generatePollinationsCoin({
+            prompt: coinPrompt,
             imageId: imageId
           });
-          method = 'pollinations_premium_composite';
-          logger.info('✅ Pollinations background generated!');
+          method = 'pollinations_full_3d_coin';
+          logger.info('✅ Pollinations 3D coin generated!');
         } catch (pollError) {
           logger.warn(`⚠️ Pollinations failed: ${pollError.message}`);
         }
       }
       
-      if (!backgroundPath) {
-        throw new Error('All background generation methods failed');
+      if (!imagePath) {
+        throw new Error('All generation methods failed');
       }
       
-      // STEP 2: Professional 3D Logo Composite
-      logger.info('🔧 Applying professional 3D logo composite...');
-      const finalPath = await this.applyPremium3DLogoComposite(
-        backgroundPath,
-        logoData.buffer,
-        logoSymbol,
-        imageId
-      );
+      // Apply watermark only (NO logo composite)
+      await this.watermarkService.addWatermark(imagePath, imagePath, { title: logoSymbol });
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.info(`✅ Premium generation completed in ${totalTime}s using ${method}`);
+      logger.info(`✅ Full 3D generation completed in ${totalTime}s using ${method}`);
       
       // 📊 MONITOR: Log generation
       await logImageGeneration({
@@ -381,42 +367,43 @@ class ControlNetService {
         imageId: imageId,
         method: method,
         controlNetUsed: false,
-        controlNetType: 'premium_composite',
-        logoSource: logoData.source,
+        controlNetType: 'full_ai_3d_render',
+        logoSource: 'ai_generated_3d',
         success: true,
         imageUrl: this.getImageUrl(imageId),
-        localPath: finalPath,
+        localPath: imagePath,
         processingTimeMs: totalTime * 1000,
         apiUsed: method.split('_')[0],
         is3DIntegrated: true,
         isFlatOverlay: false,
         hasContextualBackground: true,
-        backgroundPrompt: backgroundPrompt.substring(0, 200)
+        promptUsed: coinPrompt.substring(0, 300)
       });
       
       return {
         success: true,
         imageId: imageId,
         imageUrl: this.getImageUrl(imageId),
-        localPath: finalPath,
+        localPath: imagePath,
         metadata: {
           method: method,
           logoSymbol,
           style,
           totalProcessingTime: totalTime,
-          backgroundPrompt: backgroundPrompt.substring(0, 100),
+          promptUsed: coinPrompt.substring(0, 150),
           improvements: [
-            'premium_background_generation',
-            'professional_3d_logo_composite',
-            'no_wrong_crypto_symbols',
-            'diverse_cinematic_scenes'
+            'full_ai_3d_coin_render',
+            'no_flat_logo_composite',
+            'chrome_metallic_finish',
+            'proper_3d_lighting',
+            'style_matches_examples'
           ]
         }
       };
         
     } catch (error) {
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.error(`❌ Premium generation failed:`, error);
+      logger.error(`❌ Full 3D generation failed:`, error);
       
       await logImageGeneration({
         ...monitorData,
@@ -432,95 +419,106 @@ class ControlNetService {
   }
   
   /**
-   * Get premium background prompt - DIVERSE, HIGH QUALITY scenes
-   * Based on user's example outputs - NO trading floors, NO generic offices
+   * Get FULL 3D COIN/TOKEN prompt - based on user's example outputs
+   * The AI generates the ENTIRE image including the 3D logo - NO compositing
    */
-  getPremiumBackgroundPrompt(title, logoSymbol) {
-    // 15 STUNNING DIVERSE SCENES - like user's example outputs
-    const premiumScenes = [
-      // Cosmic/Space
-      'vast cosmic nebula with swirling purple and blue gases, distant stars and galaxies, ethereal light rays piercing through cosmic dust, deep space photography style, NASA Hubble quality, ultra high definition',
+  get3DCoinPrompt(title, logoSymbol) {
+    // Symbol descriptions for accurate rendering
+    const symbolDescriptions = {
+      'XRP': 'stylized X shape with curved lines',
+      'BTC': 'Bitcoin B symbol with two vertical lines',
+      'ETH': 'Ethereum diamond shape',
+      'SOL': 'Solana angular S shape with three horizontal bars',
+      'HBAR': 'Hedera H symbol with horizontal bar',
+      'ADA': 'Cardano starburst symbol',
+      'DOGE': 'Dogecoin D symbol',
+      'DOT': 'Polkadot circular pattern',
+      'AVAX': 'Avalanche A mountain shape',
+      'MATIC': 'Polygon angular M shape',
+      'LINK': 'Chainlink hexagon chain',
+      'UNI': 'Uniswap unicorn symbol'
+    };
+    
+    const symbolDesc = symbolDescriptions[logoSymbol.toUpperCase()] || `${logoSymbol} cryptocurrency symbol`;
+    
+    // 12 PREMIUM PROMPT TEMPLATES - based on user's actual example outputs
+    const coinPrompts = [
+      // Style 1: Multiple floating 3D coins (like XRP13.jpg)
+      `multiple floating 3D cryptocurrency coins at different angles and depths, each coin has a ${symbolDesc} embossed in raised WHITE SILVER metal on dark metallic face, coins have CHROME IRIDESCENT holographic rainbow edges with neon cyan and magenta rim lighting, coins are tilted showing thickness and perspective, dark deep blue-black background with subtle blue glow, depth of field blur on distant coins, professional 3D render quality, Octane render, 8k`,
       
-      // Neon Cyberpunk City
-      'aerial view of neon-lit cyberpunk megacity at night, towering skyscrapers with holographic advertisements, rain-slicked streets reflecting colorful lights, flying vehicles, Blade Runner 2049 cinematography, atmospheric fog',
+      // Style 2: Server room architectural (like XRP20.jpg)
+      `massive 3D brushed metal ${symbolDesc} as architectural element in futuristic server room corridor, the symbol has NEON CYAN edge lighting and chrome metallic finish, rows of server racks on both sides with purple and cyan holographic displays, metallic coins scattered on floor, dramatic one-point perspective, cyberpunk lighting, purple and cyan neon accents, professional 3D visualization`,
       
-      // Crystal Cave
-      'magnificent underground crystal cavern with massive glowing amethyst and quartz formations, bioluminescent pools of water, light rays filtering from above creating prismatic rainbows, fantasy art quality',
+      // Style 3: Single glowing sphere/orb (like HBAR1.jpg)
+      `glowing 3D sphere with ${symbolDesc} displayed in WHITE on the surface, sphere has vibrant PURPLE MAGENTA gradient glow, sitting on dark reflective surface casting purple light, dark background with floating particles and subtle purple lighting accents, clean minimalist composition, professional product photography lighting`,
       
-      // Abstract Energy Flow
-      'abstract visualization of flowing energy streams, luminous ribbons of cyan and gold light weaving through dark space, particle effects, sacred geometry patterns, digital art masterpiece',
+      // Style 4: Abstract glitch background (like HBAR10.jpg)
+      `3D black metallic coin puck with WHITE ${symbolDesc} raised on face, chrome silver beveled edge, vibrant abstract GLITCH ART background with flowing pink magenta blue and gold streaks, digital distortion effects, motion blur energy, the coin is sharp and in focus against blurred dynamic background, contemporary digital art`,
       
-      // Northern Lights
-      'dramatic aurora borealis over snow-capped mountains, vivid green and purple lights dancing across starry sky, pristine frozen lake reflecting the colors, National Geographic photography',
+      // Style 5: Cosmic floating coins (like XRP17.jpg)
+      `3D metallic cryptocurrency coins floating in cosmic space, main coin features ${symbolDesc} in RAISED WHITE SILVER on dark face with CHROME rim, secondary blurred coins at different depths, swirling PURPLE TEAL cosmic nebula background with cyan particle effects and stars, depth of field, cinematic space photography style`,
       
-      // Underwater Realm
-      'deep ocean bioluminescent scene, glowing jellyfish and sea creatures, underwater light rays, mysterious deep blue atmosphere, BBC Planet Earth documentary quality',
+      // Style 6: Energy ring portal (like HBAR5.jpg)  
+      `circular 3D token with ${symbolDesc} in bright WHITE on BLACK face, surrounded by glowing PURPLE chrome energy ring, abstract CYAN GREEN flowing liquid metal energy streams radiating outward, dark background with motion blur streaks, futuristic portal effect, professional 3D render`,
       
-      // Digital Matrix
-      'stylized digital realm with flowing data streams and code, geometric shapes floating in cyan void, holographic grid floors, Tron Legacy aesthetic, clean futuristic design',
+      // Style 7: Network connections (like SOLANA3.png)
+      `glowing 3D orb with ${symbolDesc} as gradient CYAN to PURPLE metallic element inside, orb has soft glow effect, surrounded by network constellation connection points with thin glowing lines, dark TEAL to PURPLE gradient background, blockchain visualization aesthetic, clean modern design`,
       
-      // Volcanic Lightning
-      'dramatic volcanic eruption with lightning strikes, molten lava rivers, ash clouds illuminated by orange glow, powerful natural forces, cinematic wide shot',
+      // Style 8: Tilted green chrome coins (like xrp5.jpg)
+      `multiple 3D cryptocurrency coins with GREEN CHROME metallic finish, ${symbolDesc} embossed in contrasting color on face, coins tilted at dynamic angles showing ridged edges, purple gradient background with abstract geometric white shapes, professional product render style`,
       
-      // Zen Garden Future
-      'futuristic zen garden with floating stones, holographic cherry blossoms, minimalist architecture, soft ambient lighting, peaceful yet technological atmosphere',
+      // Style 9: Hourglass integration (like SOLANA1.png)
+      `3D metallic coin with ${symbolDesc} in SILVER on face, coin embedded in stylized PURPLE abstract flowing shape, dark background with subtle grid pattern, clean geometric design, the coin has proper lighting and chrome edge, minimalist futuristic aesthetic`,
       
-      // Quantum Field
-      'visualization of quantum field with probability waves, subatomic particles as glowing orbs, deep blue and violet color scheme, scientific visualization art',
+      // Style 10: Dark token with energy (like HBAR variations)
+      `3D dark metallic token with ${symbolDesc} glowing in WHITE CYAN, purple NEON ring edge lighting, floating against dark void background with subtle MAGENTA and TEAL energy wisps, the symbol appears illuminated from within, dramatic product lighting`,
       
-      // Ancient Temple Tech
-      'ancient temple ruins merged with advanced technology, holographic symbols floating around stone pillars, mystical fog, golden hour lighting, Indiana Jones meets Blade Runner',
+      // Style 11: Iridescent coins depth (like XRP13.jpg variant)
+      `3D cryptocurrency coins with IRIDESCENT RAINBOW chrome finish, ${symbolDesc} with ribbed texture raised on face, multiple coins at different depths creating dynamic composition, DARK BLUE background with soft blue glow, holographic reflections on coin surfaces, premium 3D product render`,
       
-      // Arctic Research
-      'futuristic arctic research station under northern lights, geometric domes on ice shelf, warm interior lights contrasting cold blue exterior, isolation and wonder',
-      
-      // Neon Forest
-      'bioluminescent forest at night with glowing plants and mushrooms, fireflies creating trails of light, magical atmosphere, Avatar-inspired environment',
-      
-      // Solar Flare
-      'close-up of solar surface with massive flare eruption, plasma loops and magnetic field visualization, orange and yellow energy, NASA solar observatory style',
-      
-      // Abstract Liquid Metal
-      'flowing liquid chrome and gold in zero gravity, metallic droplets forming impossible shapes, reflective surfaces catching rainbow light, experimental art photography'
+      // Style 12: Clean minimal glow
+      `single 3D metallic coin centered, ${symbolDesc} in crisp WHITE on DARK face, coin has subtle CYAN glow emanating from edges, clean dark PURPLE to BLACK gradient background with minimal particle effects, professional minimalist design, sharp focus product photography`
     ];
     
-    // Select based on title hash for variety
+    // Select based on title hash
     const titleHash = title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const sceneIndex = titleHash % premiumScenes.length;
-    const selectedScene = premiumScenes[sceneIndex];
+    const promptIndex = titleHash % coinPrompts.length;
+    const selectedPrompt = coinPrompts[promptIndex];
     
-    // Quality enhancers
-    const quality = 'masterpiece quality, ultra detailed, 8k resolution, professional photography, cinematic composition, perfect lighting, sharp focus';
+    logger.info(`🎨 Selected coin style ${promptIndex + 1}/${coinPrompts.length}`);
     
-    logger.info(`🎬 Selected scene ${sceneIndex + 1}/${premiumScenes.length}: ${selectedScene.substring(0, 50)}...`);
+    // Quality suffix
+    const quality = ', masterpiece quality, ultra detailed, 8k resolution, professional lighting, sharp focus, no text, no watermarks';
     
-    return `${selectedScene}, ${quality}`;
+    return selectedPrompt + quality;
   }
   
   /**
-   * Negative prompt to prevent wrong cryptocurrency symbols
+   * Enhanced negative prompt for better quality
    */
-  getNegativePromptForCrypto(targetSymbol) {
+  getEnhancedNegativePrompt(targetSymbol) {
     const allCryptos = ['bitcoin', 'btc', 'ethereum', 'eth', 'xrp', 'ripple', 'solana', 'sol', 'cardano', 'ada', 'dogecoin', 'doge', 'litecoin', 'ltc', 'polkadot', 'chainlink', 'bnb', 'binance'];
     
     // Remove the target crypto from negative prompts
     const negatives = allCryptos.filter(c => !c.toLowerCase().includes(targetSymbol.toLowerCase()) && !targetSymbol.toLowerCase().includes(c));
     
-    return `${negatives.join(', ')} logo, ${negatives.join(' coin, ')} coin, cryptocurrency symbol, crypto coin, trading floor, office interior, computer monitors, stock charts, financial graphs, text, watermark, signature, blurry, low quality, distorted`;
+    return `${negatives.join(' logo, ')} logo, ${negatives.join(' coin, ')} coin, wrong symbol, incorrect logo, trading floor, office, desk, computer monitors, stock charts, realistic human, person, face, text overlay, watermark, signature, blurry, low quality, distorted, stretched, amateur, cartoon, anime, sketch, painting style, flat 2d logo overlay, sticker effect`;
   }
   
   /**
-   * Generate premium background using Wavespeed (no ControlNet)
+   * Generate FULL 3D coin image with Wavespeed - NO compositing
    */
-  async generatePremiumBackground({ prompt, negativePrompt, imageId }) {
+  async generateFull3DCoinImage({ prompt, negativePrompt, imageId }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
-    // Use standard FLUX model for background (not ControlNet)
+    logger.info('🎨 Generating full 3D coin with Wavespeed FLUX...');
+    
+    // Use FLUX for high quality 3D render
     const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-dev', {
       prompt: prompt,
       negative_prompt: negativePrompt,
-      size: "1024*1024",
-      num_inference_steps: 30,
+      size: "1792*1024", // Wide aspect ratio like examples
+      num_inference_steps: 35, // Higher quality
       guidance_scale: 7.5,
       num_images: 1,
       output_format: "png"
@@ -529,7 +527,7 @@ class ControlNetService {
         'Authorization': `Bearer ${wavespeedApiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 120000
+      timeout: 180000 // 3 minutes
     });
     
     const responseData = response.data.data || response.data;
@@ -537,148 +535,49 @@ class ControlNetService {
       throw new Error('No job ID received from Wavespeed');
     }
     
+    logger.info(`📋 Wavespeed job ID: ${responseData.id}`);
+    
     const result = await this.pollWavespeedJob(responseData.id, wavespeedApiKey);
     const outputs = result.outputs || result.output || [];
     if (!outputs[0]) {
       throw new Error('No image URL from Wavespeed');
     }
     
-    // Download background
+    logger.info(`⬇️ Downloading generated image...`);
+    
+    // Download the full image
     const imageResponse = await axios.get(outputs[0], {
       responseType: 'arraybuffer',
       timeout: 30000
     });
     
-    const backgroundPath = path.join(this.imageStorePath, `${imageId}_bg.png`);
-    await fs.writeFile(backgroundPath, imageResponse.data);
+    const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+    await fs.writeFile(imagePath, imageResponse.data);
     
-    return backgroundPath;
+    logger.info(`✅ Full 3D coin image saved: ${imagePath}`);
+    return imagePath;
   }
   
   /**
-   * Generate background using Pollinations (free fallback)
+   * Generate 3D coin with Pollinations (free fallback)
    */
-  async generatePollinationsBackground({ prompt, imageId }) {
+  async generatePollinationsCoin({ prompt, imageId }) {
+    logger.info('🎨 Generating 3D coin with Pollinations...');
+    
     const encodedPrompt = encodeURIComponent(prompt);
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
+    // Use wider aspect ratio
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1792&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
     
     const response = await axios.get(pollinationsUrl, {
       responseType: 'arraybuffer',
-      timeout: 60000
+      timeout: 120000 // 2 minutes for quality generation
     });
     
-    const backgroundPath = path.join(this.imageStorePath, `${imageId}_bg.png`);
-    await fs.writeFile(backgroundPath, response.data);
+    const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
+    await fs.writeFile(imagePath, response.data);
     
-    return backgroundPath;
-  }
-  
-  /**
-   * Apply PREMIUM 3D logo composite with professional lighting effects
-   */
-  async applyPremium3DLogoComposite(backgroundPath, logoBuffer, logoSymbol, imageId) {
-    logger.info(`🔧 Creating PREMIUM 3D logo composite for ${logoSymbol}...`);
-    
-    const backgroundBuffer = await fs.readFile(backgroundPath);
-    const backgroundMeta = await sharp(backgroundBuffer).metadata();
-    const { width, height } = backgroundMeta;
-    
-    // Logo size - 35% of height for prominent but balanced look
-    const logoSize = Math.round(height * 0.35);
-    
-    // Create main logo with enhanced brightness and saturation
-    const mainLogo = await sharp(logoBuffer)
-      .resize(logoSize, logoSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .modulate({ brightness: 1.2, saturation: 1.2 })
-      .png()
-      .toBuffer();
-    
-    // Create LARGE outer glow (holographic aura effect)
-    const outerGlowSize = Math.round(logoSize * 1.5);
-    const outerGlow = await sharp(logoBuffer)
-      .resize(outerGlowSize, outerGlowSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .blur(30)
-      .modulate({ brightness: 2.5, saturation: 0.3 })
-      .png()
-      .toBuffer();
-    
-    // Create medium glow (color accent)
-    const medGlowSize = Math.round(logoSize * 1.25);
-    const mediumGlow = await sharp(logoBuffer)
-      .resize(medGlowSize, medGlowSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .blur(18)
-      .modulate({ brightness: 2.0, saturation: 1.5 })
-      .png()
-      .toBuffer();
-    
-    // Create inner glow (crisp edge highlight)
-    const innerGlowSize = Math.round(logoSize * 1.08);
-    const innerGlow = await sharp(logoBuffer)
-      .resize(innerGlowSize, innerGlowSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .blur(6)
-      .modulate({ brightness: 1.8 })
-      .png()
-      .toBuffer();
-    
-    // Create drop shadow for depth
-    const shadowSize = Math.round(logoSize * 0.95);
-    const shadow = await sharp(logoBuffer)
-      .resize(shadowSize, shadowSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .blur(25)
-      .modulate({ brightness: 0.1 })
-      .png()
-      .toBuffer();
-    
-    // Calculate positions (centered, slightly above center)
-    const centerX = Math.round(width / 2);
-    const centerY = Math.round(height / 2) - Math.round(height * 0.03);
-    
-    const logoX = centerX - Math.round(logoSize / 2);
-    const logoY = centerY - Math.round(logoSize / 2);
-    
-    const outerGlowX = centerX - Math.round(outerGlowSize / 2);
-    const outerGlowY = centerY - Math.round(outerGlowSize / 2);
-    
-    const medGlowX = centerX - Math.round(medGlowSize / 2);
-    const medGlowY = centerY - Math.round(medGlowSize / 2);
-    
-    const innerGlowX = centerX - Math.round(innerGlowSize / 2);
-    const innerGlowY = centerY - Math.round(innerGlowSize / 2);
-    
-    const shadowX = centerX - Math.round(shadowSize / 2) + Math.round(logoSize * 0.04);
-    const shadowY = centerY - Math.round(shadowSize / 2) + Math.round(logoSize * 0.08);
-    
-    // Composite all layers
-    const compositedBuffer = await sharp(backgroundBuffer)
-      .composite([
-        // Layer 1: Shadow (depth)
-        { input: shadow, left: shadowX, top: shadowY, blend: 'multiply' },
-        // Layer 2: Outer glow (holographic aura)
-        { input: outerGlow, left: outerGlowX, top: outerGlowY, blend: 'screen' },
-        // Layer 3: Medium glow (color accent)
-        { input: mediumGlow, left: medGlowX, top: medGlowY, blend: 'screen' },
-        // Layer 4: Inner glow (edge highlight)
-        { input: innerGlow, left: innerGlowX, top: innerGlowY, blend: 'screen' },
-        // Layer 5: Main logo
-        { input: mainLogo, left: logoX, top: logoY }
-      ])
-      .png({ quality: 95 })
-      .toBuffer();
-    
-    // Save final image
-    const outputPath = path.join(this.imageStorePath, `${imageId}.png`);
-    await fs.writeFile(outputPath, compositedBuffer);
-    
-    // Apply watermark
-    await this.watermarkService.addWatermark(outputPath, outputPath, { title: `${logoSymbol}` });
-    
-    // Cleanup background temp file
-    try {
-      await fs.unlink(backgroundPath);
-    } catch (e) { /* ignore */ }
-    
-    logger.info(`✅ Premium 3D logo composite complete: ${outputPath}`);
-    return outputPath;
+    logger.info(`✅ Pollinations 3D coin saved: ${imagePath}`);
+    return imagePath;
   }
 
   /**
