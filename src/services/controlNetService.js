@@ -306,60 +306,73 @@ class ControlNetService {
     };
     
     try {
-      logger.info(`🎯 FULL 3D COIN GENERATION: ${logoSymbol}`);
-      logger.info(`📝 AI generates ENTIRE image including 3D metallic coin with logo`);
-      logger.info(`🚫 NO logo compositing - AI renders the 3D coin directly`);
+      logger.info(`🎯 2-STEP 3D METALLIC LOGO GENERATION: ${logoSymbol}`);
+      logger.info(`📝 Step 1: Generate stunning background (no crypto elements)`);
+      logger.info(`🖼️ Step 2: Transform ACTUAL logo to 3D metallic + composite`);
       
-      // Get the FULL 3D coin prompt (includes logo description)
-      const coinPrompt = this.get3DCoinPrompt(title, logoSymbol);
-      const negativePrompt = this.getEnhancedNegativePrompt(logoSymbol);
+      // Get the ACTUAL logo file (100% accurate shape)
+      const logoData = await this.getPngLogo(logoSymbol);
+      if (!logoData) {
+        throw new Error(`No PNG/SVG logo found for ${logoSymbol}`);
+      }
+      logger.info(`✅ Actual logo loaded: ${logoSymbol} (${logoData.source}) - 100% accurate shape`);
       
-      logger.info(`🎨 3D Coin prompt: ${coinPrompt.substring(0, 200)}...`);
+      // STEP 1: Generate premium background (no crypto elements)
+      const backgroundPrompt = this.getPremiumBackgroundPrompt(title);
+      logger.info(`🎨 Background prompt: ${backgroundPrompt.substring(0, 150)}...`);
       
-      let imagePath;
+      let backgroundPath;
       let method = 'unknown';
       
-      // Use Wavespeed for HIGH QUALITY full image generation
+      // Try Wavespeed first
       if (process.env.WAVESPEED_API_KEY) {
         try {
-          logger.info('🌟 Generating full 3D coin image with Wavespeed...');
-          imagePath = await this.generateFull3DCoinImage({
-            prompt: coinPrompt,
-            negativePrompt: negativePrompt,
+          logger.info('🌟 Generating premium background with Wavespeed...');
+          backgroundPath = await this.generatePremiumBackground({
+            prompt: backgroundPrompt,
             imageId: imageId
           });
-          method = 'wavespeed_full_3d_coin';
-          logger.info('✅ Full 3D coin image generated!');
+          method = 'wavespeed_3d_metallic';
+          logger.info('✅ Wavespeed background generated!');
         } catch (wavespeedError) {
           logger.warn(`⚠️ Wavespeed failed: ${wavespeedError.message}`);
-          imagePath = null;
+          backgroundPath = null;
         }
       }
       
       // Fallback to Pollinations
-      if (!imagePath) {
+      if (!backgroundPath) {
         try {
-          logger.info('🎨 Using Pollinations for 3D coin generation...');
-          imagePath = await this.generatePollinationsCoin({
-            prompt: coinPrompt,
+          logger.info('🎨 Using Pollinations for background...');
+          backgroundPath = await this.generatePollinationsBackground({
+            prompt: backgroundPrompt,
             imageId: imageId
           });
-          method = 'pollinations_full_3d_coin';
-          logger.info('✅ Pollinations 3D coin generated!');
+          method = 'pollinations_3d_metallic';
+          logger.info('✅ Pollinations background generated!');
         } catch (pollError) {
           logger.warn(`⚠️ Pollinations failed: ${pollError.message}`);
         }
       }
       
-      if (!imagePath) {
-        throw new Error('All generation methods failed');
+      if (!backgroundPath) {
+        throw new Error('Background generation failed');
       }
       
-      // Apply watermark only (NO logo composite)
-      await this.watermarkService.addWatermark(imagePath, imagePath, { title: logoSymbol });
+      // STEP 2: Transform actual logo to 3D metallic and composite
+      logger.info('🔧 Transforming actual logo to 3D metallic appearance...');
+      const finalPath = await this.composite3DMetallicLogo(
+        backgroundPath,
+        logoData.buffer,
+        logoSymbol,
+        imageId
+      );
+      
+      // Apply watermark
+      await this.watermarkService.addWatermark(finalPath, finalPath, { title: logoSymbol });
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.info(`✅ Full 3D generation completed in ${totalTime}s using ${method}`);
+      logger.info(`✅ 3D Metallic generation completed in ${totalTime}s using ${method}`);
       
       // 📊 MONITOR: Log generation
       await logImageGeneration({
@@ -367,43 +380,45 @@ class ControlNetService {
         imageId: imageId,
         method: method,
         controlNetUsed: false,
-        controlNetType: 'full_ai_3d_render',
-        logoSource: 'ai_generated_3d',
+        controlNetType: '3d_metallic_transform',
+        logoSource: logoData.source,
         success: true,
         imageUrl: this.getImageUrl(imageId),
-        localPath: imagePath,
+        localPath: finalPath,
         processingTimeMs: totalTime * 1000,
         apiUsed: method.split('_')[0],
         is3DIntegrated: true,
         isFlatOverlay: false,
         hasContextualBackground: true,
-        promptUsed: coinPrompt.substring(0, 300)
+        logoAccuracy: '100%',
+        backgroundPrompt: backgroundPrompt.substring(0, 200)
       });
       
       return {
         success: true,
         imageId: imageId,
         imageUrl: this.getImageUrl(imageId),
-        localPath: imagePath,
+        localPath: finalPath,
         metadata: {
           method: method,
           logoSymbol,
           style,
           totalProcessingTime: totalTime,
-          promptUsed: coinPrompt.substring(0, 150),
+          logoAccuracy: '100% (actual PNG/SVG file)',
           improvements: [
-            'full_ai_3d_coin_render',
-            'no_flat_logo_composite',
-            'chrome_metallic_finish',
-            'proper_3d_lighting',
-            'style_matches_examples'
+            'actual_logo_file_used',
+            '3d_metallic_transformation',
+            'chrome_silver_finish',
+            'neon_rim_lighting',
+            'environmental_glow',
+            'proper_depth_shadows'
           ]
         }
       };
         
     } catch (error) {
       const totalTime = Math.round((Date.now() - startTime) / 1000);
-      logger.error(`❌ Full 3D generation failed:`, error);
+      logger.error(`❌ 3D Metallic generation failed:`, error);
       
       await logImageGeneration({
         ...monitorData,
@@ -494,32 +509,70 @@ class ControlNetService {
   }
   
   /**
-   * Enhanced negative prompt for better quality
+   * Enhanced negative prompt for backgrounds (no crypto elements)
    */
-  getEnhancedNegativePrompt(targetSymbol) {
-    const allCryptos = ['bitcoin', 'btc', 'ethereum', 'eth', 'xrp', 'ripple', 'solana', 'sol', 'cardano', 'ada', 'dogecoin', 'doge', 'litecoin', 'ltc', 'polkadot', 'chainlink', 'bnb', 'binance'];
-    
-    // Remove the target crypto from negative prompts
-    const negatives = allCryptos.filter(c => !c.toLowerCase().includes(targetSymbol.toLowerCase()) && !targetSymbol.toLowerCase().includes(c));
-    
-    return `${negatives.join(' logo, ')} logo, ${negatives.join(' coin, ')} coin, wrong symbol, incorrect logo, trading floor, office, desk, computer monitors, stock charts, realistic human, person, face, text overlay, watermark, signature, blurry, low quality, distorted, stretched, amateur, cartoon, anime, sketch, painting style, flat 2d logo overlay, sticker effect`;
+  getBackgroundNegativePrompt() {
+    return `cryptocurrency, bitcoin, ethereum, xrp, solana, crypto coin, crypto logo, trading floor, office, desk, computer monitors, stock charts, realistic human, person, face, text, watermark, signature, blurry, low quality, distorted`;
   }
   
   /**
-   * Generate FULL 3D coin image with Wavespeed - NO compositing
+   * Get premium BACKGROUND-ONLY prompt (no crypto elements)
+   * The actual logo will be composited after as a 3D metallic element
    */
-  async generateFull3DCoinImage({ prompt, negativePrompt, imageId }) {
+  getPremiumBackgroundPrompt(title) {
+    const backgrounds = [
+      // Dark abstract with neon accents
+      'abstract dark void with flowing streams of cyan and magenta neon light, particle effects, subtle grid pattern, deep purple to black gradient, volumetric fog, cinematic lighting',
+      
+      // Cyberpunk server corridor
+      'futuristic server room corridor with purple and cyan neon strip lights, metallic walls with reflections, holographic displays on sides, atmospheric fog, one-point perspective, cyberpunk aesthetic',
+      
+      // Cosmic nebula
+      'deep space nebula scene with swirling purple and blue cosmic gases, distant stars and galaxies, ethereal light rays, NASA Hubble photography style',
+      
+      // Abstract energy
+      'abstract visualization of flowing energy ribbons in cyan gold and magenta, dark background, particle systems, sacred geometry elements, digital art style',
+      
+      // Glitch art background
+      'abstract glitch art background with flowing horizontal streaks of pink blue gold and cyan, motion blur effects, digital distortion, contemporary art style',
+      
+      // Dark minimal with accent
+      'minimalist dark gradient background transitioning from deep purple to black, subtle particle dust floating, soft cyan accent glow from below, clean professional look',
+      
+      // Network visualization
+      'abstract blockchain network visualization, constellation of connected glowing nodes, thin luminous connection lines, dark teal to purple gradient background, futuristic tech aesthetic',
+      
+      // Liquid chrome abstract
+      'abstract flowing liquid chrome and iridescent surfaces, rainbow light reflections, dark background, experimental photography style, metallic textures',
+      
+      // Neon grid
+      'retro-futuristic neon grid floor extending to horizon, purple and cyan wireframe, dark sky with stars, synthwave aesthetic, 80s inspired',
+      
+      // Crystal formations
+      'dark cavern with glowing crystal formations in purple and cyan, bioluminescent accents, atmospheric fog, fantasy art quality'
+    ];
+    
+    const titleHash = title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const bgIndex = titleHash % backgrounds.length;
+    
+    logger.info(`🎬 Selected background style ${bgIndex + 1}/${backgrounds.length}`);
+    
+    return `${backgrounds[bgIndex]}, ultra high quality, 8k resolution, professional photography, masterpiece`;
+  }
+  
+  /**
+   * Generate background with Wavespeed
+   */
+  async generatePremiumBackground({ prompt, imageId }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
-    logger.info('🎨 Generating full 3D coin with Wavespeed FLUX...');
+    logger.info('🎨 Generating premium background with Wavespeed...');
     
-    // Use Wavespeed FLUX model for text-to-image generation
-    // Try flux-schnell which is fast and high quality
     const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-schnell', {
       prompt: prompt,
-      size: "1792*1024", // Wide aspect ratio like examples
-      num_inference_steps: 4, // flux-schnell uses fewer steps
-      guidance_scale: 0, // flux-schnell doesn't need guidance
+      size: "1792*1024",
+      num_inference_steps: 4,
+      guidance_scale: 0,
       num_images: 1,
       output_format: "png"
     }, {
@@ -527,57 +580,190 @@ class ControlNetService {
         'Authorization': `Bearer ${wavespeedApiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 180000 // 3 minutes
+      timeout: 120000
     });
     
     const responseData = response.data.data || response.data;
     if (!responseData.id) {
-      throw new Error('No job ID received from Wavespeed');
+      throw new Error('No job ID from Wavespeed');
     }
-    
-    logger.info(`📋 Wavespeed job ID: ${responseData.id}`);
     
     const result = await this.pollWavespeedJob(responseData.id, wavespeedApiKey);
     const outputs = result.outputs || result.output || [];
     if (!outputs[0]) {
-      throw new Error('No image URL from Wavespeed');
+      throw new Error('No image from Wavespeed');
     }
     
-    logger.info(`⬇️ Downloading generated image...`);
-    
-    // Download the full image
     const imageResponse = await axios.get(outputs[0], {
       responseType: 'arraybuffer',
       timeout: 30000
     });
     
-    const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-    await fs.writeFile(imagePath, imageResponse.data);
+    const bgPath = path.join(this.imageStorePath, `${imageId}_bg.png`);
+    await fs.writeFile(bgPath, imageResponse.data);
     
-    logger.info(`✅ Full 3D coin image saved: ${imagePath}`);
-    return imagePath;
+    return bgPath;
   }
   
   /**
-   * Generate 3D coin with Pollinations (free fallback)
+   * Generate background with Pollinations (fallback)
    */
-  async generatePollinationsCoin({ prompt, imageId }) {
-    logger.info('🎨 Generating 3D coin with Pollinations...');
+  async generatePollinationsBackground({ prompt, imageId }) {
+    logger.info('🎨 Generating background with Pollinations...');
     
     const encodedPrompt = encodeURIComponent(prompt);
-    // Use wider aspect ratio
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1792&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1792&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
     
-    const response = await axios.get(pollinationsUrl, {
+    const response = await axios.get(url, {
       responseType: 'arraybuffer',
-      timeout: 120000 // 2 minutes for quality generation
+      timeout: 120000
     });
     
-    const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
-    await fs.writeFile(imagePath, response.data);
+    const bgPath = path.join(this.imageStorePath, `${imageId}_bg.png`);
+    await fs.writeFile(bgPath, response.data);
     
-    logger.info(`✅ Pollinations 3D coin saved: ${imagePath}`);
-    return imagePath;
+    return bgPath;
+  }
+  
+  /**
+   * Transform flat logo into 3D METALLIC element
+   * This creates chrome/silver effect with proper lighting
+   */
+  async transformLogoTo3DMetallic(logoBuffer, targetSize) {
+    logger.info('🔧 Transforming logo to 3D metallic appearance...');
+    
+    // Step 1: Resize logo and get metadata
+    const resizedLogo = await sharp(logoBuffer)
+      .resize(targetSize, targetSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+    
+    // Step 2: Create SILVER/WHITE version of logo (high contrast)
+    // This replaces the original colors with bright metallic silver
+    const silverLogo = await sharp(resizedLogo)
+      .grayscale()
+      .modulate({ brightness: 1.8, saturation: 0 })
+      .linear(1.5, 30) // Increase contrast, boost whites
+      .png()
+      .toBuffer();
+    
+    // Step 3: Create highlight layer (top-lit effect)
+    // Brighter version offset slightly up
+    const highlightLayer = await sharp(resizedLogo)
+      .grayscale()
+      .modulate({ brightness: 2.2 })
+      .blur(1)
+      .png()
+      .toBuffer();
+    
+    // Step 4: Create shadow/depth layer (bottom shadow)
+    const shadowLayer = await sharp(resizedLogo)
+      .grayscale()
+      .modulate({ brightness: 0.4 })
+      .blur(8)
+      .png()
+      .toBuffer();
+    
+    // Step 5: Create cyan rim glow (neon edge lighting)
+    const rimGlow = await sharp(resizedLogo)
+      .blur(12)
+      .modulate({ brightness: 2.0, saturation: 1.5 })
+      .tint({ r: 0, g: 255, b: 255 }) // Cyan tint
+      .png()
+      .toBuffer();
+    
+    // Step 6: Create magenta accent glow
+    const accentGlow = await sharp(resizedLogo)
+      .blur(20)
+      .modulate({ brightness: 1.5 })
+      .tint({ r: 255, g: 0, b: 255 }) // Magenta tint
+      .png()
+      .toBuffer();
+    
+    // Step 7: Composite all layers for 3D metallic effect
+    // Create a transparent canvas
+    const canvasSize = Math.round(targetSize * 1.3); // Extra space for glows
+    const offset = Math.round((canvasSize - targetSize) / 2);
+    
+    const finalLogo = await sharp({
+      create: {
+        width: canvasSize,
+        height: canvasSize,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      }
+    })
+    .composite([
+      // Layer 1: Accent glow (bottom, magenta)
+      { input: accentGlow, left: offset + 5, top: offset + 8, blend: 'screen' },
+      // Layer 2: Rim glow (cyan neon edge)
+      { input: rimGlow, left: offset, top: offset, blend: 'screen' },
+      // Layer 3: Shadow layer (depth)
+      { input: shadowLayer, left: offset + 3, top: offset + 5, blend: 'multiply' },
+      // Layer 4: Highlight layer (top light)
+      { input: highlightLayer, left: offset - 1, top: offset - 2, blend: 'screen' },
+      // Layer 5: Main silver logo (on top)
+      { input: silverLogo, left: offset, top: offset }
+    ])
+    .png()
+    .toBuffer();
+    
+    logger.info('✅ 3D metallic logo transformation complete');
+    return { buffer: finalLogo, size: canvasSize };
+  }
+  
+  /**
+   * Composite 3D metallic logo onto background with proper integration
+   */
+  async composite3DMetallicLogo(backgroundPath, logoBuffer, logoSymbol, imageId) {
+    logger.info(`🔧 Compositing 3D metallic ${logoSymbol} logo onto background...`);
+    
+    const backgroundBuffer = await fs.readFile(backgroundPath);
+    const bgMeta = await sharp(backgroundBuffer).metadata();
+    const { width, height } = bgMeta;
+    
+    // Calculate logo size (35% of height for prominence)
+    const logoSize = Math.round(height * 0.38);
+    
+    // Transform logo to 3D metallic appearance
+    const { buffer: metallicLogo, size: logoCanvasSize } = await this.transformLogoTo3DMetallic(logoBuffer, logoSize);
+    
+    // Center position (slightly above center)
+    const logoX = Math.round((width - logoCanvasSize) / 2);
+    const logoY = Math.round((height - logoCanvasSize) / 2) - Math.round(height * 0.02);
+    
+    // Create environmental glow beneath logo (reflection on surface)
+    const envGlow = await sharp(logoBuffer)
+      .resize(Math.round(logoSize * 1.2), Math.round(logoSize * 0.4))
+      .blur(30)
+      .modulate({ brightness: 0.8 })
+      .tint({ r: 100, g: 200, b: 255 })
+      .png()
+      .toBuffer();
+    
+    const envGlowX = Math.round((width - logoSize * 1.2) / 2);
+    const envGlowY = logoY + logoCanvasSize - Math.round(logoSize * 0.1);
+    
+    // Composite everything
+    const finalBuffer = await sharp(backgroundBuffer)
+      .composite([
+        // Environmental reflection glow
+        { input: envGlow, left: envGlowX, top: envGlowY, blend: 'screen' },
+        // 3D metallic logo
+        { input: metallicLogo, left: logoX, top: logoY }
+      ])
+      .png({ quality: 95 })
+      .toBuffer();
+    
+    // Save final image
+    const outputPath = path.join(this.imageStorePath, `${imageId}.png`);
+    await fs.writeFile(outputPath, finalBuffer);
+    
+    // Clean up temp background
+    try { await fs.unlink(backgroundPath); } catch (e) { /* ignore */ }
+    
+    logger.info(`✅ 3D metallic composite complete: ${outputPath}`);
+    return outputPath;
   }
 
   /**
