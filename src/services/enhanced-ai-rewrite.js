@@ -350,16 +350,15 @@ CRITICAL H2 HEADING REQUIREMENTS - ZERO TOLERANCE FOR GENERIC HEADINGS:
 - Each H2 must reference a SPECIFIC detail that readers can verify in the original source
 - EVERY H2 SECTION MUST HAVE SUBSTANTIAL CONTENT (minimum 150 words) - NO EMPTY SECTIONS ALLOWED
 
-🚨🚨 ABSOLUTE WORD COUNT REQUIREMENTS - ZERO TOLERANCE 🚨🚨
-- Final article MUST be MINIMUM 450 words (STRICTLY ENFORCED - NO EXCEPTIONS)
-- Target range: 500-800 words for comprehensive coverage
-- COUNT EVERY SINGLE WORD - If below 450, your response will be REJECTED
-- Each H2 section MUST be 150-200 words minimum with substantial analysis
-- Opening paragraph MUST be 120-150 words minimum
-- Include specific statistics, market data, and real-world examples from original content
-- Add detailed explanations of technical concepts mentioned in original article
-- Expand each point with supporting evidence and comprehensive analysis
-- CRITICAL: Write LONGER, more detailed content - never submit anything under 450 words
+WORD COUNT REQUIREMENTS:
+- Write 300-600 words of quality content (scale appropriately to original article length)
+- For short news updates: 250-350 words is acceptable
+- For detailed analysis: 400-600 words preferred
+- Opening paragraph: 80-120 words
+- Each H2 section: 80-150 words with substantive content
+- Focus on QUALITY over arbitrary word counts
+- Include specific facts from the original content
+- Add valuable context where appropriate
 
 READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Maximum 15 words per sentence
@@ -491,10 +490,14 @@ Write the article now:`;
     const wordCount = plainText.split(/\s+/).filter(w => w.length > 0).length;
     const readabilityScore = calculateAdvancedReadability(plainText);
     
-    // CRITICAL: Reject articles that are too short
-    if (wordCount < 450) {
-      logger.error(`❌ ARTICLE TOO SHORT: ${wordCount} words (minimum 450 required)`);
-      throw new Error(`Article rewrite failed: Only ${wordCount} words generated, minimum 450 required. AI must write longer, more detailed content.`);
+    // Validate minimum word count - 250 is reasonable for shorter news articles
+    // Scale requirement based on original content length
+    const originalWordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const minRequired = Math.max(200, Math.min(originalWordCount * 2, 400)); // Scale between 200-400 words
+    
+    if (wordCount < minRequired) {
+      logger.error(`❌ ARTICLE TOO SHORT: ${wordCount} words (minimum ${minRequired} required based on original length)`);
+      throw new Error(`Article rewrite failed: Only ${wordCount} words generated, minimum ${minRequired} required.`);
     }
     
     logger.info(`✅ Article length validation passed: ${wordCount} words`);
