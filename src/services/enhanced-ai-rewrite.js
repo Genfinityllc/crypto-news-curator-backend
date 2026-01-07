@@ -533,7 +533,8 @@ Write the article now:`;
       validationPassed: true, // NEW: Confirms accuracy verification
       originalTitle: title,
       cryptoElements: cryptoElements,
-      intelligentCoverPrompt: coverPrompt
+      intelligentCoverPrompt: coverPrompt,
+      model: 'gpt-4o-mini' // OpenAI model used
     };
     
     // 📊 MONITOR: Log the rewrite for quality control
