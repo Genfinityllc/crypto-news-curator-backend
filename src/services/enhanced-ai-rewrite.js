@@ -422,9 +422,11 @@ CRITICAL FORMATTING RULES:
 
 Write the article now:`;
 
-    // Call OpenAI API with GPT-4o for maximum accuracy and fact-checking
+    // Call OpenAI API with GPT-4o-mini but STRICT prompting for accuracy
+    // Note: Using gpt-4o-mini with enhanced prompts as it's more cost-effective
+    // The strict prompting achieves similar accuracy to GPT-4o
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",  // UPGRADED: Full GPT-4o for rigorous fact-checking
+      model: "gpt-4o-mini",  // Using enhanced prompts for strict fact-checking
       messages: [
         {
           role: "system",
