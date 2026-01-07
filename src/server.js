@@ -309,6 +309,82 @@ if (firebaseAuthRoutes) {
   console.log('⚠️  Firebase auth routes disabled (missing dependencies)');
 }
 
+// 📊 AI OUTPUT MONITORING DASHBOARD
+const outputMonitor = require('./services/outputMonitorService');
+
+// Get monitoring dashboard summary
+app.get('/api/monitor/dashboard', (req, res) => {
+  try {
+    const dashboard = outputMonitor.getDashboard();
+    res.json({
+      success: true,
+      ...dashboard
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get rewrite history
+app.get('/api/monitor/rewrites', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const history = outputMonitor.getRewriteHistory(limit);
+    res.json({
+      success: true,
+      count: history.length,
+      rewrites: history
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get image generation history
+app.get('/api/monitor/images', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const history = outputMonitor.getImageHistory(limit);
+    res.json({
+      success: true,
+      count: history.length,
+      images: history
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get failed generations for debugging
+app.get('/api/monitor/failures', (req, res) => {
+  try {
+    const failures = outputMonitor.getFailedGenerations();
+    res.json({
+      success: true,
+      count: failures.length,
+      failures: failures,
+      message: failures.length > 0 
+        ? `⚠️ ${failures.length} failed/fallback generations detected`
+        : '✅ No recent failures'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+console.log('📊 Output Monitor Dashboard enabled at /api/monitor/*');
 
 // 404 handler
 app.use('*', (req, res) => {
