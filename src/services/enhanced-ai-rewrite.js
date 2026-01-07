@@ -319,14 +319,36 @@ TITLE REQUIREMENTS (CRITICAL):
 - Make it relevant and specific to the actual article content
 - Use complete, grammatically correct phrases, not broken fragments
 
-🚨 ABSOLUTE REQUIREMENT - ORIGINAL CONTENT TO REWRITE 🚨
+🚨 ORIGINAL SOURCE CONTENT - THIS IS YOUR ONLY SOURCE OF TRUTH 🚨
 Title: ${title}
 Content: ${content}
 
-🔥 MANDATORY: The rewritten article MUST use specific facts, data, and claims from the above original content ONLY. 
-🔥 BANNED: Generic cryptocurrency content, broad statements, or information not in the original article.
-🔥 REQUIRED: Extract specific details like price movements, technical analysis, timeframes, and market data from the original content.
-🔥 VERIFICATION: Every claim in your rewrite must be verifiable against the original article above.
+⛔ STRICT FACT-CHECKING RULES - VIOLATION = REJECTION ⛔
+
+1. NUMBERS & STATISTICS:
+   - ONLY use numbers that appear EXACTLY in the original content above
+   - If original says "$2.4 billion" you may use "$2.4 billion"
+   - If original does NOT specify a number, do NOT invent one
+   - NO rounding, extrapolating, or calculating new figures
+
+2. SUPERLATIVES & RECORDS:
+   - BANNED: "record", "all-time high/low", "best ever", "unprecedented" UNLESS quoted from original
+   - If original says "record revenue" without a figure, write "reported strong revenue" instead
+   - If original lacks comparison data, do not claim something is "the highest" or "the lowest"
+
+3. ATTRIBUTIONS:
+   - BANNED: "many analysts", "experts say", "sources indicate" (vague attributions)
+   - ALLOWED: "according to [specific source named in original]"
+   - If original doesn't name a source, do not attribute claims to unnamed experts
+
+4. TIME REFERENCES:
+   - ONLY use dates/timeframes from the original
+   - Do not assume "this year" or "2025" unless original specifies
+
+5. EVERY H2 SECTION MUST HAVE 80+ WORDS:
+   - NO empty sections
+   - NO placeholder headings
+   - If you cannot write substantial content for a section, REMOVE the heading entirely
 
 PRIMARY NETWORK: ${cryptoElements.primaryNetwork}
 KEY THEMES: ${cryptoElements.themes.join(', ')}
@@ -351,14 +373,13 @@ CRITICAL H2 HEADING REQUIREMENTS - ZERO TOLERANCE FOR GENERIC HEADINGS:
 - EVERY H2 SECTION MUST HAVE SUBSTANTIAL CONTENT (minimum 150 words) - NO EMPTY SECTIONS ALLOWED
 
 WORD COUNT REQUIREMENTS:
-- Write 300-600 words of quality content (scale appropriately to original article length)
-- For short news updates: 250-350 words is acceptable
-- For detailed analysis: 400-600 words preferred
-- Opening paragraph: 80-120 words
-- Each H2 section: 80-150 words with substantive content
-- Focus on QUALITY over arbitrary word counts
-- Include specific facts from the original content
-- Add valuable context where appropriate
+- Write 250-500 words of FACT-BASED content
+- QUALITY AND ACCURACY over word count
+- Opening paragraph: 60-100 words establishing the main point
+- Each H2 section: 60-120 words with VERIFIABLE content only
+- If original article lacks detail, write SHORTER, not longer with invented content
+- DO NOT pad with generic statements to meet word counts
+- Every sentence must add verifiable information from the original
 
 READABILITY REQUIREMENTS (CRITICAL FOR 97-100% SCORE):
 - Maximum 15 words per sentence
@@ -391,10 +412,7 @@ TITLE: [Your 3-5 word title that captures the main topic]
 
 CONTENT: [Write the complete article here with <p> and <h2> tags, ABSOLUTELY NO LINE BREAKS OR SPACING AFTER H2 TAGS, WordPress-ready format]
 
-MANDATORY DISCLAIMER (MUST ADD TO EVERY ARTICLE):
-- After the final paragraph, add the following disclaimer exactly as written:
-- <p><em>*Disclaimer: News content provided by Genfinity is intended solely for informational purposes. While we strive to deliver accurate and up-to-date information, we do not offer financial or legal advice of any kind. Readers are encouraged to conduct their own research and consult with qualified professionals before making any financial or legal decisions. Genfinity disclaims any responsibility for actions taken based on the information presented in our articles. Our commitment is to share knowledge, foster discussion, and contribute to a better understanding of the topics covered in our articles. We advise our readers to exercise caution and diligence when seeking information or making decisions based on the content we provide.</em></p>
-- This disclaimer does NOT count toward the 450-750 word requirement
+DO NOT ADD ANY DISCLAIMER - it will be added automatically by the system.
 
 CRITICAL FORMATTING RULES:
 - Write all content as one continuous block with no line breaks
@@ -404,13 +422,31 @@ CRITICAL FORMATTING RULES:
 
 Write the article now:`;
 
-    // Call OpenAI API with enhanced settings
+    // Call OpenAI API with GPT-4o for maximum accuracy and fact-checking
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",  // UPGRADED: Full GPT-4o for rigorous fact-checking
       messages: [
         {
           role: "system",
-          content: "You are an expert cryptocurrency journalist who creates exceptional content optimized for readability (95-100%), SEO (97-100%), and WordPress publishing. You write comprehensive 400-800 word articles with perfect HTML formatting, zero line breaks, and integrated authoritative sources. Your content is always original, engaging, and compliant with all major platform policies."
+          content: `You are a STRICT fact-based cryptocurrency journalist. Your PRIMARY directive is FACTUAL ACCURACY.
+
+ABSOLUTE RULES:
+1. ONLY use facts, numbers, and claims that appear in the original article
+2. NEVER invent statistics, percentages, or dollar amounts
+3. NEVER use superlatives ("best", "record", "all-time high") unless QUOTED from original
+4. If the original article lacks specific data, write qualitatively, not quantitatively
+5. Every claim must be DIRECTLY traceable to the original content
+6. NO empty sections - every H2 heading MUST have substantial content beneath it
+7. DO NOT add the disclaimer - it will be added automatically
+
+BANNED PHRASES (never use unless in original):
+- "record revenue/high/low" (unless original specifies the exact record)
+- "best year yet" (unless original provides comparison data)
+- "all-time high/low" (unless original provides the exact figure and date)
+- "many analysts say" (never use vague attributions)
+- Dollar amounts or percentages not in the original
+
+Your output will be AUDITED for factual accuracy. Prioritize truth over engagement.`
         },
         {
           role: "user",
@@ -418,9 +454,9 @@ Write the article now:`;
         }
       ],
       max_tokens: 4000,
-      temperature: 0.6,
-      presence_penalty: 0.1,
-      frequency_penalty: 0.1
+      temperature: 0.3,  // LOWER: More deterministic, less creative invention
+      presence_penalty: 0.0,
+      frequency_penalty: 0.0
     });
 
     const aiResponse = completion.choices[0].message.content;
@@ -461,6 +497,21 @@ Write the article now:`;
     // Ensure H2 tags are properly formatted (remove ## if present)
     finalContent = finalContent.replace(/## (.*?)(?=<|$)/g, '<h2>$1</h2>');
     
+    // QUALITY CHECK: Remove empty H2 sections (H2 followed immediately by another H2 or end)
+    // This prevents the "empty section" problem
+    finalContent = finalContent.replace(/<h2>([^<]*)<\/h2>\s*(?=<h2>|$)/gi, '');
+    
+    // Also remove H2 sections with less than 50 characters of content
+    const h2Pattern = /<h2>([^<]*)<\/h2>([^<]*(?:<(?!h2)[^>]*>[^<]*)*?)(?=<h2>|<p><em>\*Disclaimer|$)/gi;
+    finalContent = finalContent.replace(h2Pattern, (match, heading, content) => {
+      const textContent = content.replace(/<[^>]*>/g, '').trim();
+      if (textContent.length < 50) {
+        logger.warn(`⚠️ Removing empty/short H2 section: "${heading}" (${textContent.length} chars)`);
+        return ''; // Remove the entire section
+      }
+      return match;
+    });
+    
     // Add paragraph tags if missing
     if (!finalContent.includes('<p>')) {
       const parts = finalContent.split('<h2>');
@@ -478,12 +529,16 @@ Write the article now:`;
       finalContent = formattedParts.join('');
     }
     
-    // FORCE ADD DISCLAIMER - Ensure it's always present with EXACT text
+    // ADD DISCLAIMER - Only if not already present
     const exactDisclaimerText = '*Disclaimer: News content provided by Genfinity is intended solely for informational purposes. While we strive to deliver accurate and up-to-date information, we do not offer financial or legal advice of any kind. Readers are encouraged to conduct their own research and consult with qualified professionals before making any financial or legal decisions. Genfinity disclaims any responsibility for actions taken based on the information presented in our articles. Our commitment is to share knowledge, foster discussion, and contribute to a better understanding of the topics covered in our articles. We advise our readers to exercise caution and diligence when seeking information or making decisions based on the content we provide.';
     
-    // ALWAYS add disclaimer - do not check for existing, just append
-    finalContent += '<p><em>' + exactDisclaimerText + '</em></p>';
-    logger.info('✅ Added EXACT mandatory Genfinity disclaimer to article');
+    // Check if disclaimer already exists (prevent duplicates)
+    if (!finalContent.toLowerCase().includes('disclaimer') && !finalContent.includes('Genfinity disclaims')) {
+      finalContent += '<p><em>' + exactDisclaimerText + '</em></p>';
+      logger.info('✅ Added Genfinity disclaimer to article');
+    } else {
+      logger.info('ℹ️ Disclaimer already present, skipping duplicate');
+    }
     
     // Calculate metrics
     const plainText = finalContent.replace(/<[^>]*>/g, '');
