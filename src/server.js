@@ -315,15 +315,35 @@ const outputMonitor = require('./services/outputMonitorService');
 // 🧪 WAVESPEED API TEST ENDPOINT
 app.get('/api/test-wavespeed', async (req, res) => {
   const axios = require('axios');
+  const sharp = require('sharp');
   
   if (!process.env.WAVESPEED_API_KEY) {
     return res.json({ success: false, error: 'WAVESPEED_API_KEY not set' });
   }
   
   try {
-    // Correct Wavespeed API format: prompt at root level, model in URL path
+    // Create a simple test control image (white circle on black background)
+    const testControlImage = await sharp({
+      create: {
+        width: 512,
+        height: 512,
+        channels: 3,
+        background: { r: 0, g: 0, b: 0 }
+      }
+    })
+    .composite([{
+      input: Buffer.from(`<svg width="512" height="512"><circle cx="256" cy="256" r="150" fill="white"/></svg>`),
+      blend: 'over'
+    }])
+    .png()
+    .toBuffer();
+    
+    const controlImageBase64 = testControlImage.toString('base64');
+    
+    // Correct Wavespeed API format with control_image
     const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-controlnet-union-pro-2.0', {
-      prompt: "A blue cryptocurrency logo floating in a futuristic environment, 3D metallic, professional lighting",
+      prompt: "A blue cryptocurrency logo floating in space, 3D metallic, professional lighting, futuristic",
+      control_image: `data:image/png;base64,${controlImageBase64}`,
       size: "1024*1024",
       num_inference_steps: 20,
       num_images: 1
@@ -332,12 +352,12 @@ app.get('/api/test-wavespeed', async (req, res) => {
         'Authorization': `Bearer ${process.env.WAVESPEED_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 60000
+      timeout: 120000
     });
     
     res.json({
       success: true,
-      message: 'Wavespeed API connection successful!',
+      message: 'Wavespeed ControlNet API working!',
       jobId: response.data.id,
       status: response.data.status,
       data: response.data
