@@ -513,13 +513,13 @@ class ControlNetService {
     
     logger.info('🎨 Generating full 3D coin with Wavespeed FLUX...');
     
-    // Use FLUX for high quality 3D render
-    const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-dev', {
+    // Use Wavespeed FLUX model for text-to-image generation
+    // Try flux-schnell which is fast and high quality
+    const response = await axios.post('https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-schnell', {
       prompt: prompt,
-      negative_prompt: negativePrompt,
       size: "1792*1024", // Wide aspect ratio like examples
-      num_inference_steps: 35, // Higher quality
-      guidance_scale: 7.5,
+      num_inference_steps: 4, // flux-schnell uses fewer steps
+      guidance_scale: 0, // flux-schnell doesn't need guidance
       num_images: 1,
       output_format: "png"
     }, {
