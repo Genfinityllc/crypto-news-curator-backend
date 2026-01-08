@@ -667,15 +667,29 @@ app.get('/api/cover-generator/networks', async (req, res) => {
     }
     
     // Get SVG logos from database
-    const svgLogos = controlNetService.svgLogoService.getAllLogos().map(logo => ({
-      symbol: logo.symbol,
-      source: 'svg',
-      name: logo.name || logo.symbol
-    }));
+    let svgLogos = [];
+    try {
+      const logos = await controlNetService.svgLogoService.getAllLogos();
+      svgLogos = (logos || []).map(logo => ({
+        symbol: logo.symbol,
+        source: 'svg',
+        name: logo.name || logo.symbol
+      }));
+    } catch (e) {
+      logger.warn('SVG logos not available:', e.message);
+    }
     
-    // Merge and dedupe (prefer PNG)
+    // Hardcoded popular networks as fallback
+    const popularNetworks = [
+      'BTC', 'ETH', 'XRP', 'SOL', 'HBAR', 'ADA', 'AVAX', 'DOT', 'MATIC', 'LINK',
+      'UNI', 'DOGE', 'LTC', 'ATOM', 'NEAR', 'ALGO', 'XLM', 'SUI', 'APT', 'ARB',
+      'OP', 'INJ', 'SEI', 'TIA', 'PEPE', 'SHIB', 'BONK', 'FIL', 'AAVE', 'MKR'
+    ].map(s => ({ symbol: s, source: 'default' }));
+    
+    // Merge and dedupe (prefer PNG > SVG > default)
     const allNetworks = {};
-    svgLogos.forEach(l => { allNetworks[l.symbol] = l; });
+    popularNetworks.forEach(l => { allNetworks[l.symbol] = l; });
+    svgLogos.forEach(l => { allNetworks[l.symbol] = { ...allNetworks[l.symbol], ...l }; });
     pngLogos.forEach(l => { allNetworks[l.symbol] = { ...allNetworks[l.symbol], ...l }; });
     
     // Network name mapping
