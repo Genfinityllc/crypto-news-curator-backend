@@ -493,6 +493,56 @@ Your output will be AUDITED for factual accuracy. Prioritize truth over engageme
       finalContent = aiResponse.replace(/TITLE:.*?CONTENT:\s*/is, '').trim();
     }
     
+    // CRITICAL: Ensure network name is in the title for correct cover image generation
+    const network = cryptoElements.primaryNetwork;
+    const titleLower = finalTitle.toLowerCase();
+    const networkLower = network.toLowerCase();
+    
+    // Check if network name or common variants are in title
+    const networkAliases = {
+      'Bitcoin': ['bitcoin', 'btc'],
+      'Ethereum': ['ethereum', 'eth'],
+      'XRP': ['xrp', 'ripple'],
+      'Solana': ['solana', 'sol'],
+      'Cardano': ['cardano', 'ada'],
+      'Hedera': ['hedera', 'hbar', 'hashgraph'],
+      'Algorand': ['algorand', 'algo'],
+      'Constellation': ['constellation', 'dag'],
+      'BNB': ['bnb', 'binance'],
+      'Dogecoin': ['dogecoin', 'doge'],
+      'Polygon': ['polygon', 'matic'],
+      'Avalanche': ['avalanche', 'avax'],
+      'Chainlink': ['chainlink', 'link'],
+      'Polkadot': ['polkadot', 'dot'],
+      'Cosmos': ['cosmos', 'atom'],
+      'World Liberty Financial': ['wlfi', 'world liberty', 'liberty financial'],
+      'Cryptocurrency': [] // Generic - no need to add
+    };
+    
+    const aliases = networkAliases[network] || [networkLower];
+    const hasNetworkInTitle = aliases.some(alias => titleLower.includes(alias));
+    
+    // If network is not in title and network is not generic, prepend it
+    if (!hasNetworkInTitle && network !== 'Cryptocurrency') {
+      const titleWords = finalTitle.split(' ');
+      
+      // If title already has 5+ words, replace first word with network
+      if (titleWords.length >= 5) {
+        finalTitle = `${network} ${titleWords.slice(1, 5).join(' ')}`;
+      } else {
+        // Prepend network name
+        finalTitle = `${network} ${finalTitle}`;
+      }
+      
+      // Ensure still within 3-6 words
+      const newWords = finalTitle.split(' ');
+      if (newWords.length > 6) {
+        finalTitle = newWords.slice(0, 6).join(' ');
+      }
+      
+      logger.info(`🔧 Added network "${network}" to title: "${finalTitle}"`);
+    }
+    
     // Format for WordPress (remove all line breaks)
     finalContent = formatForWordPress(finalContent);
     

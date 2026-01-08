@@ -89,3 +89,16 @@ frontend-*.png
 !assets/*.jpg
 !assets/*.jpeg
 
+
+# Sensitive files
+client_secret*.json
+*.terminal
+Terminal Saved Output.txt
+Genfinity News automation
+crypto_news_aggregator*.md
+railway-setup.sh
+RAILWAY*.md
+COVER_GENERATION*.md
+FACT_CHECKING*.md
+STYLE_GUIDE.md
+
