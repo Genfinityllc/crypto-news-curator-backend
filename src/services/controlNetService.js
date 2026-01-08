@@ -570,27 +570,64 @@ class ControlNetService {
   /**
    * Generate stunning 3D glass/liquid logo using Google Nano-Banana-Pro Edit
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
-   * FIXED: Uses base64 data URL instead of server URL (which Wavespeed can't access)
+   * FIXED: Uses public CDN URLs that Wavespeed can access
    */
   async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
     
-    // Convert logo to base64 data URL (Wavespeed accepts this format)
-    const logoBase64 = logoBuffer.toString('base64');
-    const logoDataUrl = `data:image/png;base64,${logoBase64}`;
-    logger.info(`📷 Logo prepared as base64 data URL (${Math.round(logoBase64.length / 1024)}KB)`);
+    // Try to get a PUBLIC URL for the logo that Wavespeed can access
+    // Priority: 1) CryptoLogos CDN, 2) Base64 data URL as fallback
+    let logoUrl = null;
+    
+    // Check if we can use a public CDN URL
+    const cdnSlugs = {
+      'btc': 'bitcoin-btc', 'bitcoin': 'bitcoin-btc',
+      'eth': 'ethereum-eth', 'ethereum': 'ethereum-eth',
+      'xrp': 'xrp-xrp', 'ripple': 'xrp-xrp',
+      'bnb': 'bnb-bnb', 'binance': 'bnb-bnb',
+      'sol': 'solana-sol', 'solana': 'solana-sol',
+      'ada': 'cardano-ada', 'cardano': 'cardano-ada',
+      'doge': 'dogecoin-doge', 'dogecoin': 'dogecoin-doge',
+      'dot': 'polkadot-new-dot', 'polkadot': 'polkadot-new-dot',
+      'link': 'chainlink-link', 'chainlink': 'chainlink-link',
+      'avax': 'avalanche-avax', 'avalanche': 'avalanche-avax',
+      'uni': 'uniswap-uni', 'uniswap': 'uniswap-uni',
+      'ltc': 'litecoin-ltc', 'litecoin': 'litecoin-ltc',
+      'atom': 'cosmos-atom', 'cosmos': 'cosmos-atom',
+      'xlm': 'stellar-xlm', 'stellar': 'stellar-xlm',
+      'hbar': 'hedera-hbar', 'hedera': 'hedera-hbar',
+      'near': 'near-protocol-near',
+      'algo': 'algorand-algo', 'algorand': 'algorand-algo',
+      'fil': 'filecoin-fil', 'filecoin': 'filecoin-fil',
+      'arb': 'arbitrum-arb', 'arbitrum': 'arbitrum-arb',
+      'op': 'optimism-ethereum-op', 'optimism': 'optimism-ethereum-op',
+      'sui': 'sui-sui', 'apt': 'aptos-apt', 'aptos': 'aptos-apt',
+      'inj': 'injective-inj', 'sei': 'sei-sei',
+      'shib': 'shiba-inu-shib', 'pepe': 'pepe-pepe'
+    };
+    
+    const slug = cdnSlugs[logoSymbol.toLowerCase()];
+    if (slug) {
+      logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
+      logger.info(`📷 Using CDN logo URL: ${logoUrl}`);
+    } else {
+      // Fallback to base64 data URL
+      const logoBase64 = logoBuffer.toString('base64');
+      logoUrl = `data:image/png;base64,${logoBase64}`;
+      logger.info(`📷 Using base64 data URL (${Math.round(logoBase64.length / 1024)}KB) - CDN not available for ${logoSymbol}`);
+    }
     
     // Build premium prompt for 3D glass/liquid effect
     const prompt = this.getNanoBananaPrompt(logoSymbol, title);
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
-    // Submit to Nano-Banana-Pro Edit API with base64 data URL
+    // Submit to Nano-Banana-Pro Edit API
     logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
     const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
       prompt: prompt,
-      images: [logoDataUrl]
+      images: [logoUrl]
     }, {
       headers: {
         'Authorization': `Bearer ${wavespeedApiKey}`,
@@ -601,8 +638,8 @@ class ControlNetService {
     
     const responseData = response.data.data || response.data;
     if (!responseData.id) {
-      logger.error(`❌ Nano-Banana-Pro response:`, JSON.stringify(response.data).substring(0, 500));
-      throw new Error('No job ID from Nano-Banana-Pro');
+      logger.error(`❌ Nano-Banana-Pro API response:`, JSON.stringify(response.data).substring(0, 500));
+      throw new Error(`Nano-Banana-Pro failed: ${JSON.stringify(response.data).substring(0, 200)}`);
     }
     
     logger.info(`📋 Nano-Banana-Pro job ID: ${responseData.id}`);
@@ -612,10 +649,10 @@ class ControlNetService {
     const outputs = result.outputs || result.output || [];
     if (!outputs[0]) {
       logger.error(`❌ Nano-Banana-Pro job result:`, JSON.stringify(result).substring(0, 500));
-      throw new Error('No image from Nano-Banana-Pro');
+      throw new Error(`No output from Nano-Banana-Pro: ${result.status || 'unknown'}`);
     }
     
-    logger.info(`⬇️ Downloading Nano-Banana-Pro result from: ${outputs[0].substring(0, 80)}...`);
+    logger.info(`⬇️ Downloading Nano-Banana-Pro result...`);
     
     const imageResponse = await axios.get(outputs[0], {
       responseType: 'arraybuffer',
