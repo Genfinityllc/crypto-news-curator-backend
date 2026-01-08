@@ -686,7 +686,7 @@ const NETWORKS_LIST = [
   { symbol: 'QNT', name: 'Quant', type: 'network' },
   { symbol: 'ONDO', name: 'Ondo', type: 'network' },
   { symbol: 'IMX', name: 'Immutable X', type: 'network' },
-  { symbol: 'DAG', name: 'Constellation', type: 'network' },
+  { symbol: 'DAG', name: 'Constellation (DAG)', type: 'network' },
   { symbol: 'XDC', name: 'XDC Network', type: 'network' },
   { symbol: 'USDC', name: 'USD Coin', type: 'network' },
   { symbol: 'USDT', name: 'Tether', type: 'network' },
