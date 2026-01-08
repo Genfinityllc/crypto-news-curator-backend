@@ -640,6 +640,179 @@ app.get('/api/test-wavespeed', async (req, res) => {
   }
 });
 
+// 🎨 COVER GENERATOR API ENDPOINTS
+
+// Get list of available networks with logos
+app.get('/api/cover-generator/networks', async (req, res) => {
+  try {
+    const ControlNetService = require('./services/controlNetService');
+    const controlNetService = new ControlNetService();
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    // Get PNG logos directory
+    const pngDir = controlNetService.pngLogoDir;
+    let pngLogos = [];
+    
+    try {
+      const files = await fs.readdir(pngDir);
+      pngLogos = files
+        .filter(f => f.endsWith('.png'))
+        .map(f => {
+          const symbol = f.replace('.png', '').toUpperCase();
+          return { symbol, source: 'png', file: f };
+        });
+    } catch (e) {
+      logger.warn('PNG directory not accessible:', e.message);
+    }
+    
+    // Get SVG logos from database
+    const svgLogos = controlNetService.svgLogoService.getAllLogos().map(logo => ({
+      symbol: logo.symbol,
+      source: 'svg',
+      name: logo.name || logo.symbol
+    }));
+    
+    // Merge and dedupe (prefer PNG)
+    const allNetworks = {};
+    svgLogos.forEach(l => { allNetworks[l.symbol] = l; });
+    pngLogos.forEach(l => { allNetworks[l.symbol] = { ...allNetworks[l.symbol], ...l }; });
+    
+    // Network name mapping
+    const networkNames = {
+      'XRP': 'XRP (Ripple)', 'HBAR': 'Hedera Hashgraph', 'SOL': 'Solana', 'ETH': 'Ethereum',
+      'BTC': 'Bitcoin', 'ADA': 'Cardano', 'AVAX': 'Avalanche', 'DOT': 'Polkadot',
+      'MATIC': 'Polygon', 'LINK': 'Chainlink', 'UNI': 'Uniswap', 'DOGE': 'Dogecoin',
+      'LTC': 'Litecoin', 'ATOM': 'Cosmos', 'NEAR': 'NEAR Protocol', 'ALGO': 'Algorand',
+      'XLM': 'Stellar', 'SUI': 'Sui', 'APT': 'Aptos', 'ARB': 'Arbitrum', 'OP': 'Optimism',
+      'INJ': 'Injective', 'SEI': 'Sei', 'TIA': 'Celestia', 'PEPE': 'Pepe', 'SHIB': 'Shiba Inu'
+    };
+    
+    const networks = Object.values(allNetworks).map(n => ({
+      ...n,
+      name: networkNames[n.symbol] || n.name || n.symbol
+    })).sort((a, b) => a.symbol.localeCompare(b.symbol));
+    
+    res.json({
+      success: true,
+      count: networks.length,
+      networks
+    });
+  } catch (error) {
+    logger.error('Error listing networks:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Generate cover image for a network
+app.post('/api/cover-generator/generate', async (req, res) => {
+  const { network, title, style } = req.body;
+  
+  if (!network) {
+    return res.status(400).json({ success: false, error: 'Network symbol required' });
+  }
+  
+  const startTime = Date.now();
+  
+  try {
+    const ControlNetService = require('./services/controlNetService');
+    const controlNetService = new ControlNetService();
+    
+    const articleTitle = title || `${network} Cryptocurrency News`;
+    
+    logger.info(`🎨 Cover Generator: Creating ${network} cover...`);
+    
+    const result = await controlNetService.generateWithAdvancedControlNet(
+      articleTitle,
+      network.toUpperCase(),
+      style || 'professional',
+      { content: '' }
+    );
+    
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        imageUrl: result.imageUrl,
+        network: network.toUpperCase(),
+        method: result.metadata?.method || 'nano_banana_pro_3d',
+        duration: `${duration}s`,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      throw new Error(result.error || 'Generation failed');
+    }
+  } catch (error) {
+    logger.error('Cover generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      duration: `${Math.round((Date.now() - startTime) / 1000)}s`
+    });
+  }
+});
+
+// Save generation to user profile (if logged in)
+app.post('/api/cover-generator/save', authMiddleware, async (req, res) => {
+  const { imageUrl, network, title } = req.body;
+  const userId = req.user?.id;
+  
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Login required to save' });
+  }
+  
+  try {
+    const supabase = require('./config/supabase').supabaseAdmin;
+    
+    const { data, error } = await supabase
+      .from('user_generated_covers')
+      .insert({
+        user_id: userId,
+        image_url: imageUrl,
+        network: network,
+        title: title || `${network} Cover`,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.json({ success: true, saved: data });
+  } catch (error) {
+    logger.error('Failed to save cover:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get user's saved covers
+app.get('/api/cover-generator/my-covers', authMiddleware, async (req, res) => {
+  const userId = req.user?.id;
+  
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Login required' });
+  }
+  
+  try {
+    const supabase = require('./config/supabase').supabaseAdmin;
+    
+    const { data, error } = await supabase
+      .from('user_generated_covers')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (error) throw error;
+    
+    res.json({ success: true, covers: data || [] });
+  } catch (error) {
+    logger.error('Failed to get covers:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 🔑 API KEY DIAGNOSTIC ENDPOINT
 app.get('/api/verify-keys', (req, res) => {
   res.json({
