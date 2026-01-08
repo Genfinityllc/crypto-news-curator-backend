@@ -570,18 +570,14 @@ class ControlNetService {
   /**
    * Generate stunning 3D glass/liquid logo using Google Nano-Banana-Pro Edit
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
-   * FIXED: Uses public CDN URLs that Wavespeed can access
+   * UPDATED: Using exact Wavespeed API format from official docs
    */
   async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
     
-    // Try to get a PUBLIC URL for the logo that Wavespeed can access
-    // Priority: 1) CryptoLogos CDN, 2) Base64 data URL as fallback
-    let logoUrl = null;
-    
-    // Check if we can use a public CDN URL
+    // Get PUBLIC URL for the logo that Wavespeed can access
     const cdnSlugs = {
       'btc': 'bitcoin-btc', 'bitcoin': 'bitcoin-btc',
       'eth': 'ethereum-eth', 'ethereum': 'ethereum-eth',
@@ -609,32 +605,45 @@ class ControlNetService {
     };
     
     const slug = cdnSlugs[logoSymbol.toLowerCase()];
+    let logoUrl;
     if (slug) {
       logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
       logger.info(`📷 Using CDN logo URL: ${logoUrl}`);
     } else {
-      // Fallback to base64 data URL
-      const logoBase64 = logoBuffer.toString('base64');
-      logoUrl = `data:image/png;base64,${logoBase64}`;
-      logger.info(`📷 Using base64 data URL (${Math.round(logoBase64.length / 1024)}KB) - CDN not available for ${logoSymbol}`);
+      // For tokens not on CDN, we need to use a hosted URL
+      // Save logo temporarily and use our server URL
+      const tempLogoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
+      await fs.writeFile(tempLogoPath, logoBuffer);
+      logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
+      logger.info(`📷 Using server-hosted logo URL: ${logoUrl}`);
     }
     
-    // Build premium prompt for 3D glass/liquid effect
+    // Build our dynamic prompt for 3D glass/liquid effect
     const prompt = this.getNanoBananaPrompt(logoSymbol, title);
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
-    // Submit to Nano-Banana-Pro Edit API
-    logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
-    const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
+    // EXACT Wavespeed API format from official docs
+    const payload = {
+      enable_base64_output: false,
+      enable_sync_mode: false,
+      images: [logoUrl],
+      output_format: "png",
       prompt: prompt,
-      images: [logoUrl]
-    }, {
+      resolution: "1k"
+    };
+    
+    logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
+    logger.info(`📦 Payload: ${JSON.stringify(payload).substring(0, 300)}...`);
+    
+    const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', payload, {
       headers: {
-        'Authorization': `Bearer ${wavespeedApiKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${wavespeedApiKey}`
       },
       timeout: 120000
     });
+    
+    logger.info(`📬 API Response: ${JSON.stringify(response.data).substring(0, 300)}`);
     
     const responseData = response.data.data || response.data;
     if (!responseData.id) {
@@ -642,17 +651,47 @@ class ControlNetService {
       throw new Error(`Nano-Banana-Pro failed: ${JSON.stringify(response.data).substring(0, 200)}`);
     }
     
-    logger.info(`📋 Nano-Banana-Pro job ID: ${responseData.id}`);
+    const requestId = responseData.id;
+    logger.info(`📋 Nano-Banana-Pro job ID: ${requestId}`);
     
-    // Poll for result
-    const result = await this.pollWavespeedJob(responseData.id, wavespeedApiKey);
-    const outputs = result.outputs || result.output || [];
-    if (!outputs[0]) {
-      logger.error(`❌ Nano-Banana-Pro job result:`, JSON.stringify(result).substring(0, 500));
-      throw new Error(`No output from Nano-Banana-Pro: ${result.status || 'unknown'}`);
+    // Poll for result using exact format from docs
+    let result = null;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second intervals
+      
+      const pollResponse = await axios.get(
+        `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+        {
+          headers: {
+            'Authorization': `Bearer ${wavespeedApiKey}`
+          },
+          timeout: 15000
+        }
+      );
+      
+      const data = pollResponse.data.data;
+      const status = data?.status;
+      
+      logger.info(`🔄 Poll ${attempt + 1}: Status = ${status}`);
+      
+      if (status === 'completed') {
+        result = data;
+        break;
+      } else if (status === 'failed') {
+        throw new Error(`Nano-Banana-Pro job failed: ${data.error || 'Unknown error'}`);
+      }
     }
     
-    logger.info(`⬇️ Downloading Nano-Banana-Pro result...`);
+    if (!result) {
+      throw new Error('Nano-Banana-Pro job timed out after 120 seconds');
+    }
+    
+    const outputs = result.outputs || [];
+    if (!outputs[0]) {
+      throw new Error(`No output from Nano-Banana-Pro: ${JSON.stringify(result).substring(0, 200)}`);
+    }
+    
+    logger.info(`⬇️ Downloading Nano-Banana-Pro result from: ${outputs[0].substring(0, 80)}...`);
     
     const imageResponse = await axios.get(outputs[0], {
       responseType: 'arraybuffer',
@@ -661,6 +700,13 @@ class ControlNetService {
     
     const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
     await fs.writeFile(imagePath, imageResponse.data);
+    
+    // Clean up temp logo if we created one
+    if (!slug) {
+      try {
+        await fs.unlink(path.join(this.imageStorePath, `temp_logo_${imageId}.png`));
+      } catch (e) { /* ignore */ }
+    }
     
     logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
     return imagePath;
