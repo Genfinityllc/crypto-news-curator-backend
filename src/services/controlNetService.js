@@ -134,6 +134,13 @@ class ControlNetService {
         return pngLogo;
       }
       
+      // Second: Try to fetch from public CDN
+      logger.info(`🌐 Trying to fetch ${symbol} logo from public CDN...`);
+      const cdnLogo = await this.fetchLogoFromCDN(symbol);
+      if (cdnLogo) {
+        return cdnLogo;
+      }
+      
       // Fallback: Generate PNG from SVG data
       logger.info(`🔄 PNG not found, generating from SVG for ${symbol}...`);
       const svgLogo = await this.generatePngFromSvg(symbol);
@@ -148,6 +155,57 @@ class ControlNetService {
       logger.error(`❌ Error getting logo for ${symbol}:`, error.message);
       return null;
     }
+  }
+  
+  /**
+   * Fetch logo from public CDN (cryptologos.cc)
+   */
+  async fetchLogoFromCDN(symbol) {
+    const normalizedSymbol = symbol.toLowerCase();
+    
+    // Mapping of symbols to cryptologos.cc slugs
+    const slugMapping = {
+      'btc': 'bitcoin-btc', 'eth': 'ethereum-eth', 'xrp': 'xrp-xrp',
+      'sol': 'solana-sol', 'ada': 'cardano-ada', 'doge': 'dogecoin-doge',
+      'dot': 'polkadot-new-dot', 'matic': 'polygon-matic', 'link': 'chainlink-link',
+      'avax': 'avalanche-avax', 'uni': 'uniswap-uni', 'atom': 'cosmos-atom',
+      'ltc': 'litecoin-ltc', 'near': 'near-protocol-near', 'algo': 'algorand-algo',
+      'xlm': 'stellar-xlm', 'hbar': 'hedera-hbar', 'fil': 'filecoin-fil',
+      'aave': 'aave-aave', 'mkr': 'maker-mkr', 'arb': 'arbitrum-arb',
+      'op': 'optimism-ethereum-op', 'sui': 'sui-sui', 'apt': 'aptos-apt',
+      'inj': 'injective-inj', 'sei': 'sei-sei', 'tia': 'celestia-tia',
+      'pepe': 'pepe-pepe', 'shib': 'shiba-inu-shib', 'bonk': 'bonk-bonk'
+    };
+    
+    const slug = slugMapping[normalizedSymbol] || `${normalizedSymbol}-${normalizedSymbol}`;
+    const urls = [
+      `https://cryptologos.cc/logos/${slug}-logo.png`,
+      `https://cryptologos.cc/logos/${normalizedSymbol}-${normalizedSymbol}-logo.png`
+    ];
+    
+    for (const url of urls) {
+      try {
+        logger.info(`📥 Fetching logo: ${url}`);
+        const response = await axios.get(url, {
+          responseType: 'arraybuffer',
+          timeout: 10000,
+          headers: { 'User-Agent': 'Genfinity/1.0' }
+        });
+        
+        if (response.status === 200 && response.data.length > 1000) {
+          logger.info(`✅ Fetched ${symbol} logo from CDN (${response.data.length} bytes)`);
+          return {
+            buffer: Buffer.from(response.data),
+            source: 'cdn_cryptologos'
+          };
+        }
+      } catch (error) {
+        // Try next URL
+      }
+    }
+    
+    logger.warn(`⚠️ Could not fetch ${symbol} logo from CDN`);
+    return null;
   }
 
   /**
