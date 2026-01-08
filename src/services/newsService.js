@@ -27,6 +27,7 @@ const Parser = require('rss-parser');
 const logger = require('../utils/logger');
 const { calculateViralScore, rewriteArticle, calculateReadabilityScore } = require('./aiService');
 const { generateCardCoverImage, extractArticleImages, isGenericGoogleImage, secondaryImageExtraction, extractGoogleNewsImages, resolveGoogleNewsUrl } = require('./imageService');
+const { detectCryptocurrency, getDisplayName } = require('./cryptoDetectionService');
 
 // Initialize RSS parser
 const parser = new Parser({
@@ -1304,72 +1305,14 @@ async function fetchRealCryptoNews() {
           if (validatedClientNetwork) {
             network = validatedClientNetwork;
           } else {
-            // 🌟 STEP 2: GENERAL NETWORK DETECTION (for non-client networks)
-            const networkKeywords = {
+            // 🌟 STEP 2: UNIFIED CRYPTO DETECTION SERVICE (priority-based, accurate)
+            // Uses centralized detection with proper priority scoring
+            const detectionResult = detectCryptocurrency(title, content);
             
-            // Major Networks
-            'Bitcoin': ['bitcoin', 'btc', 'bitcoin core', 'bitcoin network'],
-            'Ethereum': ['ethereum', 'eth', 'ether', 'ethereum network', 'eth2', 'ethereum 2.0'],
-            'BNB Chain': ['bnb', 'binance coin', 'bnb chain', 'binance smart chain', 'bsc'],
-            'Solana': ['solana', 'sol', 'solana network'],
-            'Cardano': ['cardano', 'ada', 'cardano network'],
-            'XRP': ['xrp', 'ripple', 'ripple network', 'xrp ledger'],
-            'Dogecoin': ['dogecoin', 'doge', 'dogecoin network'],
-            'Polygon': ['polygon', 'matic', 'polygon network', 'polygon matic'],
-            'Avalanche': ['avalanche', 'avax', 'avalanche network'],
-            'Chainlink': ['chainlink', 'chainlink network', 'chainlink oracle'],
-            'Polkadot': ['polkadot', 'dot', 'polkadot network'],
-            'Cosmos': ['cosmos', 'atom', 'cosmos network', 'cosmos hub'],
-            'Near Protocol': ['near', 'near protocol', 'near network'],
-            'Stellar': ['stellar', 'xlm', 'stellar network', 'stellar lumens'],
-            'Litecoin': ['litecoin', 'ltc', 'litecoin network'],
-            'Aave': ['aave', 'aave protocol', 'aave network'],
-            'Cronos': ['cronos', 'cro', 'cronos network'],
-            'Arbitrum': ['arbitrum', 'arb', 'arbitrum network'],
-            'Optimism': ['op', 'optimism network'],
-            'Injective': ['injective', 'inj', 'injective protocol'],
-            'Celestia': ['celestia', 'tia', 'celestia network'],
-            'Sui': ['sui', 'sui network', 'sui blockchain'],
-            'Aptos': ['aptos', 'apt', 'aptos network'],
-            'Shardeum': ['shardeum', 'shard', 'shardeum network'],
-            'Immutable X': ['immutable x', 'imx', 'immutable'],
-            'The Sandbox': ['sandbox', 'sand', 'the sandbox'],
-            'Decentraland': ['decentraland', 'mana', 'decentraland network'],
-            'MakerDAO': ['makerdao', 'mkr', 'maker', 'dai'],
-            'Uniswap': ['uniswap', 'uni', 'uniswap protocol'],
-            'Curve': ['curve', 'crv', 'curve finance'],
-            'Fantom': ['fantom', 'ftm', 'fantom network'],
-            'Axie Infinity': ['axie infinity', 'axie', 'axs'],
-            'The Graph': ['the graph', 'graph', 'grt'],
-            'Helium': ['helium', 'hnt', 'helium network'],
-            'Filecoin': ['filecoin', 'fil', 'filecoin network'],
-            'Flow': ['flow', 'flow network', 'flow blockchain'],
-            'Theta Network': ['theta network', 'theta', 'tfuel'],
-            'BitTorrent': ['bittorrent', 'btt', 'bittorrent network'],
-            'Fetch.ai': ['fetch.ai', 'fetch', 'fet'],
-            'Monero': ['monero', 'xmr', 'monero network'],
-            'Zcash': ['zcash', 'zec', 'zcash network'],
-            'VeChain': ['vechain', 'vet', 'vechain network'],
-            'Neo': ['neo', 'neo network', 'neo blockchain'],
-            'Internet Computer': ['internet computer', 'icp', 'dfinity'],
-            'Bitcoin Cash': ['bitcoin cash', 'bch', 'bitcoin cash network']
-          };
-          
-          // Check for network keywords in title and content with crypto context validation
-          const searchText = (title + ' ' + content).toLowerCase();
-          
-          // Crypto context keywords to ensure articles are actually about cryptocurrency/blockchain
-          // Network detection (crypto context already validated in filter)
-          for (const [networkName, keywords] of Object.entries(networkKeywords)) {
-            for (const keyword of keywords) {
-              if (searchText.includes(keyword.toLowerCase())) {
-                network = networkName;
-                console.log(`✅ Network detected: ${network} (keyword: "${keyword}")`);
-                break;
-              }
+            if (detectionResult && detectionResult.confidence > 20) {
+              network = detectionResult.displayName;
+              console.log(`✅ Network detected: ${network} (${detectionResult.crypto}) - Confidence: ${detectionResult.confidence}%, Pattern: "${detectionResult.matchedPattern}"`);
             }
-            if (network !== 'General') break;
-          }
           } // Close the else block for general network detection
 
           // Determine category

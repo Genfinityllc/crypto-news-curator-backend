@@ -1,6 +1,7 @@
 const { getSupabaseClient } = require('../config/supabase');
 const SVGPreprocessor = require('./svgPreprocessor');
 const logger = require('../utils/logger');
+const { detectCryptocurrency } = require('./cryptoDetectionService');
 
 /**
  * SVG Logo Service - CRUD operations for cryptocurrency logos
@@ -333,135 +334,38 @@ class SVGLogoService {
   }
 
   /**
-   * Detect ALL cryptocurrencies/companies from article content and get corresponding logos
-   * Enhanced to support multiple entity detection in a single article
-   * Based on SVG collection: '/Users/valorkopeny/Desktop/SVG CRYPTO LOGOS'
+   * Detect cryptocurrency from article content and get corresponding logo
+   * NOW USES UNIFIED CRYPTO DETECTION SERVICE for consistent detection across the system
    */
-  async detectAndGetLogo(title, content = '') {
+  async detectAndGetLogoEnhanced(title, content = '') {
     try {
-      const fullText = `${title} ${content}`.toLowerCase();
+      // Use unified detection service for priority-based accurate detection
+      const detectionResult = detectCryptocurrency(title, content);
       
-      // Detection patterns based EXACTLY on uploaded SVG files
-      const cryptoPatterns = [
-        // Companies & Institutions (from your uploaded SVGs)
-        { symbols: ['21shares'], crypto: '21SHARES', name: '21Shares' },
-        { symbols: ['blackrock'], crypto: 'BLACKROCK', name: 'BlackRock' },
-        { symbols: ['bitmine'], crypto: 'BITMINE', name: 'Bitmine' },
-        { symbols: ['grayscale'], crypto: 'GRAYSCALE', name: 'Grayscale' },
-        { symbols: ['moonpay'], crypto: 'MOONPAY', name: 'MoonPay' },
-        { symbols: ['nvidia'], crypto: 'NVIDIA', name: 'NVIDIA' },
-        { symbols: ['paxos'], crypto: 'PAXOS', name: 'Paxos' },
-        { symbols: ['robinhood'], crypto: 'ROBINHOOD', name: 'Robinhood' },
-        
-        // Cryptocurrencies (from your uploaded SVGs)
-        // MAJOR COINS - HIGH PRIORITY
-        { symbols: ['bitcoin', 'btc'], crypto: 'BITCOIN', name: 'Bitcoin' },
-        { symbols: ['ethereum', 'eth'], crypto: 'ETH', name: 'Ethereum' },
-        { symbols: ['ripple', 'xrp'], crypto: 'XRP', name: 'Ripple' },
-        { symbols: ['bnb', 'binance', 'binance smart chain', 'bsc'], crypto: 'BNB', name: 'BNB' },
-        { symbols: ['solana', 'sol'], crypto: 'SOLANA', name: 'Solana' },
-        { symbols: ['cardano', 'ada'], crypto: 'CARDANO', name: 'Cardano' },
-        { symbols: ['dogecoin', 'doge'], crypto: 'DOGECOIN', name: 'Dogecoin' },
-        
-        // World Liberty Financial - MUST BE BEFORE generic "liberty" detection
-        { symbols: ['world liberty financial', 'wlfi', 'world liberty', 'liberty financial'], crypto: 'WLFI', name: 'World Liberty Financial' },
-        
-        // Other major cryptos
-        { symbols: ['algorand', 'algo'], crypto: 'ALGORAND', name: 'Algorand' },
-        { symbols: ['aptos', 'apt'], crypto: 'APTOS', name: 'Aptos' },
-        { symbols: ['avalanche', 'avax'], crypto: 'AVALANCHE', name: 'Avalanche' },
-        { symbols: ['bittensor', 'tao'], crypto: 'BITTENSOR', name: 'Bittensor' },
-        { symbols: ['celestia', 'tia'], crypto: 'CELESTIA', name: 'Celestia' },
-        { symbols: ['chainlink', 'link'], crypto: 'CHAINLINK', name: 'Chainlink' },
-        { symbols: ['constellation', 'dag'], crypto: 'CONSTELLATION', name: 'Constellation' },
-        { symbols: ['cronos', 'cro'], crypto: 'CRONOS', name: 'Cronos' },
-        { symbols: ['filecoin', 'fil'], crypto: 'FILECOIN', name: 'Filecoin' },
-        { symbols: ['hashpack'], crypto: 'HASHPACK', name: 'HashPack' },
-        { symbols: ['hbar', 'hedera', 'hashgraph'], crypto: 'HBAR', name: 'Hedera' },
-        { symbols: ['immutable', 'imx'], crypto: 'IMMUTABLE', name: 'Immutable X' },
-        { symbols: ['litecoin', 'ltc'], crypto: 'LITECOIN', name: 'Litecoin' },
-        { symbols: ['monero', 'xmr'], crypto: 'MONERO', name: 'Monero' },
-        { symbols: ['near', 'near protocol'], crypto: 'NEAR', name: 'NEAR Protocol' },
-        { symbols: ['ondo'], crypto: 'ONDO', name: 'Ondo' },
-        { symbols: ['polkadot', 'dot'], crypto: 'POLKADOT', name: 'Polkadot' },
-        { symbols: ['quant', 'qnt'], crypto: 'QUANT', name: 'Quant' },
-        { symbols: ['sei'], crypto: 'SEI', name: 'Sei' },
-        { symbols: ['shiba inu', 'shib'], crypto: 'SHIB', name: 'Shiba Inu' },
-        { symbols: ['stellar', 'xlm'], crypto: 'STELLAR', name: 'Stellar' },
-        { symbols: ['sui'], crypto: 'SUI', name: 'Sui' },
-        { symbols: ['thorchain', 'rune'], crypto: 'THORCHAIN', name: 'THORChain' },
-        { symbols: ['toncoin', 'ton'], crypto: 'TONCOIN', name: 'Toncoin' },
-        { symbols: ['tron', 'trx'], crypto: 'TRON', name: 'Tron' },
-        { symbols: ['uniswap', 'uni'], crypto: 'UNISWAP', name: 'Uniswap' },
-        { symbols: ['usdc', 'usd coin'], crypto: 'USDC', name: 'USD Coin' },
-        { symbols: ['usdt', 'tether'], crypto: 'USDT', name: 'Tether' },
-        { symbols: ['xdc', 'xdc network'], crypto: 'XDC', name: 'XDC Network' }
-      ];
-
-      const foundKeywords = new Set(); // To avoid duplicate detections
-
-      // Find ALL matching cryptocurrencies/companies in the text
-      // PRIORITY 1: Exact symbol matches (3-4 letter tokens like XRP, BTC, ETH)
-      const exactSymbolMatches = [];
-      // PRIORITY 2: Full name matches (like "ripple", "bitcoin")
-      const nameMatches = [];
-      
-      for (const pattern of cryptoPatterns) {
-        for (const keyword of pattern.symbols) {
-          // Check for exact symbol match with word boundaries (prioritize ticker symbols)
-          const symbolRegex = new RegExp(`\\b${keyword.toUpperCase()}\\b`, 'i');
-          const exactMatch = symbolRegex.test(fullText.toUpperCase());
-          
-          // Check for substring match (for full names)
-          const substringMatch = fullText.includes(keyword) && !exactMatch;
-          
-          if ((exactMatch || substringMatch) && !foundKeywords.has(pattern.crypto)) {
-            logger.info(`🎯 Detected ${pattern.crypto} (${pattern.name}) from keyword: ${keyword}${exactMatch ? ' [EXACT]' : ' [SUBSTRING]'}`);
-            const logo = await this.getLogoBySymbol(pattern.crypto);
-            
-            if (logo) {
-              const entityData = {
-                detected: pattern.crypto,
-                logo: logo,
-                keyword: keyword,
-                name: pattern.name,
-                priority: exactMatch ? 1 : 2 // EXACT matches get priority
-              };
-              
-              if (exactMatch) {
-                exactSymbolMatches.push(entityData);
-              } else {
-                nameMatches.push(entityData);
-              }
-              foundKeywords.add(pattern.crypto);
-            } else {
-              logger.warn(`⚠️ Logo not found for detected entity: ${pattern.crypto}`);
-            }
-            break; // Move to next pattern once we find a match
-          }
-        }
+      if (!detectionResult) {
+        logger.info('🤷 No specific cryptocurrency or company detected in content');
+        return null;
       }
       
-      // Combine results with EXACT matches first (higher priority)
-      const detectedEntities = [...exactSymbolMatches, ...nameMatches];
-
-      if (detectedEntities.length > 0) {
-        if (detectedEntities.length === 1) {
-          // Single entity detected - return as before for backward compatibility
-          return detectedEntities[0];
-        } else {
-          // Multiple entities detected - return array
-          logger.info(`🎉 Multiple entities detected: ${detectedEntities.map(e => e.name).join(', ')}`);
-          return {
-            multiple: true,
-            entities: detectedEntities,
-            count: detectedEntities.length
-          };
-        }
+      logger.info(`🎯 Detected ${detectionResult.crypto} (${detectionResult.displayName}) - Confidence: ${detectionResult.confidence}%`);
+      
+      // Get the logo for the detected crypto
+      const logo = await this.getLogoBySymbol(detectionResult.crypto);
+      
+      if (!logo) {
+        logger.warn(`⚠️ Logo not found for detected entity: ${detectionResult.crypto}`);
+        return null;
       }
-
-      logger.info('🤷 No specific cryptocurrency or company detected in content');
-      return null;
+      
+      return {
+        detected: detectionResult.crypto,
+        logo: logo,
+        keyword: detectionResult.matchedPattern,
+        name: detectionResult.displayName,
+        confidence: detectionResult.confidence,
+        priority: detectionResult.tier === 1 ? 1 : 2
+      };
+      
     } catch (error) {
       logger.error('❌ Failed to detect cryptocurrency and get logo:', error.message);
       return null;

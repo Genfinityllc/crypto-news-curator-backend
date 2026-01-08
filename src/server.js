@@ -326,6 +326,8 @@ const outputMonitor = require('./services/outputMonitorService');
 // Frontend can call this to get/generate a cover for any article
 app.post('/api/auto-cover', async (req, res) => {
   const logger = require('./utils/logger');
+  const { detectCryptocurrency, networkToSymbol } = require('./services/cryptoDetectionService');
+  
   try {
     const { title, network, cryptocurrency, content, articleId } = req.body;
     
@@ -333,32 +335,29 @@ app.post('/api/auto-cover', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Title is required' });
     }
     
-    // Detect cryptocurrency from title/network if not provided
+    // Use UNIFIED crypto detection service for consistent, accurate detection
     let detectedCrypto = cryptocurrency;
+    let detectionResult = null;
+    
     if (!detectedCrypto) {
-      const cryptoPatterns = {
-        'BTC': /bitcoin|btc/i,
-        'ETH': /ethereum|eth/i,
-        'XRP': /ripple|xrp/i,
-        'SOL': /solana|sol/i,
-        'HBAR': /hedera|hbar/i,
-        'ADA': /cardano|ada/i,
-        'DOGE': /dogecoin|doge/i,
-        'AVAX': /avalanche|avax/i,
-        'DOT': /polkadot|dot/i,
-        'MATIC': /polygon|matic/i,
-        'LINK': /chainlink|link/i,
-        'UNI': /uniswap|uni/i
-      };
-      
-      const textToSearch = `${title} ${network || ''} ${content || ''}`;
-      for (const [symbol, pattern] of Object.entries(cryptoPatterns)) {
-        if (pattern.test(textToSearch)) {
-          detectedCrypto = symbol;
-          break;
-        }
+      // Try to convert network name to symbol first (if article was already tagged)
+      if (network && network !== 'General') {
+        detectedCrypto = networkToSymbol(network);
       }
-      detectedCrypto = detectedCrypto || 'BTC'; // Default to BTC
+      
+      // Always re-detect from content for accuracy (may override incorrect tags)
+      detectionResult = detectCryptocurrency(title, content || '', { debug: true });
+      
+      if (detectionResult && detectionResult.confidence > 25) {
+        // Use detection result if confidence is reasonable
+        // This can OVERRIDE incorrect article tags
+        detectedCrypto = detectionResult.crypto;
+        logger.info(`🎯 Crypto detected with ${detectionResult.confidence}% confidence: ${detectedCrypto} (${detectionResult.displayName})`);
+      } else if (!detectedCrypto) {
+        // No detection and no network tag - use default
+        detectedCrypto = 'BTC';
+        logger.info('⚠️ No crypto detected, defaulting to BTC');
+      }
     }
     
     logger.info(`🎨 Auto-cover generation for: ${title.substring(0, 50)}... (${detectedCrypto})`);
