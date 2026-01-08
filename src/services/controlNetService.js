@@ -570,26 +570,27 @@ class ControlNetService {
   /**
    * Generate stunning 3D glass/liquid logo using Google Nano-Banana-Pro Edit
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
+   * FIXED: Uses base64 data URL instead of server URL (which Wavespeed can't access)
    */
   async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
     
-    // Get the logo URL (we need to host it or use a public URL)
-    // First, upload the logo to a temporary accessible location
-    const logoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
-    await fs.writeFile(logoPath, logoBuffer);
-    const logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
+    // Convert logo to base64 data URL (Wavespeed accepts this format)
+    const logoBase64 = logoBuffer.toString('base64');
+    const logoDataUrl = `data:image/png;base64,${logoBase64}`;
+    logger.info(`📷 Logo prepared as base64 data URL (${Math.round(logoBase64.length / 1024)}KB)`);
     
     // Build premium prompt for 3D glass/liquid effect
     const prompt = this.getNanoBananaPrompt(logoSymbol, title);
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
-    // Submit to Nano-Banana-Pro Edit API
+    // Submit to Nano-Banana-Pro Edit API with base64 data URL
+    logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
     const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
       prompt: prompt,
-      images: [logoUrl]
+      images: [logoDataUrl]
     }, {
       headers: {
         'Authorization': `Bearer ${wavespeedApiKey}`,
@@ -600,6 +601,7 @@ class ControlNetService {
     
     const responseData = response.data.data || response.data;
     if (!responseData.id) {
+      logger.error(`❌ Nano-Banana-Pro response:`, JSON.stringify(response.data).substring(0, 500));
       throw new Error('No job ID from Nano-Banana-Pro');
     }
     
@@ -609,10 +611,11 @@ class ControlNetService {
     const result = await this.pollWavespeedJob(responseData.id, wavespeedApiKey);
     const outputs = result.outputs || result.output || [];
     if (!outputs[0]) {
+      logger.error(`❌ Nano-Banana-Pro job result:`, JSON.stringify(result).substring(0, 500));
       throw new Error('No image from Nano-Banana-Pro');
     }
     
-    logger.info(`⬇️ Downloading Nano-Banana-Pro result...`);
+    logger.info(`⬇️ Downloading Nano-Banana-Pro result from: ${outputs[0].substring(0, 80)}...`);
     
     const imageResponse = await axios.get(outputs[0], {
       responseType: 'arraybuffer',
@@ -621,13 +624,6 @@ class ControlNetService {
     
     const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
     await fs.writeFile(imagePath, imageResponse.data);
-    
-    // Clean up temp logo
-    try {
-      await fs.unlink(logoPath);
-    } catch (e) {
-      // Ignore cleanup errors
-    }
     
     logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
     return imagePath;
