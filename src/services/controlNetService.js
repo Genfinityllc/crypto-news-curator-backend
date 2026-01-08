@@ -547,28 +547,48 @@ class ControlNetService {
   }
   
   /**
-   * Build premium prompt for Nano-Banana-Pro 3D glass/liquid effect
+   * Build simple, effective prompt for Nano-Banana-Pro
+   * User's example: "A single Hedera logo filled with liquid hovering above a dramatic reflective surface of tokens"
    */
   getNanoBananaPrompt(logoSymbol, title) {
+    // Get full network name for better AI understanding
+    const networkNames = {
+      'XRP': 'XRP Ripple', 'HBAR': 'Hedera', 'SOL': 'Solana', 'ETH': 'Ethereum',
+      'BTC': 'Bitcoin', 'ADA': 'Cardano', 'AVAX': 'Avalanche', 'DOT': 'Polkadot',
+      'MATIC': 'Polygon', 'LINK': 'Chainlink', 'UNI': 'Uniswap', 'DOGE': 'Dogecoin',
+      'LTC': 'Litecoin', 'ATOM': 'Cosmos', 'NEAR': 'NEAR', 'ALGO': 'Algorand',
+      'XLM': 'Stellar', 'ICP': 'Internet Computer', 'FIL': 'Filecoin', 'AAVE': 'Aave',
+      'SUI': 'Sui', 'APT': 'Aptos', 'ARB': 'Arbitrum', 'OP': 'Optimism',
+      'INJ': 'Injective', 'SEI': 'Sei', 'TIA': 'Celestia', 'JUP': 'Jupiter',
+      'PEPE': 'Pepe', 'SHIB': 'Shiba Inu', 'BONK': 'Bonk', 'WIF': 'dogwifhat'
+    };
+    
+    const networkName = networkNames[logoSymbol] || logoSymbol;
+    
+    // Simple, effective prompts matching user's example style
     const prompts = [
-      // Crystal glass with liquid - BEST QUALITY
-      `A single ${logoSymbol} cryptocurrency logo transformed into stunning 3D crystal glass filled with glowing liquid, hovering above a dramatic reflective black surface scattered with metallic coins featuring the same ${logoSymbol} symbol, deep blue and purple neon lighting, photorealistic 3D render, cinematic lighting, 8k quality`,
+      // Style 1: Liquid-filled hovering logo with coin surface (user's favorite)
+      `A single ${networkName} logo filled with liquid hovering above a dramatic reflective surface of tokens with the same ${networkName} logo on a dark reflective surface`,
       
-      // Chrome metallic floating
-      `The ${logoSymbol} logo as a massive 3D chrome metallic sculpture floating in a dark void, surrounded by smaller holographic versions, dramatic rim lighting in cyan and magenta, reflective floor showing perfect mirror reflections, professional product photography, ultra detailed`,
+      // Style 2: Multiple coins scattered (like XRP green image)
+      `Many ${networkName} cryptocurrency coins scattered on a dark reflective surface with glowing neon accents, the ${networkName} logo prominently featured on each coin`,
       
-      // Glass orb with symbol
-      `A transparent glass sphere containing a glowing 3D ${logoSymbol} cryptocurrency symbol made of liquid metal, the sphere hovers above a pool of reflective liquid with scattered ${logoSymbol} coins, volumetric fog, neon blue and purple lighting, photorealistic`,
+      // Style 3: Circuit board logo (like HBAR gold image)
+      `The ${networkName} logo as a 3D circuit board with glowing traces and lights, floating on a dark gradient background`,
       
-      // Architectural element
-      `The ${logoSymbol} symbol as a giant 3D metallic architectural element rising from a sea of glowing cryptocurrency coins, dramatic cyberpunk lighting, chrome and glass materials, reflections everywhere, fog and particles, 8k cinematic render`
+      // Style 4: Glass/crystal centerpiece
+      `A large ${networkName} logo made of crystal glass hovering above smaller ${networkName} tokens scattered below on a dark reflective surface`,
+      
+      // Style 5: Chrome metallic with reflections
+      `A massive chrome metallic ${networkName} logo floating above a mirror surface with scattered ${networkName} coins reflecting the light`
     ];
     
     // Select based on title hash for variety
     const hash = title.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const selectedPrompt = prompts[hash % prompts.length];
+    const selectedIndex = hash % prompts.length;
+    const selectedPrompt = prompts[selectedIndex];
     
-    logger.info(`🎬 Nano-Banana prompt style: ${hash % prompts.length + 1}/${prompts.length}`);
+    logger.info(`🎬 Nano-Banana prompt (${networkName}) style ${selectedIndex + 1}: "${selectedPrompt.substring(0, 60)}..."`);
     return selectedPrompt;
   }
   
