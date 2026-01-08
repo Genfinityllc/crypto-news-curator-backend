@@ -165,16 +165,31 @@ class ControlNetService {
     
     // Mapping of symbols to cryptologos.cc slugs
     const slugMapping = {
+      // Major coins
       'btc': 'bitcoin-btc', 'eth': 'ethereum-eth', 'xrp': 'xrp-xrp',
-      'sol': 'solana-sol', 'ada': 'cardano-ada', 'doge': 'dogecoin-doge',
-      'dot': 'polkadot-new-dot', 'matic': 'polygon-matic', 'link': 'chainlink-link',
-      'avax': 'avalanche-avax', 'uni': 'uniswap-uni', 'atom': 'cosmos-atom',
-      'ltc': 'litecoin-ltc', 'near': 'near-protocol-near', 'algo': 'algorand-algo',
-      'xlm': 'stellar-xlm', 'hbar': 'hedera-hbar', 'fil': 'filecoin-fil',
-      'aave': 'aave-aave', 'mkr': 'maker-mkr', 'arb': 'arbitrum-arb',
-      'op': 'optimism-ethereum-op', 'sui': 'sui-sui', 'apt': 'aptos-apt',
-      'inj': 'injective-inj', 'sei': 'sei-sei', 'tia': 'celestia-tia',
-      'pepe': 'pepe-pepe', 'shib': 'shiba-inu-shib', 'bonk': 'bonk-bonk'
+      'bnb': 'bnb-bnb', 'sol': 'solana-sol', 'ada': 'cardano-ada', 
+      'doge': 'dogecoin-doge', 'trx': 'tron-trx', 'ton': 'toncoin-ton',
+      'dot': 'polkadot-new-dot', 'matic': 'polygon-matic', 'pol': 'polygon-matic',
+      'link': 'chainlink-link', 'avax': 'avalanche-avax', 'uni': 'uniswap-uni',
+      'atom': 'cosmos-atom', 'ltc': 'litecoin-ltc', 'bch': 'bitcoin-cash-bch',
+      'near': 'near-protocol-near', 'algo': 'algorand-algo', 'xlm': 'stellar-xlm',
+      'hbar': 'hedera-hbar', 'fil': 'filecoin-fil', 'icp': 'internet-computer-icp',
+      'etc': 'ethereum-classic-etc', 'vet': 'vechain-vet', 'ftm': 'fantom-ftm',
+      'aave': 'aave-aave', 'mkr': 'maker-mkr', 'crv': 'curve-dao-token-crv',
+      'snx': 'synthetix-network-token-snx', 'comp': 'compound-comp',
+      // L2s and new chains
+      'arb': 'arbitrum-arb', 'op': 'optimism-ethereum-op', 'sui': 'sui-sui',
+      'apt': 'aptos-apt', 'inj': 'injective-inj', 'sei': 'sei-sei',
+      'tia': 'celestia-tia', 'stx': 'stacks-stx', 'imx': 'immutable-x-imx',
+      'mina': 'mina-mina', 'kas': 'kaspa-kas', 'flow': 'flow-flow',
+      // Memecoins
+      'pepe': 'pepe-pepe', 'shib': 'shiba-inu-shib', 'bonk': 'bonk-bonk',
+      'wif': 'dogwifhat-wif', 'floki': 'floki-inu-floki',
+      // DeFi
+      'jup': 'jupiter-jup', 'ray': 'raydium-ray', 'orca': 'orca-orca',
+      'ldo': 'lido-dao-ldo', 'rpl': 'rocket-pool-rpl', 'pendle': 'pendle-pendle',
+      // Stablecoins (in case needed)
+      'usdt': 'tether-usdt', 'usdc': 'usd-coin-usdc', 'dai': 'multi-collateral-dai-dai'
     };
     
     const slug = slugMapping[normalizedSymbol] || `${normalizedSymbol}-${normalizedSymbol}`;
@@ -220,11 +235,25 @@ class ControlNetService {
         `${normalizedSymbol}.png`,
         `${symbol.toLowerCase()}.png`, 
         `${symbol}.png`,
-        // Handle special cases
-        ...(normalizedSymbol === 'IMMUTABLE' ? ['IMX.png'] : []),
-        ...(normalizedSymbol === 'IMX' ? ['IMMUTABLE.png'] : []),
-        ...(normalizedSymbol === 'RIPPLE' ? ['XRP.png'] : []),
-        ...(normalizedSymbol === 'XRP' ? ['Ripple.png'] : [])
+        // Handle special cases - map various names to actual files
+        ...(normalizedSymbol === 'IMMUTABLE' ? ['IMX.png', 'IMMUTABLE.png'] : []),
+        ...(normalizedSymbol === 'IMX' ? ['IMMUTABLE.png', 'IMX.png'] : []),
+        ...(normalizedSymbol === 'RIPPLE' ? ['XRP.png', 'Ripple.png'] : []),
+        ...(normalizedSymbol === 'XRP' ? ['Ripple.png', 'XRP.png'] : []),
+        // Bitcoin variations
+        ...(normalizedSymbol === 'BTC' ? ['bitcoin.png', 'BITCOIN.png', 'Bitcoin.png'] : []),
+        ...(normalizedSymbol === 'BITCOIN' ? ['bitcoin.png', 'BTC.png', 'Bitcoin.png'] : []),
+        // World Liberty Financial
+        ...(normalizedSymbol === 'WLFI' ? ['WLFI.png', 'World Liberty Financial.png'] : []),
+        ...(normalizedSymbol === 'WORLDLIBERTYFINANCIAL' ? ['WLFI.png', 'World Liberty Financial.png'] : []),
+        // Binance/BNB
+        ...(normalizedSymbol === 'BNB' ? ['BNB.png', 'Binance.png'] : []),
+        ...(normalizedSymbol === 'BINANCE' ? ['Binance.png', 'BNB.png'] : []),
+        // Litecoin
+        ...(normalizedSymbol === 'LTC' ? ['litecoin.png', 'Litecoin.png', 'LTC.png'] : []),
+        ...(normalizedSymbol === 'LITECOIN' ? ['litecoin.png', 'LTC.png'] : []),
+        // Shiba Inu
+        ...(normalizedSymbol === 'SHIB' ? ['shiba inu.png', 'SHIB.png', 'shiba-inu.png'] : [])
       ];
       
       for (const filename of possibleFiles) {
@@ -610,14 +639,22 @@ class ControlNetService {
    */
   getNanoBananaPrompt(logoSymbol, title) {
     const networkNames = {
-      'XRP': 'XRP Ripple', 'HBAR': 'Hedera', 'SOL': 'Solana', 'ETH': 'Ethereum',
-      'BTC': 'Bitcoin', 'ADA': 'Cardano', 'AVAX': 'Avalanche', 'DOT': 'Polkadot',
-      'MATIC': 'Polygon', 'LINK': 'Chainlink', 'UNI': 'Uniswap', 'DOGE': 'Dogecoin',
-      'LTC': 'Litecoin', 'ATOM': 'Cosmos', 'NEAR': 'NEAR', 'ALGO': 'Algorand',
-      'XLM': 'Stellar', 'ICP': 'Internet Computer', 'FIL': 'Filecoin', 'AAVE': 'Aave',
+      // Major coins
+      'BTC': 'Bitcoin', 'BITCOIN': 'Bitcoin', 'ETH': 'Ethereum', 'XRP': 'XRP Ripple',
+      'BNB': 'BNB Binance', 'SOL': 'Solana', 'ADA': 'Cardano', 'DOGE': 'Dogecoin',
+      'DOT': 'Polkadot', 'MATIC': 'Polygon', 'LINK': 'Chainlink', 'AVAX': 'Avalanche',
+      'UNI': 'Uniswap', 'LTC': 'Litecoin', 'ATOM': 'Cosmos', 'XLM': 'Stellar',
+      // Mid-cap
+      'HBAR': 'Hedera', 'NEAR': 'NEAR Protocol', 'ALGO': 'Algorand', 'FIL': 'Filecoin',
+      'ICP': 'Internet Computer', 'AAVE': 'Aave', 'TRX': 'Tron', 'TON': 'Toncoin',
+      // L2s and new chains
       'SUI': 'Sui', 'APT': 'Aptos', 'ARB': 'Arbitrum', 'OP': 'Optimism',
       'INJ': 'Injective', 'SEI': 'Sei', 'TIA': 'Celestia', 'JUP': 'Jupiter',
-      'PEPE': 'Pepe', 'SHIB': 'Shiba Inu', 'BONK': 'Bonk', 'WIF': 'dogwifhat'
+      // Memes
+      'PEPE': 'Pepe', 'SHIB': 'Shiba Inu', 'BONK': 'Bonk', 'WIF': 'dogwifhat',
+      // Special/Projects
+      'WLFI': 'World Liberty Financial', 'WORLDLIBERTYFINANCIAL': 'World Liberty Financial',
+      'IMX': 'Immutable X', 'IMMUTABLE': 'Immutable X'
     };
     const networkName = networkNames[logoSymbol] || logoSymbol;
     
@@ -664,13 +701,16 @@ class ControlNetService {
       if (titleLower.includes(kw)) { context = phrase; break; }
     }
     
-    // Randomized building blocks for infinite variety
+    // Expanded randomized building blocks for TRUE variety
     const materials = [
       'made of polished chrome metal', 'as crystal glass filled with glowing liquid',
       'constructed from circuit board components with glowing traces', 'forged from molten gold',
       'carved from transparent diamond', 'built with holographic light beams',
       'formed by neon energy particles', 'crafted from brushed titanium',
-      'made of iridescent opal glass', 'sculpted from liquid mercury'
+      'made of iridescent opal glass', 'sculpted from liquid mercury',
+      'rendered in frosted glass with internal glow', 'built from stacked transparent layers',
+      'made of solid platinum with mirror finish', 'constructed from crystalline ice',
+      'formed by interconnected hexagonal cells', 'made of brushed copper with patina'
     ];
     
     const scenes = [
@@ -678,7 +718,10 @@ class ControlNetService {
       'as a 3D holographic projection', 'emerging from liquid metal',
       'at the center of a swirling vortex', 'on a pedestal of stacked tokens',
       'surrounded by orbiting smaller versions', 'breaking through a digital wall',
-      'at the intersection of light beams', 'within a geometric crystal structure'
+      'at the intersection of light beams', 'within a geometric crystal structure',
+      'rising from a pool of mercury', 'suspended by invisible force',
+      'positioned at the center of a spiral galaxy', 'locked inside a transparent cube',
+      'rotating slowly above a reflective plane', 'emerging from a quantum portal'
     ];
     
     const lighting = [
@@ -686,7 +729,10 @@ class ControlNetService {
       'with dramatic blue backlighting', 'under matrix-green lighting',
       'with warm amber accents', 'bathed in ethereal white glow',
       'with rainbow prismatic reflections', 'under cold blue moonlight',
-      'with fiery orange underlighting', 'surrounded by bioluminescent particles'
+      'with fiery orange underlighting', 'surrounded by bioluminescent particles',
+      'lit by multiple colored spotlights', 'with volumetric god rays',
+      'under soft diffused studio lighting', 'with harsh dramatic shadows',
+      'illuminated by aurora borealis colors', 'with pulsing energy light'
     ];
     
     const backgrounds = [
@@ -694,22 +740,36 @@ class ControlNetService {
       'in foggy atmospheric environment', 'above flowing data streams',
       'within a geometric void', 'over a city skyline at night',
       'in abstract gradient space', 'surrounded by floating particles',
-      'in a server room corridor', 'above clouds at sunrise'
+      'in a server room corridor', 'above clouds at sunrise',
+      'inside an empty black studio', 'within a futuristic laboratory',
+      'floating in deep ocean darkness', 'in a vast empty warehouse',
+      'against a wall of monitors', 'in an abandoned temple'
     ];
     
-    // True randomization using timestamp
-    const now = Date.now();
-    const rand = (arr, offset = 0) => arr[(now + offset) % arr.length];
+    // TRUE randomization using Math.random() - completely unique each call
+    const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
     
-    // Build unique prompt each time
-    let prompt = `The ${networkName} logo ${rand(materials, 0)}, ${rand(scenes, 7)}, ${rand(lighting, 13)}, ${rand(backgrounds, 23)}`;
+    // Build truly unique prompt each time - each element independently randomized
+    const selectedMaterial = rand(materials);
+    const selectedScene = rand(scenes);
+    const selectedLighting = rand(lighting);
+    const selectedBackground = rand(backgrounds);
+    
+    let prompt = `The ${networkName} logo ${selectedMaterial}, ${selectedScene}, ${selectedLighting}, ${selectedBackground}`;
     
     if (context) prompt += `, ${context}`;
     
     // CRITICAL: Prevent logo distortion
     prompt += `, maintain exact logo proportions without stretching, professional 3D render, 8k quality`;
     
-    logger.info(`🎬 Dynamic prompt for ${networkName}: "${prompt.substring(0, 80)}..."`);
+    // Log the unique combination
+    logger.info(`🎬 UNIQUE prompt for ${networkName}:`);
+    logger.info(`   Material: ${selectedMaterial}`);
+    logger.info(`   Scene: ${selectedScene}`);
+    logger.info(`   Lighting: ${selectedLighting}`);
+    logger.info(`   Background: ${selectedBackground}`);
+    logger.info(`   Context: ${context || 'none'}`);
+    
     return prompt;
   }
   

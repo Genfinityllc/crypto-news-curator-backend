@@ -354,29 +354,39 @@ class SVGLogoService {
         { symbols: ['robinhood'], crypto: 'ROBINHOOD', name: 'Robinhood' },
         
         // Cryptocurrencies (from your uploaded SVGs)
+        // MAJOR COINS - HIGH PRIORITY
+        { symbols: ['bitcoin', 'btc'], crypto: 'BITCOIN', name: 'Bitcoin' },
+        { symbols: ['ethereum', 'eth'], crypto: 'ETH', name: 'Ethereum' },
+        { symbols: ['ripple', 'xrp'], crypto: 'XRP', name: 'Ripple' },
+        { symbols: ['bnb', 'binance', 'binance smart chain', 'bsc'], crypto: 'BNB', name: 'BNB' },
+        { symbols: ['solana', 'sol'], crypto: 'SOLANA', name: 'Solana' },
+        { symbols: ['cardano', 'ada'], crypto: 'CARDANO', name: 'Cardano' },
+        { symbols: ['dogecoin', 'doge'], crypto: 'DOGECOIN', name: 'Dogecoin' },
+        
+        // World Liberty Financial - MUST BE BEFORE generic "liberty" detection
+        { symbols: ['world liberty financial', 'wlfi', 'world liberty', 'liberty financial'], crypto: 'WLFI', name: 'World Liberty Financial' },
+        
+        // Other major cryptos
         { symbols: ['algorand', 'algo'], crypto: 'ALGORAND', name: 'Algorand' },
         { symbols: ['aptos', 'apt'], crypto: 'APTOS', name: 'Aptos' },
         { symbols: ['avalanche', 'avax'], crypto: 'AVALANCHE', name: 'Avalanche' },
         { symbols: ['bittensor', 'tao'], crypto: 'BITTENSOR', name: 'Bittensor' },
-        { symbols: ['bnb', 'binance', 'binance smart chain', 'bsc'], crypto: 'BNB', name: 'BNB' },
-        { symbols: ['cardano', 'ada'], crypto: 'CARDANO', name: 'Cardano' },
+        { symbols: ['celestia', 'tia'], crypto: 'CELESTIA', name: 'Celestia' },
         { symbols: ['chainlink', 'link'], crypto: 'CHAINLINK', name: 'Chainlink' },
         { symbols: ['constellation', 'dag'], crypto: 'CONSTELLATION', name: 'Constellation' },
         { symbols: ['cronos', 'cro'], crypto: 'CRONOS', name: 'Cronos' },
-        { symbols: ['dogecoin', 'doge'], crypto: 'DOGECOIN', name: 'Dogecoin' },
-        { symbols: ['ethereum', 'eth'], crypto: 'ETH', name: 'Ethereum' },
         { symbols: ['filecoin', 'fil'], crypto: 'FILECOIN', name: 'Filecoin' },
         { symbols: ['hashpack'], crypto: 'HASHPACK', name: 'HashPack' },
         { symbols: ['hbar', 'hedera', 'hashgraph'], crypto: 'HBAR', name: 'Hedera' },
-        { symbols: ['hedera', 'hashgraph'], crypto: 'HEDERA', name: 'Hedera' },
         { symbols: ['immutable', 'imx'], crypto: 'IMMUTABLE', name: 'Immutable X' },
+        { symbols: ['litecoin', 'ltc'], crypto: 'LITECOIN', name: 'Litecoin' },
         { symbols: ['monero', 'xmr'], crypto: 'MONERO', name: 'Monero' },
         { symbols: ['near', 'near protocol'], crypto: 'NEAR', name: 'NEAR Protocol' },
         { symbols: ['ondo'], crypto: 'ONDO', name: 'Ondo' },
         { symbols: ['polkadot', 'dot'], crypto: 'POLKADOT', name: 'Polkadot' },
         { symbols: ['quant', 'qnt'], crypto: 'QUANT', name: 'Quant' },
         { symbols: ['sei'], crypto: 'SEI', name: 'Sei' },
-        { symbols: ['solana', 'sol'], crypto: 'SOLANA', name: 'Solana' },
+        { symbols: ['shiba inu', 'shib'], crypto: 'SHIB', name: 'Shiba Inu' },
         { symbols: ['stellar', 'xlm'], crypto: 'STELLAR', name: 'Stellar' },
         { symbols: ['sui'], crypto: 'SUI', name: 'Sui' },
         { symbols: ['thorchain', 'rune'], crypto: 'THORCHAIN', name: 'THORChain' },
@@ -385,8 +395,7 @@ class SVGLogoService {
         { symbols: ['uniswap', 'uni'], crypto: 'UNISWAP', name: 'Uniswap' },
         { symbols: ['usdc', 'usd coin'], crypto: 'USDC', name: 'USD Coin' },
         { symbols: ['usdt', 'tether'], crypto: 'USDT', name: 'Tether' },
-        { symbols: ['xdc', 'xdc network'], crypto: 'XDC', name: 'XDC Network' },
-        { symbols: ['ripple', 'xrp'], crypto: 'XRP', name: 'Ripple' }
+        { symbols: ['xdc', 'xdc network'], crypto: 'XDC', name: 'XDC Network' }
       ];
 
       const foundKeywords = new Set(); // To avoid duplicate detections
