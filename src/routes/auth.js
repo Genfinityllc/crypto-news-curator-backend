@@ -386,4 +386,201 @@ router.delete('/bookmarks/:article_id', authMiddleware, async (req, res) => {
   }
 });
 
+// ==========================================
+// PASSWORD MANAGEMENT ENDPOINTS
+// ==========================================
+
+// Request password reset (sends email)
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        message: 'Service unavailable'
+      });
+    }
+
+    // Send password reset email via Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.FRONTEND_URL || 'https://your-frontend.com'}/reset-password`
+    });
+
+    if (error) {
+      logger.error('Password reset request error:', error.message);
+      // Don't reveal if email exists or not for security
+      return res.json({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      });
+    }
+
+    logger.info(`Password reset requested for: ${email}`);
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    });
+
+  } catch (error) {
+    logger.error('Password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Reset password with token (from email link)
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { access_token, new_password } = req.body;
+
+    if (!access_token || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Access token and new password are required'
+      });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters'
+      });
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        message: 'Service unavailable'
+      });
+    }
+
+    // Set the session with the access token from the email link
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token,
+      refresh_token: access_token // Supabase sends same token for recovery
+    });
+
+    if (sessionError) {
+      logger.error('Session error during password reset:', sessionError.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Update the password
+    const { error } = await supabase.auth.updateUser({
+      password: new_password
+    });
+
+    if (error) {
+      logger.error('Password update error:', error.message);
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    logger.info('Password reset successful');
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully. You can now sign in with your new password.'
+    });
+
+  } catch (error) {
+    logger.error('Password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Change password (for logged-in users)
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters'
+      });
+    }
+
+    if (current_password === new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from current password'
+      });
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        message: 'Service unavailable'
+      });
+    }
+
+    // Verify current password by attempting to sign in
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: req.user.email,
+      password: current_password
+    });
+
+    if (signInError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Update to new password
+    const { error } = await supabase.auth.updateUser({
+      password: new_password
+    });
+
+    if (error) {
+      logger.error('Password change error:', error.message);
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    logger.info(`Password changed for user: ${req.user.id}`);
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    logger.error('Password change error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 module.exports = router;

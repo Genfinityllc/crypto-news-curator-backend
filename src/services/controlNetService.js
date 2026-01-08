@@ -605,11 +605,10 @@ class ControlNetService {
   }
   
   /**
-   * Build simple, effective prompt for Nano-Banana-Pro
-   * User's example: "A single Hedera logo filled with liquid hovering above a dramatic reflective surface of tokens"
+   * Build dynamic, diverse prompts for Nano-Banana-Pro
+   * Uses randomization + keyword extraction for variety
    */
   getNanoBananaPrompt(logoSymbol, title) {
-    // Get full network name for better AI understanding
     const networkNames = {
       'XRP': 'XRP Ripple', 'HBAR': 'Hedera', 'SOL': 'Solana', 'ETH': 'Ethereum',
       'BTC': 'Bitcoin', 'ADA': 'Cardano', 'AVAX': 'Avalanche', 'DOT': 'Polkadot',
@@ -620,34 +619,98 @@ class ControlNetService {
       'INJ': 'Injective', 'SEI': 'Sei', 'TIA': 'Celestia', 'JUP': 'Jupiter',
       'PEPE': 'Pepe', 'SHIB': 'Shiba Inu', 'BONK': 'Bonk', 'WIF': 'dogwifhat'
     };
-    
     const networkName = networkNames[logoSymbol] || logoSymbol;
     
-    // Simple, effective prompts matching user's example style
-    const prompts = [
-      // Style 1: Liquid-filled hovering logo with coin surface (user's favorite)
-      `A single ${networkName} logo filled with liquid hovering above a dramatic reflective surface of tokens with the same ${networkName} logo on a dark reflective surface`,
-      
-      // Style 2: Multiple coins scattered (like XRP green image)
-      `Many ${networkName} cryptocurrency coins scattered on a dark reflective surface with glowing neon accents, the ${networkName} logo prominently featured on each coin`,
-      
-      // Style 3: Circuit board logo (like HBAR gold image)
-      `The ${networkName} logo as a 3D circuit board with glowing traces and lights, floating on a dark gradient background`,
-      
-      // Style 4: Glass/crystal centerpiece
-      `A large ${networkName} logo made of crystal glass hovering above smaller ${networkName} tokens scattered below on a dark reflective surface`,
-      
-      // Style 5: Chrome metallic with reflections
-      `A massive chrome metallic ${networkName} logo floating above a mirror surface with scattered ${networkName} coins reflecting the light`
+    // Keyword-based context from article title
+    const titleLower = (title || '').toLowerCase();
+    const contextMap = {
+      'bank': 'inside a futuristic bank vault with gold bars',
+      'space': 'floating in outer space with distant stars and nebulae',
+      'usa': 'with subtle American patriotic elements',
+      'trading': 'on a high-tech trading floor with holographic screens',
+      'stock': 'in a stock exchange environment with ticker displays',
+      'market': 'surrounded by market data visualizations',
+      'economy': 'with abstract economic growth charts',
+      'mountain': 'atop a majestic crystal mountain peak',
+      'glass': 'made entirely of pristine transparent glass',
+      'fast': 'with dynamic motion blur suggesting speed',
+      'global': 'with a translucent globe in the background',
+      'rocket': 'launching upward like a rocket with thrust flames',
+      'moon': 'on the lunar surface with Earth visible',
+      'huge': 'at monumental architectural scale',
+      'falling': 'dramatically descending with trailing particles',
+      'explosion': 'with explosive energy radiating outward',
+      'code': 'surrounded by streams of glowing code',
+      'computer': 'integrated into a massive circuit board',
+      'ai': 'with neural network patterns flowing around it',
+      'liquid': 'filled with swirling luminescent liquid',
+      'wall street': 'in front of iconic Wall Street architecture',
+      'bull': 'alongside a powerful golden charging bull',
+      'bear': 'with an icy bear emerging from frost',
+      'cyber': 'in a neon-lit cyberpunk cityscape',
+      'metaverse': 'in an abstract metaverse digital realm',
+      'institutional': 'in a sleek corporate environment',
+      'enterprise': 'within a massive enterprise data center',
+      'growth': 'with upward-pointing growth indicators',
+      'surge': 'surrounded by surging energy waves',
+      'partnership': 'with symbolic connected elements',
+      'defi': 'in a decentralized network visualization',
+      'layer': 'with visible technology layer stacks',
+      'upgrade': 'transforming with upgrade particle effects'
+    };
+    
+    let context = '';
+    for (const [kw, phrase] of Object.entries(contextMap)) {
+      if (titleLower.includes(kw)) { context = phrase; break; }
+    }
+    
+    // Randomized building blocks for infinite variety
+    const materials = [
+      'made of polished chrome metal', 'as crystal glass filled with glowing liquid',
+      'constructed from circuit board components with glowing traces', 'forged from molten gold',
+      'carved from transparent diamond', 'built with holographic light beams',
+      'formed by neon energy particles', 'crafted from brushed titanium',
+      'made of iridescent opal glass', 'sculpted from liquid mercury'
     ];
     
-    // Select based on title hash for variety
-    const hash = title.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const selectedIndex = hash % prompts.length;
-    const selectedPrompt = prompts[selectedIndex];
+    const scenes = [
+      'hovering above a sea of scattered coins', 'floating in a dark void',
+      'as a 3D holographic projection', 'emerging from liquid metal',
+      'at the center of a swirling vortex', 'on a pedestal of stacked tokens',
+      'surrounded by orbiting smaller versions', 'breaking through a digital wall',
+      'at the intersection of light beams', 'within a geometric crystal structure'
+    ];
     
-    logger.info(`🎬 Nano-Banana prompt (${networkName}) style ${selectedIndex + 1}: "${selectedPrompt.substring(0, 60)}..."`);
-    return selectedPrompt;
+    const lighting = [
+      'with cyan and purple neon rim lighting', 'illuminated by golden rays',
+      'with dramatic blue backlighting', 'under matrix-green lighting',
+      'with warm amber accents', 'bathed in ethereal white glow',
+      'with rainbow prismatic reflections', 'under cold blue moonlight',
+      'with fiery orange underlighting', 'surrounded by bioluminescent particles'
+    ];
+    
+    const backgrounds = [
+      'on a dark reflective surface', 'against a starfield backdrop',
+      'in foggy atmospheric environment', 'above flowing data streams',
+      'within a geometric void', 'over a city skyline at night',
+      'in abstract gradient space', 'surrounded by floating particles',
+      'in a server room corridor', 'above clouds at sunrise'
+    ];
+    
+    // True randomization using timestamp
+    const now = Date.now();
+    const rand = (arr, offset = 0) => arr[(now + offset) % arr.length];
+    
+    // Build unique prompt each time
+    let prompt = `The ${networkName} logo ${rand(materials, 0)}, ${rand(scenes, 7)}, ${rand(lighting, 13)}, ${rand(backgrounds, 23)}`;
+    
+    if (context) prompt += `, ${context}`;
+    
+    // CRITICAL: Prevent logo distortion
+    prompt += `, maintain exact logo proportions without stretching, professional 3D render, 8k quality`;
+    
+    logger.info(`🎬 Dynamic prompt for ${networkName}: "${prompt.substring(0, 80)}..."`);
+    return prompt;
   }
   
   /**
