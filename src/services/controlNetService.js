@@ -225,56 +225,174 @@ class ControlNetService {
 
   /**
    * Try to get PNG logo from server directory
+   * Uses case-insensitive matching and scans all available files
    */
   async tryGetPngFromDirectory(symbol) {
     try {
-      const normalizedSymbol = symbol.toUpperCase();
+      const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
       
-      // Multiple filename patterns for maximum compatibility
-      const possibleFiles = [
-        `${normalizedSymbol}.png`,
-        `${symbol.toLowerCase()}.png`, 
-        `${symbol}.png`,
-        // Handle special cases - map various names to actual files
-        ...(normalizedSymbol === 'IMMUTABLE' ? ['IMX.png', 'IMMUTABLE.png'] : []),
-        ...(normalizedSymbol === 'IMX' ? ['IMMUTABLE.png', 'IMX.png'] : []),
-        ...(normalizedSymbol === 'RIPPLE' ? ['XRP.png', 'Ripple.png'] : []),
-        ...(normalizedSymbol === 'XRP' ? ['Ripple.png', 'XRP.png'] : []),
-        // Bitcoin variations
-        ...(normalizedSymbol === 'BTC' ? ['bitcoin.png', 'BITCOIN.png', 'Bitcoin.png'] : []),
-        ...(normalizedSymbol === 'BITCOIN' ? ['bitcoin.png', 'BTC.png', 'Bitcoin.png'] : []),
-        // World Liberty Financial
-        ...(normalizedSymbol === 'WLFI' ? ['WLFI.png', 'World Liberty Financial.png'] : []),
-        ...(normalizedSymbol === 'WORLDLIBERTYFINANCIAL' ? ['WLFI.png', 'World Liberty Financial.png'] : []),
-        // Binance/BNB
-        ...(normalizedSymbol === 'BNB' ? ['BNB.png', 'Binance.png'] : []),
-        ...(normalizedSymbol === 'BINANCE' ? ['Binance.png', 'BNB.png'] : []),
-        // Litecoin
-        ...(normalizedSymbol === 'LTC' ? ['litecoin.png', 'Litecoin.png', 'LTC.png'] : []),
-        ...(normalizedSymbol === 'LITECOIN' ? ['litecoin.png', 'LTC.png'] : []),
-        // Shiba Inu
-        ...(normalizedSymbol === 'SHIB' ? ['shiba inu.png', 'SHIB.png', 'shiba-inu.png'] : [])
-      ];
+      // First, scan the directory for all PNG files and create a case-insensitive lookup
+      let allPngFiles = [];
+      try {
+        allPngFiles = await fs.readdir(this.pngLogoDir);
+        allPngFiles = allPngFiles.filter(f => f.toLowerCase().endsWith('.png'));
+      } catch (e) {
+        logger.warn('Could not read PNG directory:', e.message);
+      }
       
-      for (const filename of possibleFiles) {
-        const logoPath = path.join(this.pngLogoDir, filename);
-        try {
-          await fs.access(logoPath);
-          const logoBuffer = await fs.readFile(logoPath);
-          const stats = await fs.stat(logoPath);
+      // Create case-insensitive filename lookup
+      const filenameLookup = {};
+      for (const file of allPngFiles) {
+        const baseName = file.replace(/\.png$/i, '');
+        filenameLookup[baseName.toUpperCase().replace(/\s+/g, '')] = file;
+        filenameLookup[baseName.toUpperCase()] = file;
+        filenameLookup[baseName.toLowerCase()] = file;
+      }
+      
+      // Alias mappings for common variations
+      const aliasMap = {
+        'BTC': ['BITCOIN', 'Bitcoin'],
+        'BITCOIN': ['BTC', 'Bitcoin'],
+        'ETH': ['ETHEREUM', 'Ethereum'],
+        'ETHEREUM': ['ETH'],
+        'XRP': ['RIPPLE', 'Ripple'],
+        'RIPPLE': ['XRP'],
+        'BNB': ['BINANCE', 'Binance'],
+        'BINANCE': ['BNB'],
+        'WLFI': ['WORLDLIBERTYFINANCIAL', 'WORL LIBERTY FINANCIAL', 'World Liberty Financial'],
+        'WORLDLIBERTYFINANCIAL': ['WLFI'],
+        'LTC': ['LITECOIN', 'Litecoin'],
+        'LITECOIN': ['LTC'],
+        'IMX': ['IMMUTABLE', 'Immutable'],
+        'IMMUTABLE': ['IMX'],
+        'SHIB': ['SHIBAINU', 'SHIBA INU', 'Shiba Inu'],
+        'HBAR': ['HEDERA', 'Hedera'],
+        'HEDERA': ['HBAR'],
+        'ALGO': ['ALGORAND', 'Algorand'],
+        'ALGORAND': ['ALGO'],
+        'DAG': ['CONSTELLATION', 'Constellation'],
+        'CONSTELLATION': ['DAG'],
+        'ADA': ['CARDANO', 'Cardano'],
+        'CARDANO': ['ADA'],
+        'SOL': ['SOLANA', 'Solana'],
+        'SOLANA': ['SOL'],
+        'AVAX': ['AVALANCHE', 'Avalanche'],
+        'AVALANCHE': ['AVAX'],
+        'DOT': ['POLKADOT', 'Polkadot'],
+        'POLKADOT': ['DOT'],
+        'LINK': ['CHAINLINK', 'Chainlink'],
+        'CHAINLINK': ['LINK'],
+        'DOGE': ['DOGECOIN', 'Dogecoin'],
+        'DOGECOIN': ['DOGE'],
+        'ATOM': ['COSMOS', 'Cosmos'],
+        'COSMOS': ['ATOM'],
+        'XLM': ['STELLAR', 'Stellar'],
+        'STELLAR': ['XLM'],
+        'FIL': ['FILECOIN', 'Filecoin'],
+        'FILECOIN': ['FIL'],
+        'UNI': ['UNISWAP', 'Uniswap'],
+        'UNISWAP': ['UNI'],
+        'TRX': ['TRON', 'Tron'],
+        'TRON': ['TRX'],
+        'MATIC': ['POLYGON', 'Polygon'],
+        'POLYGON': ['MATIC'],
+        'XMR': ['MONERO', 'Monero'],
+        'MONERO': ['XMR'],
+        'ZEC': ['ZCASH', 'Zcash'],
+        'ZCASH': ['ZEC'],
+        'CRO': ['CRONOS', 'Cronos'],
+        'CRONOS': ['CRO'],
+        'RUNE': ['THORCHAIN', 'THORChain'],
+        'THORCHAIN': ['RUNE'],
+        'TAO': ['BITTENSOR', 'Bittensor'],
+        'BITTENSOR': ['TAO'],
+        'QNT': ['QUANT', 'Quant'],
+        'QUANT': ['QNT'],
+        'TON': ['TONCOIN', 'Toncoin'],
+        'TONCOIN': ['TON'],
+        'APT': ['APTOS', 'Aptos'],
+        'APTOS': ['APT'],
+        'SUI': ['SUI'],
+        'SEI': ['SEI'],
+        'NEAR': ['NEAR', 'Near'],
+        'CANTON': ['Canton'],
+        'MONAD': ['Monad', 'MONAD'],
+        'KRAKEN': ['Kraken'],
+        'KUCOIN': ['Kucoin', 'KuCoin'],
+        'METAMASK': ['Metamask', 'MetaMask'],
+        'MAGICEDEN': ['Magic Eden', 'MAGIC EDEN'],
+        'BITGO': ['BitGo', 'BITGO'],
+        'UPHOLD': ['Uphold'],
+        'AXELAR': ['Axelar'],
+        'IMF': ['IMF'],
+        'CFTC': ['CFTC'],
+        '21SHARES': ['21shares'],
+        'GRAYSCALE': ['Grayscale'],
+        'BLACKROCK': ['BlackRock', 'BLACKROCK'],
+        'BITMINE': ['Bitmine'],
+        'MOONPAY': ['MoonPay'],
+        'NVIDIA': ['NVIDIA', 'Nvidia'],
+        'PAXOS': ['Paxos', 'PAXOS'],
+        'ROBINHOOD': ['Robinhood']
+      };
+      
+      // Build list of possible names to search
+      const searchNames = [normalizedSymbol, symbol.toUpperCase(), symbol];
+      if (aliasMap[normalizedSymbol]) {
+        searchNames.push(...aliasMap[normalizedSymbol]);
+      }
+      
+      // Try to find a matching file
+      for (const searchName of searchNames) {
+        const normalizedSearch = searchName.toUpperCase().replace(/\s+/g, '');
+        if (filenameLookup[normalizedSearch] || filenameLookup[searchName.toUpperCase()] || filenameLookup[searchName]) {
+          const filename = filenameLookup[normalizedSearch] || filenameLookup[searchName.toUpperCase()] || filenameLookup[searchName];
+          const logoPath = path.join(this.pngLogoDir, filename);
           
-          logger.info(`🎯 Found PNG logo for ${symbol}: ${filename} (${(stats.size / 1024).toFixed(1)}KB)`);
-          
-          return {
-            buffer: logoBuffer,
-            path: logoPath,
-            filename,
-            symbol: normalizedSymbol,
-            size: stats.size,
-            source: 'png_file'
-          };
-        } catch (error) {
-          // Continue to next possible filename
+          try {
+            await fs.access(logoPath);
+            const logoBuffer = await fs.readFile(logoPath);
+            const stats = await fs.stat(logoPath);
+            
+            logger.info(`🎯 Found PNG logo for ${symbol}: ${filename} (${(stats.size / 1024).toFixed(1)}KB)`);
+            
+            return {
+              buffer: logoBuffer,
+              path: logoPath,
+              filename,
+              symbol: normalizedSymbol,
+              size: stats.size,
+              source: 'png_file'
+            };
+          } catch (error) {
+            // Continue searching
+          }
+        }
+      }
+      
+      // Last resort: case-insensitive partial match on the directory
+      for (const file of allPngFiles) {
+        const baseName = file.replace(/\.png$/i, '').toUpperCase().replace(/\s+/g, '');
+        if (baseName === normalizedSymbol || baseName.includes(normalizedSymbol) || normalizedSymbol.includes(baseName)) {
+          const logoPath = path.join(this.pngLogoDir, file);
+          try {
+            await fs.access(logoPath);
+            const logoBuffer = await fs.readFile(logoPath);
+            const stats = await fs.stat(logoPath);
+            
+            logger.info(`🎯 Found PNG logo (partial match) for ${symbol}: ${file} (${(stats.size / 1024).toFixed(1)}KB)`);
+            
+            return {
+              buffer: logoBuffer,
+              path: logoPath,
+              filename: file,
+              symbol: normalizedSymbol,
+              size: stats.size,
+              source: 'png_file'
+            };
+          } catch (error) {
+            // Continue
+          }
         }
       }
       

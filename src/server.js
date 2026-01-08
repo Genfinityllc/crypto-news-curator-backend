@@ -641,79 +641,142 @@ app.get('/api/test-wavespeed', async (req, res) => {
 
 // 🎨 COVER GENERATOR API ENDPOINTS
 
-// Get list of available networks with logos
+// Cache for networks list (refreshes every 5 minutes)
+let networksCache = null;
+let networksCacheTime = 0;
+const NETWORKS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Precomputed networks and companies list for instant loading
+const NETWORKS_LIST = [
+  // Cryptocurrencies
+  { symbol: 'BTC', name: 'Bitcoin', type: 'network' },
+  { symbol: 'ETH', name: 'Ethereum', type: 'network' },
+  { symbol: 'XRP', name: 'XRP (Ripple)', type: 'network' },
+  { symbol: 'SOL', name: 'Solana', type: 'network' },
+  { symbol: 'HBAR', name: 'Hedera Hashgraph', type: 'network' },
+  { symbol: 'ADA', name: 'Cardano', type: 'network' },
+  { symbol: 'AVAX', name: 'Avalanche', type: 'network' },
+  { symbol: 'DOT', name: 'Polkadot', type: 'network' },
+  { symbol: 'MATIC', name: 'Polygon', type: 'network' },
+  { symbol: 'LINK', name: 'Chainlink', type: 'network' },
+  { symbol: 'UNI', name: 'Uniswap', type: 'network' },
+  { symbol: 'DOGE', name: 'Dogecoin', type: 'network' },
+  { symbol: 'LTC', name: 'Litecoin', type: 'network' },
+  { symbol: 'ATOM', name: 'Cosmos', type: 'network' },
+  { symbol: 'NEAR', name: 'NEAR Protocol', type: 'network' },
+  { symbol: 'ALGO', name: 'Algorand', type: 'network' },
+  { symbol: 'XLM', name: 'Stellar', type: 'network' },
+  { symbol: 'SUI', name: 'Sui', type: 'network' },
+  { symbol: 'APT', name: 'Aptos', type: 'network' },
+  { symbol: 'ARB', name: 'Arbitrum', type: 'network' },
+  { symbol: 'OP', name: 'Optimism', type: 'network' },
+  { symbol: 'INJ', name: 'Injective', type: 'network' },
+  { symbol: 'SEI', name: 'Sei', type: 'network' },
+  { symbol: 'TIA', name: 'Celestia', type: 'network' },
+  { symbol: 'PEPE', name: 'Pepe', type: 'network' },
+  { symbol: 'SHIB', name: 'Shiba Inu', type: 'network' },
+  { symbol: 'BNB', name: 'Binance', type: 'network' },
+  { symbol: 'TRX', name: 'Tron', type: 'network' },
+  { symbol: 'TON', name: 'Toncoin', type: 'network' },
+  { symbol: 'FIL', name: 'Filecoin', type: 'network' },
+  { symbol: 'XMR', name: 'Monero', type: 'network' },
+  { symbol: 'CRO', name: 'Cronos', type: 'network' },
+  { symbol: 'RUNE', name: 'THORChain', type: 'network' },
+  { symbol: 'TAO', name: 'Bittensor', type: 'network' },
+  { symbol: 'QNT', name: 'Quant', type: 'network' },
+  { symbol: 'ONDO', name: 'Ondo', type: 'network' },
+  { symbol: 'IMX', name: 'Immutable X', type: 'network' },
+  { symbol: 'DAG', name: 'Constellation', type: 'network' },
+  { symbol: 'XDC', name: 'XDC Network', type: 'network' },
+  { symbol: 'USDC', name: 'USD Coin', type: 'network' },
+  { symbol: 'USDT', name: 'Tether', type: 'network' },
+  { symbol: 'ZEC', name: 'Zcash', type: 'network' },
+  { symbol: 'CANTON', name: 'Canton', type: 'network' },
+  { symbol: 'MONAD', name: 'Monad', type: 'network' },
+  { symbol: 'AXELAR', name: 'Axelar', type: 'network' },
+];
+
+const COMPANIES_LIST = [
+  // Companies/Institutions
+  { symbol: 'BLACKROCK', name: 'BlackRock', type: 'company' },
+  { symbol: 'GRAYSCALE', name: 'Grayscale', type: 'company' },
+  { symbol: '21SHARES', name: '21Shares', type: 'company' },
+  { symbol: 'WLFI', name: 'World Liberty Financial', type: 'company' },
+  { symbol: 'BITMINE', name: 'Bitmine', type: 'company' },
+  { symbol: 'MOONPAY', name: 'MoonPay', type: 'company' },
+  { symbol: 'NVIDIA', name: 'NVIDIA', type: 'company' },
+  { symbol: 'PAXOS', name: 'Paxos', type: 'company' },
+  { symbol: 'ROBINHOOD', name: 'Robinhood', type: 'company' },
+  { symbol: 'HASHPACK', name: 'HashPack', type: 'company' },
+  { symbol: 'KRAKEN', name: 'Kraken', type: 'company' },
+  { symbol: 'KUCOIN', name: 'KuCoin', type: 'company' },
+  { symbol: 'BINANCE', name: 'Binance Exchange', type: 'company' },
+  { symbol: 'BITGO', name: 'BitGo', type: 'company' },
+  { symbol: 'METAMASK', name: 'MetaMask', type: 'company' },
+  { symbol: 'MAGICEDEN', name: 'Magic Eden', type: 'company' },
+  { symbol: 'UPHOLD', name: 'Uphold', type: 'company' },
+  { symbol: 'IMF', name: 'IMF', type: 'company' },
+  { symbol: 'CFTC', name: 'CFTC', type: 'company' },
+];
+
+// Get list of available networks with logos - FAST cached version
 app.get('/api/cover-generator/networks', async (req, res) => {
   try {
-    const ControlNetService = require('./services/controlNetService');
-    const controlNetService = new ControlNetService();
+    // Return cached data if still valid
+    if (networksCache && (Date.now() - networksCacheTime) < NETWORKS_CACHE_TTL) {
+      return res.json(networksCache);
+    }
+    
     const fs = require('fs').promises;
-    const path = require('path');
+    const pngDir = process.env.NODE_ENV === 'production' 
+      ? '/app/public/logos'
+      : '/Users/valorkopeny/Desktop/SVG CRYPTO LOGOS/PNG';
     
-    // Get PNG logos directory
-    const pngDir = controlNetService.pngLogoDir;
-    let pngLogos = [];
-    
+    // Get actual PNG files to verify availability
+    let availablePngs = new Set();
     try {
       const files = await fs.readdir(pngDir);
-      pngLogos = files
-        .filter(f => f.endsWith('.png'))
-        .map(f => {
-          const symbol = f.replace('.png', '').toUpperCase();
-          return { symbol, source: 'png', file: f };
-        });
+      files.filter(f => f.toLowerCase().endsWith('.png')).forEach(f => {
+        const baseName = f.replace(/\.png$/i, '').toUpperCase().replace(/\s+/g, '');
+        availablePngs.add(baseName);
+        // Also add the original case version
+        availablePngs.add(f.replace(/\.png$/i, '').toUpperCase());
+      });
     } catch (e) {
-      logger.warn('PNG directory not accessible:', e.message);
+      // Use default list if directory not accessible
+      logger.info('Using default networks list (PNG directory not accessible)');
     }
     
-    // Get SVG logos from database
-    let svgLogos = [];
-    try {
-      const logos = await controlNetService.svgLogoService.getAllLogos();
-      svgLogos = (logos || []).map(logo => ({
-        symbol: logo.symbol,
-        source: 'svg',
-        name: logo.name || logo.symbol
-      }));
-    } catch (e) {
-      logger.warn('SVG logos not available:', e.message);
-    }
-    
-    // Hardcoded popular networks as fallback
-    const popularNetworks = [
-      'BTC', 'ETH', 'XRP', 'SOL', 'HBAR', 'ADA', 'AVAX', 'DOT', 'MATIC', 'LINK',
-      'UNI', 'DOGE', 'LTC', 'ATOM', 'NEAR', 'ALGO', 'XLM', 'SUI', 'APT', 'ARB',
-      'OP', 'INJ', 'SEI', 'TIA', 'PEPE', 'SHIB', 'BONK', 'FIL', 'AAVE', 'MKR'
-    ].map(s => ({ symbol: s, source: 'default' }));
-    
-    // Merge and dedupe (prefer PNG > SVG > default)
-    const allNetworks = {};
-    popularNetworks.forEach(l => { allNetworks[l.symbol] = l; });
-    svgLogos.forEach(l => { allNetworks[l.symbol] = { ...allNetworks[l.symbol], ...l }; });
-    pngLogos.forEach(l => { allNetworks[l.symbol] = { ...allNetworks[l.symbol], ...l }; });
-    
-    // Network name mapping
-    const networkNames = {
-      'XRP': 'XRP (Ripple)', 'HBAR': 'Hedera Hashgraph', 'SOL': 'Solana', 'ETH': 'Ethereum',
-      'BTC': 'Bitcoin', 'ADA': 'Cardano', 'AVAX': 'Avalanche', 'DOT': 'Polkadot',
-      'MATIC': 'Polygon', 'LINK': 'Chainlink', 'UNI': 'Uniswap', 'DOGE': 'Dogecoin',
-      'LTC': 'Litecoin', 'ATOM': 'Cosmos', 'NEAR': 'NEAR Protocol', 'ALGO': 'Algorand',
-      'XLM': 'Stellar', 'SUI': 'Sui', 'APT': 'Aptos', 'ARB': 'Arbitrum', 'OP': 'Optimism',
-      'INJ': 'Injective', 'SEI': 'Sei', 'TIA': 'Celestia', 'PEPE': 'Pepe', 'SHIB': 'Shiba Inu'
-    };
-    
-    const networks = Object.values(allNetworks).map(n => ({
+    // Build final list with availability status
+    const networks = NETWORKS_LIST.map(n => ({
       ...n,
-      name: networkNames[n.symbol] || n.name || n.symbol
-    })).sort((a, b) => a.symbol.localeCompare(b.symbol));
+      hasLogo: availablePngs.size === 0 || availablePngs.has(n.symbol) || availablePngs.has(n.symbol.replace(/\s+/g, ''))
+    })).sort((a, b) => a.name.localeCompare(b.name));
     
-    res.json({
+    const companies = COMPANIES_LIST.map(c => ({
+      ...c,
+      hasLogo: availablePngs.size === 0 || availablePngs.has(c.symbol) || availablePngs.has(c.symbol.replace(/\s+/g, ''))
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Cache the result
+    networksCache = {
       success: true,
-      count: networks.length,
-      networks
-    });
+      count: networks.length + companies.length,
+      networks,
+      companies
+    };
+    networksCacheTime = Date.now();
+    
+    res.json(networksCache);
   } catch (error) {
     logger.error('Error listing networks:', error);
-    res.status(500).json({ success: false, error: error.message });
+    // Return hardcoded list on error for instant response
+    res.json({
+      success: true,
+      count: NETWORKS_LIST.length + COMPANIES_LIST.length,
+      networks: NETWORKS_LIST,
+      companies: COMPANIES_LIST
+    });
   }
 });
 
