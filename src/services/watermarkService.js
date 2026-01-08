@@ -35,10 +35,11 @@ class WatermarkService {
       const { width: originalWidth, height: originalHeight } = await mainImage.metadata();
       logger.info(`📏 Original image dimensions: ${originalWidth}x${originalHeight}`);
       
-      // Create 1800x900 base image
+      // Create 1800x900 base image using COVER fit (crop, don't stretch)
       const resizedImageBuffer = await mainImage
         .resize(1800, 900, {
-          fit: 'fill',
+          fit: 'cover',  // Crop to fit, never stretch!
+          position: 'center',  // Center the crop
           background: { r: 0, g: 0, b: 0, alpha: 1 }
         })
         .png()

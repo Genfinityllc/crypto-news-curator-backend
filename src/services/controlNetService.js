@@ -623,13 +623,15 @@ class ControlNetService {
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
     // EXACT Wavespeed API format from official docs
+    // Using 16:9 aspect ratio to match our 1800x900 output without stretching
     const payload = {
       enable_base64_output: false,
       enable_sync_mode: false,
       images: [logoUrl],
       output_format: "png",
       prompt: prompt,
-      resolution: "2k"  // 2K resolution - same cost as 1K but better quality!
+      resolution: "2k",  // 2K resolution - same cost as 1K but better quality!
+      aspect_ratio: "16:9"  // Match our 1800x900 output to prevent stretching
     };
     
     logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
