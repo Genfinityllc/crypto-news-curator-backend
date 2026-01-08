@@ -629,7 +629,7 @@ class ControlNetService {
       images: [logoUrl],
       output_format: "png",
       prompt: prompt,
-      resolution: "1k"
+      resolution: "2k"  // 2K resolution - same cost as 1K but better quality!
     };
     
     logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
