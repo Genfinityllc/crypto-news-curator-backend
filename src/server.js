@@ -827,6 +827,110 @@ app.get('/api/cover-generator/my-covers', authMiddleware, async (req, res) => {
   }
 });
 
+// 🔧 DEBUG: Test Nano-Banana-Pro API directly
+app.post('/api/debug/nano-banana', async (req, res) => {
+  const axios = require('axios');
+  const logger = require('./utils/logger');
+  
+  try {
+    const { network = 'ETH' } = req.body;
+    const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
+    
+    if (!wavespeedApiKey) {
+      return res.status(400).json({ success: false, error: 'WAVESPEED_API_KEY not set' });
+    }
+    
+    // Use a simple CDN logo URL
+    const cdnSlugs = {
+      'eth': 'ethereum-eth', 'btc': 'bitcoin-btc', 'xrp': 'xrp-xrp',
+      'sol': 'solana-sol', 'hbar': 'hedera-hbar'
+    };
+    const slug = cdnSlugs[network.toLowerCase()] || 'ethereum-eth';
+    const logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
+    
+    logger.info(`🔧 DEBUG: Testing Nano-Banana-Pro with ${network}`);
+    logger.info(`🔧 DEBUG: Logo URL: ${logoUrl}`);
+    logger.info(`🔧 DEBUG: API Key: ${wavespeedApiKey.substring(0, 12)}...`);
+    
+    const prompt = `The ${network} logo made of crystal glass, hovering above scattered coins, with cyan neon lighting, on a dark reflective surface`;
+    
+    // Step 1: Submit job
+    logger.info(`🔧 DEBUG: Submitting to Wavespeed API...`);
+    const submitResponse = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
+      prompt: prompt,
+      images: [logoUrl]
+    }, {
+      headers: {
+        'Authorization': `Bearer ${wavespeedApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+    
+    logger.info(`🔧 DEBUG: Submit response: ${JSON.stringify(submitResponse.data).substring(0, 500)}`);
+    
+    const jobData = submitResponse.data.data || submitResponse.data;
+    if (!jobData.id) {
+      return res.json({
+        success: false,
+        error: 'No job ID returned',
+        response: submitResponse.data
+      });
+    }
+    
+    // Step 2: Poll for result
+    const jobId = jobData.id;
+    logger.info(`🔧 DEBUG: Job ID: ${jobId}, polling...`);
+    
+    let result = null;
+    for (let i = 0; i < 12; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      
+      const pollResponse = await axios.get(`https://api.wavespeed.ai/api/v3/predictions/${jobId}/result`, {
+        headers: { 'Authorization': `Bearer ${wavespeedApiKey}` },
+        timeout: 15000
+      });
+      
+      const status = pollResponse.data.data?.status;
+      logger.info(`🔧 DEBUG: Poll ${i+1} - Status: ${status}`);
+      
+      if (status === 'completed') {
+        result = pollResponse.data.data;
+        break;
+      } else if (status === 'failed') {
+        return res.json({
+          success: false,
+          error: 'Job failed',
+          jobId,
+          result: pollResponse.data.data
+        });
+      }
+    }
+    
+    if (!result) {
+      return res.json({ success: false, error: 'Job timed out', jobId });
+    }
+    
+    const outputs = result.outputs || result.output || [];
+    res.json({
+      success: true,
+      jobId,
+      method: 'nano_banana_pro_3d',
+      imageUrl: outputs[0],
+      prompt,
+      logoUrl
+    });
+    
+  } catch (error) {
+    logger.error(`🔧 DEBUG ERROR: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      response: error.response?.data
+    });
+  }
+});
+
 // 🔑 API KEY DIAGNOSTIC ENDPOINT
 app.get('/api/verify-keys', (req, res) => {
   res.json({
