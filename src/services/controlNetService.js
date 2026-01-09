@@ -241,7 +241,26 @@ class ControlNetService {
       const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
       logger.info(`📂 tryGetPngFromDirectory: Looking for "${normalizedSymbol}" in ${this.pngLogoDir}`);
       
-      // First, scan the directory for all PNG files and create a case-insensitive lookup
+      // FIRST: Try direct file access (fastest and most reliable)
+      const directPath = path.join(this.pngLogoDir, `${normalizedSymbol}.png`);
+      try {
+        await fs.access(directPath);
+        const logoBuffer = await fs.readFile(directPath);
+        const stats = await fs.stat(directPath);
+        logger.info(`🎯 DIRECT MATCH: Found ${normalizedSymbol}.png (${(stats.size / 1024).toFixed(1)}KB)`);
+        return {
+          buffer: logoBuffer,
+          path: directPath,
+          filename: `${normalizedSymbol}.png`,
+          symbol: normalizedSymbol,
+          size: stats.size,
+          source: 'png_file_direct'
+        };
+      } catch (directErr) {
+        logger.info(`📂 Direct path ${directPath} not found, scanning directory...`);
+      }
+      
+      // Scan the directory for all PNG files and create a case-insensitive lookup
       let allPngFiles = [];
       try {
         allPngFiles = await fs.readdir(this.pngLogoDir);
