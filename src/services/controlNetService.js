@@ -878,17 +878,56 @@ class ControlNetService {
    * Uses randomization + keyword extraction for variety
    * Now supports user-provided custom keywords and learned preferences
    */
-  getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
-    // NOTE: Keeping this sync for reliability - refinement loading was causing issues
-    let refinedElements = null;
-    // TODO: Re-enable refinement loading once stable
-    // try {
-    //   const PromptRefinementService = require('./promptRefinementService');
-    //   const promptRefinement = new PromptRefinementService();
-    //   refinedElements = await promptRefinement.getRefinedElements();
-    // } catch (e) {
-    //   logger.warn('Could not load prompt refinements:', e.message);
-    // }
+  async getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
+    // Load user preferences from feedback
+    let sizeHint = '';
+    let styleHint = '';
+    let bgHint = '';
+    
+    try {
+      const PromptRefinementService = require('./promptRefinementService');
+      const promptRefinement = new PromptRefinementService();
+      await promptRefinement.loadPreferences();
+      const prefs = promptRefinement.preferences || {};
+      
+      // Apply logo size hints
+      const sizeIssues = prefs.logoSizeIssues || [];
+      if (sizeIssues.includes('increase_logo_size')) {
+        sizeHint = 'large prominent ';
+        logger.info(`📏 PROMPT: Adding "large prominent" based on size feedback`);
+      } else if (sizeIssues.includes('decrease_logo_size')) {
+        sizeHint = 'subtle elegant ';
+        logger.info(`📏 PROMPT: Adding "subtle elegant" based on size feedback`);
+      }
+      
+      // Apply logo style hints
+      const styleGood = prefs.logoStyleGood || [];
+      const styleBad = prefs.logoStyleBad || [];
+      if (styleBad.includes('looks_flat') || styleBad.includes('too_flat')) {
+        styleHint = 'with deep 3D depth and strong dimension, ';
+        logger.info(`✨ PROMPT: Adding "deep 3D depth" based on flatness feedback`);
+      }
+      if (styleGood.includes('needs_more_3d')) {
+        styleHint = 'with exaggerated 3D depth and dramatic shadows, ';
+        logger.info(`✨ PROMPT: Adding "exaggerated 3D depth" based on feedback`);
+      }
+      
+      // Apply background style hints
+      const bgStyleGood = prefs.bgStyleGood || [];
+      if (bgStyleGood.includes('prefer_dark')) {
+        bgHint = 'on a dark dramatic ';
+        logger.info(`🖼️ PROMPT: Adding "dark dramatic" background preference`);
+      } else if (bgStyleGood.includes('prefer_bright')) {
+        bgHint = 'on a bright clean ';
+        logger.info(`🖼️ PROMPT: Adding "bright clean" background preference`);
+      } else if (bgStyleGood.includes('prefer_minimal')) {
+        bgHint = 'on a minimal simple ';
+        logger.info(`🖼️ PROMPT: Adding "minimal simple" background preference`);
+      }
+      
+    } catch (e) {
+      logger.warn(`Could not load prompt refinements: ${e.message}`);
+    }
     const networkNames = {
       // Major coins
       'BTC': 'Bitcoin', 'BITCOIN': 'Bitcoin', 'ETH': 'Ethereum', 'XRP': 'XRP Ripple',
@@ -1030,7 +1069,9 @@ class ControlNetService {
     const selectedLighting = rand(lighting);
     const selectedBackground = rand(backgrounds);
     
-    let prompt = `The ${networkName} logo ${selectedMaterial}, ${selectedScene}, ${selectedLighting}, ${selectedBackground}`;
+    // Start prompt with size hint if user feedback indicates size issues
+    // sizeHint, styleHint, bgHint come from user feedback preferences
+    let prompt = `A ${sizeHint}${networkName} logo ${styleHint}${selectedMaterial}, ${selectedScene}, ${selectedLighting}, ${bgHint}${selectedBackground}`;
     
     if (context) prompt += `, ${context}`;
     
@@ -1101,10 +1142,29 @@ class ControlNetService {
       const metadata = await sharp(logoBuffer).metadata();
       logger.info(`📐 Original logo: ${metadata.width}x${metadata.height}`);
       
-      // Calculate logo size - make it prominent but not full screen
-      // Use 60% of the canvas height for the logo
-      const maxLogoHeight = Math.floor(targetHeight * 0.6);
-      const maxLogoWidth = Math.floor(targetWidth * 0.5);
+      // Check for user size preferences from feedback
+      let sizeMultiplier = 1.0;  // Default
+      try {
+        const PromptRefinementService = require('./promptRefinementService');
+        const promptRefinement = new PromptRefinementService();
+        await promptRefinement.loadPreferences();
+        const sizeIssues = promptRefinement.preferences?.logoSizeIssues || [];
+        
+        if (sizeIssues.includes('increase_logo_size')) {
+          sizeMultiplier = 1.25;  // 25% bigger
+          logger.info(`📏 USER FEEDBACK: Making logo 25% BIGGER based on previous ratings`);
+        } else if (sizeIssues.includes('decrease_logo_size')) {
+          sizeMultiplier = 0.75;  // 25% smaller
+          logger.info(`📏 USER FEEDBACK: Making logo 25% SMALLER based on previous ratings`);
+        }
+      } catch (e) {
+        logger.warn(`Could not load size preferences: ${e.message}`);
+      }
+      
+      // Calculate logo size - base is 60% of canvas height, adjusted by user feedback
+      const baseLogoHeight = Math.floor(targetHeight * 0.6);
+      const maxLogoHeight = Math.floor(baseLogoHeight * sizeMultiplier);
+      const maxLogoWidth = Math.floor(targetWidth * 0.5 * sizeMultiplier);
       
       // Resize logo maintaining aspect ratio to fit within bounds
       const logoResized = await sharp(logoBuffer)
