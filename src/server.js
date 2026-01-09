@@ -1233,9 +1233,9 @@ app.get('/api/cover-generator/db-diagnostic', async (req, res) => {
   }
 });
 
-// TEST articles table insert for cover storage
+// TEST articles table insert - discover working columns
 app.get('/api/cover-generator/test-articles-save', async (req, res) => {
-  logger.info('🧪 Testing articles table for cover storage...');
+  logger.info('🧪 Discovering working articles table columns...');
   
   try {
     const { getSupabaseClient } = require('./config/supabase');
@@ -1245,50 +1245,50 @@ app.get('/api/cover-generator/test-articles-save', async (req, res) => {
       return res.json({ success: false, error: 'Supabase not initialized' });
     }
     
-    const testData = {
-      title: `[USER_COVER] TEST: Test Article Insert`,
-      url: 'https://test.com/test-cover-' + Date.now() + '.png',
-      source: `user_cover:test_user_${Date.now()}`,
-      cryptocurrency: 'TEST',
-      original_title: 'Test Article Insert',
-      content: JSON.stringify({ type: 'user_generated_cover', test: true }),
-      published_at: new Date().toISOString()
-    };
+    const results = { tests: [] };
     
-    logger.info(`📝 Test data: ${JSON.stringify(testData)}`);
+    // Test with different column combinations
+    const columnTests = [
+      // Most minimal
+      { title: 'Test ' + Date.now() },
+      // Add url
+      { title: 'Test ' + Date.now(), url: 'https://test.com/test.png' },
+      // Add source
+      { title: 'Test ' + Date.now(), url: 'https://test.com/test.png', source: 'user_cover' },
+      // Add content
+      { title: 'Test ' + Date.now(), url: 'https://test.com/test.png', source: 'user_cover', content: 'test' },
+    ];
     
-    const { data, error } = await supabase
-      .from('articles')
-      .insert(testData)
-      .select()
-      .single();
-    
-    if (error) {
-      logger.error(`❌ Articles insert failed: ${error.message}`);
-      return res.json({
-        success: false,
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        testData
+    for (const testData of columnTests) {
+      const { data, error } = await supabase
+        .from('articles')
+        .insert(testData)
+        .select()
+        .single();
+      
+      results.tests.push({
+        columns: Object.keys(testData),
+        success: !error,
+        error: error?.message,
+        insertedId: data?.id
       });
+      
+      // Clean up if successful
+      if (data?.id) {
+        await supabase.from('articles').delete().eq('id', data.id);
+      }
+      
+      // If this test worked, we found our minimum working columns
+      if (!error) {
+        results.workingColumns = Object.keys(testData);
+        break;
+      }
     }
     
-    // Clean up
-    if (data?.id) {
-      await supabase.from('articles').delete().eq('id', data.id);
-    }
-    
-    res.json({
-      success: true,
-      insertWorks: true,
-      insertedId: data?.id,
-      cleaned: true
-    });
+    res.json(results);
     
   } catch (e) {
-    res.json({ success: false, error: e.message, stack: e.stack?.substring(0, 200) });
+    res.json({ success: false, error: e.message });
   }
 });
 
