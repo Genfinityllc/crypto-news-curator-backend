@@ -923,6 +923,173 @@ app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
   }
 });
 
+// AUTO-CREATE TABLES endpoint - creates the required tables if they don't exist
+app.post('/api/cover-generator/setup-tables', async (req, res) => {
+  try {
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Supabase client not initialized'
+      });
+    }
+    
+    logger.info('🔧 Setting up user_generated_covers and cover_ratings tables...');
+    
+    const results = { tables: {}, created: [] };
+    
+    // SQL statements to create tables
+    const createCoversTableSQL = `
+      CREATE TABLE IF NOT EXISTS user_generated_covers (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        network TEXT,
+        title TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_generated_covers_user_id ON user_generated_covers(user_id);
+    `;
+    
+    const createRatingsTableSQL = `
+      CREATE TABLE IF NOT EXISTS cover_ratings (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        image_url TEXT,
+        network TEXT,
+        prompt_used TEXT,
+        logo_rating TEXT,
+        logo_size TEXT,
+        logo_style TEXT,
+        background_rating TEXT,
+        background_style TEXT,
+        feedback_keyword TEXT,
+        user_id TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_cover_ratings_network ON cover_ratings(network);
+    `;
+    
+    // Try to create tables using Supabase's rpc (if exec_sql is enabled)
+    let coversCreated = false;
+    let ratingsCreated = false;
+    
+    // First check if tables already exist
+    const { error: coversCheckError } = await supabase
+      .from('user_generated_covers')
+      .select('id')
+      .limit(1);
+    
+    const coversExists = !coversCheckError || !coversCheckError.message.includes('does not exist');
+    
+    const { error: ratingsCheckError } = await supabase
+      .from('cover_ratings')
+      .select('id')
+      .limit(1);
+    
+    const ratingsExists = !ratingsCheckError || !ratingsCheckError.message.includes('does not exist');
+    
+    // Try to create tables if they don't exist
+    if (!coversExists) {
+      logger.info('🔨 Attempting to create user_generated_covers table...');
+      try {
+        // Try using rpc to execute SQL (requires exec_sql function in Supabase)
+        const { error: rpcError } = await supabase.rpc('exec_sql', { sql: createCoversTableSQL });
+        if (!rpcError) {
+          coversCreated = true;
+          results.created.push('user_generated_covers');
+          logger.info('✅ Created user_generated_covers table via RPC');
+        } else {
+          logger.warn('RPC method not available:', rpcError.message);
+        }
+      } catch (e) {
+        logger.warn('Could not create table via RPC:', e.message);
+      }
+    }
+    
+    if (!ratingsExists) {
+      logger.info('🔨 Attempting to create cover_ratings table...');
+      try {
+        const { error: rpcError } = await supabase.rpc('exec_sql', { sql: createRatingsTableSQL });
+        if (!rpcError) {
+          ratingsCreated = true;
+          results.created.push('cover_ratings');
+          logger.info('✅ Created cover_ratings table via RPC');
+        }
+      } catch (e) {
+        logger.warn('Could not create table via RPC:', e.message);
+      }
+    }
+    
+    // Re-check table status after creation attempts
+    const { error: finalCoversError } = await supabase
+      .from('user_generated_covers')
+      .select('id')
+      .limit(1);
+    
+    const { error: finalRatingsError } = await supabase
+      .from('cover_ratings')
+      .select('id')
+      .limit(1);
+    
+    results.tables.user_generated_covers = {
+      exists: !finalCoversError || !finalCoversError.message.includes('does not exist'),
+      created: coversCreated
+    };
+    
+    results.tables.cover_ratings = {
+      exists: !finalRatingsError || !finalRatingsError.message.includes('does not exist'),
+      created: ratingsCreated
+    };
+    
+    // Determine overall status
+    const allTablesReady = results.tables.user_generated_covers.exists && results.tables.cover_ratings.exists;
+    
+    if (allTablesReady) {
+      results.success = true;
+      results.message = '🎉 All tables are ready! Cover generations will now be saved to your profile.';
+      logger.info('✅ All tables ready!');
+    } else {
+      results.success = false;
+      results.message = 'Some tables could not be created automatically. Manual setup required.';
+      results.manualSQL = `
+-- Copy and run this in Supabase SQL Editor (supabase.com -> Your Project -> SQL Editor):
+
+CREATE TABLE IF NOT EXISTS user_generated_covers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  network TEXT,
+  title TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cover_ratings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  image_url TEXT,
+  network TEXT,
+  prompt_used TEXT,
+  logo_rating TEXT,
+  logo_size TEXT,
+  logo_style TEXT,
+  background_rating TEXT,
+  background_style TEXT,
+  feedback_keyword TEXT,
+  user_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+      `.trim();
+    }
+    
+    res.json(results);
+    
+  } catch (error) {
+    logger.error('Setup tables error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Debug endpoint to check table status
 app.get('/api/cover-generator/check-tables', async (req, res) => {
   try {
