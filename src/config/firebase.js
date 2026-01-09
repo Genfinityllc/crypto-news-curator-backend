@@ -1,22 +1,15 @@
-let initializeApp, getApps, cert, getFirestore, getAuth;
+const logger = require('../utils/logger');
+
+let admin = null;
 let firebaseAdminAvailable = false;
 
 try {
-  const firebaseApp = require('firebase-admin/app');
-  const firebaseFirestore = require('firebase-admin/firestore');
-  const firebaseAuth = require('firebase-admin/auth');
-  
-  initializeApp = firebaseApp.initializeApp;
-  getApps = firebaseApp.getApps;
-  cert = firebaseApp.cert;
-  getFirestore = firebaseFirestore.getFirestore;
-  getAuth = firebaseAuth.getAuth;
+  admin = require('firebase-admin');
   firebaseAdminAvailable = true;
+  logger.info('Firebase Admin SDK loaded successfully');
 } catch (e) {
-  console.warn('Firebase Admin SDK not available:', e.message);
+  logger.warn('Firebase Admin SDK not available:', e.message);
 }
-
-const logger = require('../utils/logger');
 
 // Load environment variables
 require('dotenv').config();
@@ -31,16 +24,16 @@ let app = null;
 function initializeFirebase() {
   try {
     // Check if firebase-admin module is available
-    if (!firebaseAdminAvailable) {
+    if (!firebaseAdminAvailable || !admin) {
       logger.warn('Firebase Admin SDK module not installed. Firebase features disabled.');
       return { db: null, auth: null, app: null };
     }
     
     // Check if Firebase is already initialized
-    if (getApps().length > 0) {
-      app = getApps()[0];
-      db = getFirestore(app);
-      auth = getAuth(app);
+    if (admin.apps.length > 0) {
+      app = admin.apps[0];
+      db = admin.firestore();
+      auth = admin.auth();
       return { db, auth, app };
     }
 
@@ -48,13 +41,13 @@ function initializeFirebase() {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
       
-      app = initializeApp({
-        credential: cert(serviceAccount),
+      app = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
         projectId: serviceAccount.project_id
       });
     } else if (process.env.FIREBASE_PROJECT_ID) {
       // Initialize with project ID (for local development)
-      app = initializeApp({
+      app = admin.initializeApp({
         projectId: process.env.FIREBASE_PROJECT_ID
       });
     } else {
@@ -62,8 +55,8 @@ function initializeFirebase() {
       return { db: null, auth: null, app: null };
     }
 
-    db = getFirestore(app);
-    auth = getAuth(app);
+    db = admin.firestore();
+    auth = admin.auth();
     
     logger.info('Firebase Admin SDK initialized successfully');
     return { db, auth, app };
