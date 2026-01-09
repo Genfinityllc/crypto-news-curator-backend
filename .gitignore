@@ -88,6 +88,7 @@ frontend-*.png
 !assets/*.png
 !assets/*.jpg
 !assets/*.jpeg
+!uploads/png-logos/*.png
 
 
 # Sensitive files
