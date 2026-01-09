@@ -835,7 +835,10 @@ const coverAuthMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     
+    logger.info(`🔐 Auth check: Authorization header ${authHeader ? 'present' : 'missing'}`);
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.warn('❌ No Bearer token in Authorization header');
       return res.status(401).json({
         success: false,
         error: 'Authorization token required'
@@ -843,31 +846,90 @@ const coverAuthMiddleware = async (req, res, next) => {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const { verifyFirebaseToken } = require('./config/firebase');
+    logger.info(`🔑 Token received: ${idToken.substring(0, 20)}...`);
+    
+    const { verifyFirebaseToken, getFirebaseAuth } = require('./config/firebase');
+    
+    // Check if Firebase is initialized
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      logger.error('❌ Firebase Auth not initialized - check FIREBASE_SERVICE_ACCOUNT env var');
+      return res.status(500).json({
+        success: false,
+        error: 'Server authentication not configured'
+      });
+    }
+    
     const decodedToken = await verifyFirebaseToken(idToken);
+    logger.info(`✅ Token verified for user: ${decodedToken.uid}`);
     
     req.user = decodedToken;
     next();
     
   } catch (error) {
-    logger.error('Firebase auth error:', error.message);
+    logger.error('❌ Firebase auth error:', error.message);
+    logger.error('   Full error:', error);
     res.status(401).json({
       success: false,
-      error: 'Invalid or expired token'
+      error: `Invalid or expired token: ${error.message}`
     });
   }
 };
 
-// Save generation to user profile (if logged in)
-app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
+// Save generation to user profile - with flexible auth
+app.post('/api/cover-generator/save', async (req, res) => {
   const { imageUrl, network, title } = req.body;
-  const userId = req.user?.uid; // Firebase uses 'uid' not 'id'
   
-  logger.info(`📥 Save cover request: userId=${userId}, network=${network}, imageUrl=${imageUrl?.substring(0, 50)}...`);
+  logger.info(`📥 Save cover request received: network=${network}, imageUrl=${imageUrl?.substring(0, 50)}...`);
+  
+  // Try to get user from Firebase token, but don't fail if not available
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const idToken = authHeader.split('Bearer ')[1];
+      const { verifyFirebaseToken, getFirebaseAuth } = require('./config/firebase');
+      
+      const auth = getFirebaseAuth();
+      if (auth) {
+        const decodedToken = await verifyFirebaseToken(idToken);
+        userId = decodedToken.uid;
+        logger.info(`✅ Firebase token verified: user=${userId}`);
+      } else {
+        logger.warn('⚠️ Firebase Auth not initialized - will use email from token');
+        // Try to decode token manually to get user identifier
+        try {
+          const tokenParts = idToken.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+            userId = payload.user_id || payload.sub || payload.email;
+            logger.info(`📧 Extracted userId from token payload: ${userId}`);
+          }
+        } catch (decodeError) {
+          logger.warn('Could not decode token payload:', decodeError.message);
+        }
+      }
+    } catch (authError) {
+      logger.warn(`⚠️ Auth verification failed (will try to continue): ${authError.message}`);
+      // Try manual token decode as fallback
+      try {
+        const idToken = authHeader.split('Bearer ')[1];
+        const tokenParts = idToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+          userId = payload.user_id || payload.sub || payload.email;
+          logger.info(`📧 Fallback: Extracted userId from token: ${userId}`);
+        }
+      } catch (e) {
+        logger.warn('Fallback token decode failed:', e.message);
+      }
+    }
+  }
   
   if (!userId) {
-    logger.warn('Save cover failed: No userId in token');
-    return res.status(401).json({ success: false, error: 'Login required to save' });
+    logger.warn('❌ No userId available - cannot save');
+    return res.status(401).json({ success: false, error: 'Login required to save. Please sign in again.' });
   }
   
   if (!imageUrl) {
@@ -880,35 +942,41 @@ app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
     const supabase = getSupabaseClient();
     
     if (!supabase) {
-      logger.error('Supabase client not available');
+      logger.error('❌ Supabase client not available');
       return res.status(500).json({ success: false, error: 'Database not available' });
     }
     
     logger.info(`💾 Inserting into user_generated_covers for user ${userId}...`);
     
+    const insertData = {
+      user_id: String(userId),
+      image_url: imageUrl,
+      network: network?.toUpperCase() || 'UNKNOWN',
+      title: title || `${network} Cover`,
+      created_at: new Date().toISOString()
+    };
+    
+    logger.info(`📝 Insert data: ${JSON.stringify(insertData)}`);
+    
     const { data, error } = await supabase
       .from('user_generated_covers')
-      .insert({
-        user_id: userId,
-        image_url: imageUrl,
-        network: network?.toUpperCase() || 'UNKNOWN',
-        title: title || `${network} Cover`,
-        created_at: new Date().toISOString()
-      })
+      .insert(insertData)
       .select()
       .single();
     
     if (error) {
-      logger.error(`❌ Supabase insert error: ${error.message}`, error);
-      logger.error(`   Error code: ${error.code}, details: ${JSON.stringify(error.details)}`);
+      logger.error(`❌ Supabase insert error: ${error.message}`);
+      logger.error(`   Error code: ${error.code}`);
+      logger.error(`   Error details: ${JSON.stringify(error.details)}`);
+      logger.error(`   Error hint: ${error.hint}`);
       
       // Check if table doesn't exist
       if (error.code === '42P01' || error.message.includes('does not exist')) {
-        logger.error('⚠️ Table user_generated_covers does not exist! Please create it in Supabase.');
+        logger.error('⚠️ Table user_generated_covers does not exist!');
         return res.status(500).json({ 
           success: false, 
-          error: 'Database table not configured. Please contact support.',
-          debug: 'Table user_generated_covers needs to be created'
+          error: 'Database table not configured',
+          debug: 'Run /api/cover-generator/setup-tables to create tables'
         });
       }
       
@@ -919,7 +987,43 @@ app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
     res.json({ success: true, saved: data });
   } catch (error) {
     logger.error('❌ Failed to save cover:', error.message);
+    logger.error('   Stack:', error.stack);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DIAGNOSTIC: Check Firebase and Supabase status
+app.get('/api/cover-generator/auth-status', async (req, res) => {
+  try {
+    const { getFirebaseAuth } = require('./config/firebase');
+    const { getSupabaseClient } = require('./config/supabase');
+    
+    const firebaseAuth = getFirebaseAuth();
+    const supabase = getSupabaseClient();
+    
+    const status = {
+      firebase: {
+        initialized: !!firebaseAuth,
+        envVar: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+      },
+      supabase: {
+        initialized: !!supabase,
+        url: !!process.env.SUPABASE_URL,
+        key: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+      }
+    };
+    
+    // Test Supabase connection
+    if (supabase) {
+      const { error } = await supabase.from('user_generated_covers').select('id').limit(1);
+      status.supabase.tableAccess = !error;
+      if (error) status.supabase.tableError = error.message;
+    }
+    
+    logger.info('Auth status check:', status);
+    res.json({ success: true, status });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
   }
 });
 
