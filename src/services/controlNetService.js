@@ -766,23 +766,22 @@ class ControlNetService {
     
     const slug = cdnSlugs[logoSymbol.toLowerCase()];
     let logoUrl;
-    let useBase64 = false;
     
     if (slug) {
       logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
       logger.info(`📷 Using CDN logo URL: ${logoUrl}`);
     } else {
-      // For tokens not on CDN (like HASHPACK), use base64 data URL
-      // This ensures Wavespeed can always access the logo directly
-      const base64Logo = logoBuffer.toString('base64');
-      logoUrl = `data:image/png;base64,${base64Logo}`;
-      useBase64 = true;
-      logger.info(`📷 Using base64-encoded logo (${(logoBuffer.length / 1024).toFixed(1)}KB) for ${logoSymbol}`);
+      // For tokens not on CDN (like HASHPACK), host on our server and provide public URL
+      // Wavespeed needs an accessible URL, not base64
+      const tempLogoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
+      await fs.writeFile(tempLogoPath, logoBuffer);
+      logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
+      logger.info(`📷 Hosted logo at public URL: ${logoUrl}`);
     }
     
     // Build our dynamic prompt for 3D glass/liquid effect
     const customKeyword = article?.customKeyword || null;
-    const prompt = this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
+    const prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
     // EXACT Wavespeed API format from official docs
@@ -909,7 +908,13 @@ class ControlNetService {
       'PEPE': 'Pepe', 'SHIB': 'Shiba Inu', 'BONK': 'Bonk', 'WIF': 'dogwifhat',
       // Special/Projects
       'WLFI': 'World Liberty Financial', 'WORLDLIBERTYFINANCIAL': 'World Liberty Financial',
-      'IMX': 'Immutable X', 'IMMUTABLE': 'Immutable X'
+      'IMX': 'Immutable X', 'IMMUTABLE': 'Immutable X',
+      // Companies/Wallets
+      'HASHPACK': 'HashPack', 'PACK': 'HashPack',
+      'DAG': 'Constellation', 'CONSTELLATION': 'Constellation',
+      'BLACKROCK': 'BlackRock', 'GRAYSCALE': 'Grayscale',
+      'CANTON': 'Canton Network', 'MONAD': 'Monad',
+      'KRAKEN': 'Kraken', 'METAMASK': 'MetaMask'
     };
     const networkName = networkNames[logoSymbol] || logoSymbol;
     
@@ -948,7 +953,25 @@ class ControlNetService {
       'partnership': 'with symbolic connected elements',
       'defi': 'in a decentralized network visualization',
       'layer': 'with visible technology layer stacks',
-      'upgrade': 'transforming with upgrade particle effects'
+      'upgrade': 'transforming with upgrade particle effects',
+      // Wallet & Payment keywords
+      'wallet': 'integrated into a sleek digital wallet interface with secure vault elements',
+      'digital wallet': 'emerging from a holographic digital wallet with secure encryption visuals',
+      'payment': 'surrounded by flowing payment transaction streams',
+      'secure': 'protected by glowing security shield elements',
+      'transaction': 'at the center of flowing transaction pathways',
+      'send': 'with dynamic send arrows and motion trails',
+      'receive': 'receiving glowing incoming data streams',
+      // Technology keywords
+      'blockchain': 'connected to glowing blockchain nodes',
+      'network': 'at the center of an interconnected network mesh',
+      'protocol': 'integrated into protocol layer visualization',
+      'smart contract': 'surrounded by smart contract code elements',
+      // Finance keywords
+      'finance': 'in a sophisticated financial technology environment',
+      'investment': 'surrounded by investment growth indicators',
+      'portfolio': 'as the centerpiece of a digital portfolio display',
+      'exchange': 'on a futuristic exchange platform interface'
     };
     
     let context = '';
