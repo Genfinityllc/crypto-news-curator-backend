@@ -993,17 +993,33 @@ class ControlNetService {
     
     if (context) prompt += `, ${context}`;
     
-    // Add custom keyword from user input
+    // Add custom keyword/phrase from user input
     if (customKeyword && customKeyword.trim()) {
-      const keyword = customKeyword.trim().toLowerCase();
-      // Check if keyword maps to a context phrase
-      const customContext = contextMap[keyword];
-      if (customContext) {
-        prompt += `, ${customContext}`;
-      } else {
-        prompt += `, with ${keyword} aesthetic`;
+      const phrase = customKeyword.trim().toLowerCase();
+      logger.info(`   Custom phrase from user: "${phrase}"`);
+      
+      // First check if any word in the phrase maps to a context
+      let foundContext = null;
+      for (const [kw, contextPhrase] of Object.entries(contextMap)) {
+        if (phrase.includes(kw)) {
+          foundContext = contextPhrase;
+          break;
+        }
       }
-      logger.info(`   Custom keyword: "${customKeyword}"`);
+      
+      if (foundContext) {
+        // Use the mapped context phrase
+        prompt += `, ${foundContext}`;
+      } else if (phrase.length > 30) {
+        // Long phrase - use it directly as a scene description
+        prompt += `, in a scene featuring ${phrase}`;
+      } else if (phrase.includes(' ')) {
+        // Multi-word phrase - incorporate naturally
+        prompt += `, with ${phrase} elements in the scene`;
+      } else {
+        // Single keyword - use aesthetic
+        prompt += `, with ${phrase} aesthetic`;
+      }
     }
     
     // Add a random user-suggested keyword if available (from past feedback)
