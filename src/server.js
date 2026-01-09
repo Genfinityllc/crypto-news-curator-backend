@@ -1046,6 +1046,38 @@ app.post('/api/cover-generator/setup-tables', async (req, res) => {
     // Determine overall status
     const allTablesReady = results.tables.user_generated_covers.exists && results.tables.cover_ratings.exists;
     
+    // If tables exist but have schema cache issues, try inserting and deleting a test row
+    if (finalCoversError && finalCoversError.message.includes('schema cache')) {
+      logger.info('🔄 Schema cache issue detected, trying to refresh...');
+      try {
+        // Insert a test row to force schema cache refresh
+        const { data: testInsert, error: insertError } = await supabase
+          .from('user_generated_covers')
+          .insert({
+            user_id: 'schema_test_' + Date.now(),
+            image_url: 'https://test.com/test.png',
+            network: 'TEST',
+            title: 'Schema Cache Test'
+          })
+          .select()
+          .single();
+        
+        if (testInsert && testInsert.id) {
+          // Delete the test row
+          await supabase
+            .from('user_generated_covers')
+            .delete()
+            .eq('id', testInsert.id);
+          
+          logger.info('✅ Schema cache refreshed successfully!');
+          results.tables.user_generated_covers.exists = true;
+          results.tables.user_generated_covers.schemaRefreshed = true;
+        }
+      } catch (e) {
+        logger.warn('Could not refresh schema cache:', e.message);
+      }
+    }
+    
     if (allTablesReady) {
       results.success = true;
       results.message = '🎉 All tables are ready! Cover generations will now be saved to your profile.';
@@ -1090,7 +1122,7 @@ CREATE TABLE IF NOT EXISTS cover_ratings (
   }
 });
 
-// Debug endpoint to check table status
+// Debug endpoint to check table status and try to fix issues
 app.get('/api/cover-generator/check-tables', async (req, res) => {
   try {
     const { getSupabaseClient } = require('./config/supabase');
@@ -1104,39 +1136,86 @@ app.get('/api/cover-generator/check-tables', async (req, res) => {
       });
     }
     
+    const results = {
+      success: true,
+      tables: {},
+      coversCount: 0,
+      ratingsCount: 0
+    };
+    
     // Try to query the user_generated_covers table
-    const { data: coversData, error: coversError } = await supabase
+    const { data: coversData, error: coversError, count: coversCount } = await supabase
       .from('user_generated_covers')
-      .select('id')
-      .limit(1);
+      .select('*', { count: 'exact', head: true });
     
     // Try to query the cover_ratings table
-    const { data: ratingsData, error: ratingsError } = await supabase
+    const { data: ratingsData, error: ratingsError, count: ratingsCount } = await supabase
       .from('cover_ratings')
-      .select('id')
-      .limit(1);
+      .select('*', { count: 'exact', head: true });
     
-    const coversTableExists = !coversError || !coversError.message.includes('does not exist');
-    const ratingsTableExists = !ratingsError || !ratingsError.message.includes('does not exist');
+    // Check if errors indicate table doesn't exist
+    const coversNotExist = coversError?.message?.includes('does not exist');
+    const ratingsNotExist = ratingsError?.message?.includes('does not exist');
     
-    logger.info(`📊 Table check: user_generated_covers=${coversTableExists}, cover_ratings=${ratingsTableExists}`);
+    // Schema cache issue is different - table exists but PostgREST hasn't cached it
+    const coversSchemaIssue = coversError?.message?.includes('schema cache');
+    const ratingsSchemaIssue = ratingsError?.message?.includes('schema cache');
     
-    res.json({
-      success: true,
-      tables: {
-        user_generated_covers: {
-          exists: coversTableExists,
-          error: coversError?.message || null
-        },
-        cover_ratings: {
-          exists: ratingsTableExists,
-          error: ratingsError?.message || null
+    results.tables.user_generated_covers = {
+      exists: !coversNotExist,
+      working: !coversError,
+      count: coversCount || 0,
+      schemaIssue: coversSchemaIssue,
+      error: coversError?.message || null
+    };
+    
+    results.tables.cover_ratings = {
+      exists: !ratingsNotExist,
+      working: !ratingsError,
+      count: ratingsCount || 0,
+      schemaIssue: ratingsSchemaIssue,
+      error: ratingsError?.message || null
+    };
+    
+    results.coversCount = coversCount || 0;
+    results.ratingsCount = ratingsCount || 0;
+    
+    // If there are schema cache issues, try to refresh by inserting/deleting
+    if (coversSchemaIssue) {
+      logger.info('🔄 Attempting to refresh schema cache for user_generated_covers...');
+      try {
+        const { data: testRow, error: testError } = await supabase
+          .from('user_generated_covers')
+          .insert({
+            user_id: 'cache_refresh_' + Date.now(),
+            image_url: 'https://placeholder.com/refresh.png',
+            network: 'CACHE_REFRESH',
+            title: 'Schema Refresh Test'
+          })
+          .select()
+          .single();
+        
+        if (testRow) {
+          await supabase.from('user_generated_covers').delete().eq('id', testRow.id);
+          results.tables.user_generated_covers.schemaRefreshed = true;
+          results.tables.user_generated_covers.working = true;
+          logger.info('✅ Schema cache refreshed!');
         }
-      },
-      instructions: (!coversTableExists || !ratingsTableExists) ? 
-        'Run the SQL in migrations/create_user_covers_tables.sql in your Supabase SQL Editor' : 
-        'All tables are ready!'
-    });
+      } catch (e) {
+        logger.warn('Could not refresh schema:', e.message);
+      }
+    }
+    
+    const allWorking = results.tables.user_generated_covers.working && results.tables.cover_ratings.working;
+    
+    results.status = allWorking ? 'ready' : 'issues';
+    results.message = allWorking 
+      ? `All tables working! ${results.coversCount} covers saved, ${results.ratingsCount} ratings recorded.`
+      : 'Some tables have issues. Check the error messages.';
+    
+    logger.info(`📊 Table check: covers=${results.tables.user_generated_covers.working}, ratings=${results.tables.cover_ratings.working}`);
+    
+    res.json(results);
   } catch (error) {
     logger.error('Table check error:', error);
     res.json({ success: false, error: error.message });
