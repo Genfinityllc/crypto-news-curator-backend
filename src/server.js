@@ -1003,6 +1003,44 @@ app.get('/api/cover-generator/prompt-stats', async (req, res) => {
   }
 });
 
+// 🔧 DEBUG: Test logo loading via ControlNetService
+app.get('/api/debug/test-logo/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const ControlNetService = require('./services/controlNetService');
+    const controlNetService = new ControlNetService();
+    
+    logger.info(`🔧 DEBUG: Testing logo load for ${symbol}`);
+    logger.info(`🔧 DEBUG: pngLogoDir = ${controlNetService.pngLogoDir}`);
+    
+    const logoData = await controlNetService.getPngLogo(symbol);
+    
+    if (logoData) {
+      res.json({
+        success: true,
+        symbol,
+        source: logoData.source,
+        size: logoData.buffer?.length || 0,
+        sizeKB: ((logoData.buffer?.length || 0) / 1024).toFixed(1) + 'KB',
+        path: logoData.path || 'N/A',
+        pngLogoDir: controlNetService.pngLogoDir
+      });
+    } else {
+      res.json({
+        success: false,
+        symbol,
+        error: 'Logo not found',
+        pngLogoDir: controlNetService.pngLogoDir
+      });
+    }
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // 🔧 DEBUG: Check PNG logo availability
 app.get('/api/debug/png-logos', async (req, res) => {
   const path = require('path');

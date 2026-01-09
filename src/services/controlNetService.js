@@ -546,13 +546,15 @@ class ControlNetService {
     try {
       logger.info(`🎯 NANO-BANANA-PRO 3D LOGO GENERATION: ${logoSymbol}`);
       logger.info(`📝 Using Google's image editing model for stunning 3D glass/liquid effect`);
+      logger.info(`📂 PNG Logo Directory: ${this.pngLogoDir}`);
       
       // Get the ACTUAL logo file (100% accurate shape)
       const logoData = await this.getPngLogo(logoSymbol);
       if (!logoData) {
+        logger.error(`❌ Logo not found for ${logoSymbol}. Checked directory: ${this.pngLogoDir}`);
         throw new Error(`No PNG/SVG logo found for ${logoSymbol}`);
       }
-      logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source})`);
+      logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source}, ${(logoData.buffer?.length / 1024).toFixed(1)}KB)`);
       
       let imagePath;
       let method = 'unknown';
