@@ -958,11 +958,49 @@ app.post('/api/cover-generator/save', async (req, res) => {
     
     logger.info(`📝 Insert data: ${JSON.stringify(insertData)}`);
     
-    const { data, error } = await supabase
+    let data, error;
+    
+    // Try standard Supabase insert
+    const result = await supabase
       .from('user_generated_covers')
       .insert(insertData)
       .select()
       .single();
+    
+    data = result.data;
+    error = result.error;
+    
+    // If schema cache error, try direct HTTP request as fallback
+    if (error && error.message.includes('schema cache')) {
+      logger.warn('⚠️ Schema cache error - trying direct HTTP request...');
+      try {
+        const axios = require('axios');
+        const supabaseUrl = process.env.SUPABASE_URL?.trim();
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_ANON_KEY?.trim();
+        
+        const httpResponse = await axios.post(
+          `${supabaseUrl}/rest/v1/user_generated_covers`,
+          insertData,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            }
+          }
+        );
+        
+        if (httpResponse.data && httpResponse.data.length > 0) {
+          data = httpResponse.data[0];
+          error = null;
+          logger.info('✅ Direct HTTP insert successful');
+        }
+      } catch (httpError) {
+        logger.error('❌ Direct HTTP insert failed:', httpError.response?.data || httpError.message);
+        // Keep original error
+      }
+    }
     
     if (error) {
       logger.error(`❌ Supabase insert error: ${error.message}`);

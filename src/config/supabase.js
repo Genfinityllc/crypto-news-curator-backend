@@ -21,15 +21,23 @@ let supabase = null;
  */
 function initializeSupabase() {
   const keyType = supabaseServiceKey ? 'SERVICE_ROLE' : 'ANON';
-  logger.info(`Checking Supabase config: URL=${supabaseUrl ? 'present' : 'missing'}, Key=${supabaseKey ? 'present' : 'missing'} (${keyType})`);
+  logger.info(`Checking Supabase config: URL=${supabaseUrl ? 'present' : 'missing'}, Key=${supabaseKey ? 'present (' + keyType + ')' : 'missing'}`);
   if (!supabaseUrl || !supabaseKey) {
     logger.warn('Supabase credentials not found. Using sample data mode.');
     return null;
   }
 
   try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    logger.info('Supabase client initialized successfully');
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      db: {
+        schema: 'public'
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+    logger.info('Supabase client initialized successfully with schema: public');
     return supabase;
   } catch (error) {
     logger.error('Error initializing Supabase client:', error.message);
