@@ -782,7 +782,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, title, style } = req.body;
+  const { network, title, style, customKeyword } = req.body;
   
   if (!network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
@@ -796,13 +796,13 @@ app.post('/api/cover-generator/generate', async (req, res) => {
     
     const articleTitle = title || `${network} Cryptocurrency News`;
     
-    logger.info(`🎨 Cover Generator: Creating ${network} cover...`);
+    logger.info(`🎨 Cover Generator: Creating ${network} cover... ${customKeyword ? `(keyword: ${customKeyword})` : ''}`);
     
     const result = await controlNetService.generateWithAdvancedControlNet(
       articleTitle,
       network.toUpperCase(),
       style || 'professional',
-      { content: '' }
+      { content: '', customKeyword: customKeyword || null }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);
@@ -814,6 +814,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         network: network.toUpperCase(),
         method: result.metadata?.method || 'nano_banana_pro_3d',
         duration: `${duration}s`,
+        promptUsed: result.metadata?.promptUsed || null,
         timestamp: new Date().toISOString()
       });
     } else {
@@ -914,6 +915,90 @@ app.get('/api/cover-generator/my-covers', coverAuthMiddleware, async (req, res) 
     res.json({ success: true, covers: data || [] });
   } catch (error) {
     logger.error('Failed to get covers:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Submit rating feedback for prompt refinement
+app.post('/api/cover-generator/rating', async (req, res) => {
+  const { imageUrl, network, promptUsed, logoRating, backgroundRating, feedbackKeyword, userId } = req.body;
+  
+  if (!logoRating && !backgroundRating) {
+    return res.status(400).json({ success: false, error: 'At least one rating required' });
+  }
+  
+  try {
+    const supabase = require('./config/supabase').supabaseAdmin;
+    const PromptRefinementService = require('./services/promptRefinementService');
+    const promptRefinement = new PromptRefinementService();
+    
+    // Save rating to database
+    const { data, error } = await supabase
+      .from('cover_ratings')
+      .insert({
+        image_url: imageUrl,
+        network: network?.toUpperCase(),
+        prompt_used: promptUsed,
+        logo_rating: logoRating,
+        background_rating: backgroundRating,
+        feedback_keyword: feedbackKeyword,
+        user_id: userId || null,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      // If table doesn't exist, create it (first-time setup)
+      if (error.code === '42P01') {
+        logger.warn('cover_ratings table does not exist - creating...');
+        // Table will be created via migration or manually
+      } else {
+        throw error;
+      }
+    }
+    
+    // Process the rating to refine prompts
+    await promptRefinement.processRating({
+      logoRating,
+      backgroundRating,
+      feedbackKeyword,
+      promptUsed,
+      network
+    });
+    
+    logger.info(`📊 Rating received: Logo=${logoRating}, Background=${backgroundRating}, Keyword=${feedbackKeyword || 'none'}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Rating saved',
+      refinementApplied: true
+    });
+  } catch (error) {
+    logger.error('Failed to save rating:', error);
+    // Still return success if we got this far - don't fail user experience
+    res.json({ 
+      success: true, 
+      message: 'Rating received (storage pending)',
+      refinementApplied: false
+    });
+  }
+});
+
+// Get prompt statistics (for debugging/admin)
+app.get('/api/cover-generator/prompt-stats', async (req, res) => {
+  try {
+    const PromptRefinementService = require('./services/promptRefinementService');
+    const promptRefinement = new PromptRefinementService();
+    
+    const stats = await promptRefinement.getStats();
+    
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    logger.error('Failed to get prompt stats:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

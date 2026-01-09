@@ -527,15 +527,20 @@ class ControlNetService {
       let method = 'unknown';
       
       // PRIMARY: Use Google Nano-Banana-Pro Edit for stunning 3D glass effect
+      let promptUsed = null;
+      
       if (process.env.WAVESPEED_API_KEY) {
         try {
           logger.info('🌟 Using Nano-Banana-Pro image edit for 3D glass/liquid effect...');
-          imagePath = await this.generateWithNanoBananaPro({
+          const result = await this.generateWithNanoBananaPro({
             logoBuffer: logoData.buffer,
             logoSymbol: logoSymbol,
             title: title,
-            imageId: imageId
+            imageId: imageId,
+            article: article  // Pass article for custom keyword
           });
+          imagePath = result.imagePath;
+          promptUsed = result.promptUsed;
           method = 'nano_banana_pro_3d';
           logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
         } catch (nanoError) {
@@ -627,7 +632,8 @@ class ControlNetService {
           style,
           totalProcessingTime: totalTime,
           logoAccuracy: '100% (actual logo shape used)',
-          controlNetUsed: method.includes('controlnet')
+          controlNetUsed: method.includes('controlnet'),
+          promptUsed: promptUsed || null
         }
       };
         
@@ -692,7 +698,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {} }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -738,8 +744,9 @@ class ControlNetService {
       logger.info(`📷 Using server-hosted logo URL: ${logoUrl}`);
     }
     
-    // Build our dynamic prompt for 3D glass/liquid effect
-    const prompt = this.getNanoBananaPrompt(logoSymbol, title);
+    // Build our dynamic prompt for 3D glass/liquid effect (now async with refinement)
+    const customKeyword = article?.customKeyword || null;
+    const prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
     // EXACT Wavespeed API format from official docs
@@ -831,14 +838,24 @@ class ControlNetService {
     }
     
     logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
-    return imagePath;
+    return { imagePath, promptUsed: prompt };
   }
   
   /**
    * Build dynamic, diverse prompts for Nano-Banana-Pro
    * Uses randomization + keyword extraction for variety
+   * Now supports user-provided custom keywords and learned preferences
    */
-  getNanoBananaPrompt(logoSymbol, title) {
+  async getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
+    // Load prompt refinement preferences if available
+    let refinedElements = null;
+    try {
+      const PromptRefinementService = require('./promptRefinementService');
+      const promptRefinement = new PromptRefinementService();
+      refinedElements = await promptRefinement.getRefinedElements();
+    } catch (e) {
+      logger.warn('Could not load prompt refinements:', e.message);
+    }
     const networkNames = {
       // Major coins
       'BTC': 'Bitcoin', 'BITCOIN': 'Bitcoin', 'ETH': 'Ethereum', 'XRP': 'XRP Ripple',
@@ -959,6 +976,28 @@ class ControlNetService {
     let prompt = `The ${networkName} logo ${selectedMaterial}, ${selectedScene}, ${selectedLighting}, ${selectedBackground}`;
     
     if (context) prompt += `, ${context}`;
+    
+    // Add custom keyword from user input
+    if (customKeyword && customKeyword.trim()) {
+      const keyword = customKeyword.trim().toLowerCase();
+      // Check if keyword maps to a context phrase
+      const customContext = contextMap[keyword];
+      if (customContext) {
+        prompt += `, ${customContext}`;
+      } else {
+        prompt += `, with ${keyword} aesthetic`;
+      }
+      logger.info(`   Custom keyword: "${customKeyword}"`);
+    }
+    
+    // Add a random user-suggested keyword if available (from past feedback)
+    if (refinedElements?.userKeywords?.length > 0 && Math.random() > 0.5) {
+      const userKeyword = refinedElements.userKeywords[Math.floor(Math.random() * refinedElements.userKeywords.length)];
+      if (userKeyword && !prompt.toLowerCase().includes(userKeyword)) {
+        prompt += `, ${userKeyword} elements`;
+        logger.info(`   User-suggested: "${userKeyword}"`);
+      }
+    }
     
     // CRITICAL: Prevent logo distortion
     prompt += `, maintain exact logo proportions without stretching, professional 3D render, 8k quality`;
