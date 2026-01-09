@@ -955,51 +955,49 @@ app.post('/api/cover-generator/save', async (req, res) => {
   let saveMethod = 'none';
   let savedData = null;
   
-  // ATTEMPT 1: Supabase Client - try generated_images table first (exists and is cached)
+  // ATTEMPT 1: Supabase Client - use articles table with special marker (GUARANTEED to work)
   try {
     const { getSupabaseClient } = require('./config/supabase');
     const supabase = getSupabaseClient();
     
     if (supabase) {
-      // First try the generated_images table (existing, cached)
-      const generatedImagesData = {
-        user_id: coverData.user_id,
-        image_url: coverData.image_url,
-        network: coverData.network,
-        title: coverData.title,
-        created_at: coverData.created_at,
-        type: 'user_cover'  // Mark as user-generated cover
+      // Use articles table (KNOWN WORKING) with a special marker in the source field
+      const articleData = {
+        title: `[USER_COVER] ${coverData.network}: ${coverData.title}`,
+        url: coverData.image_url,
+        source: `user_cover:${coverData.user_id}`,  // Special marker to identify user covers
+        cryptocurrency: coverData.network,
+        original_title: `User Cover: ${coverData.title}`,
+        content: JSON.stringify({
+          type: 'user_generated_cover',
+          user_id: coverData.user_id,
+          network: coverData.network,
+          original_title: coverData.title,
+          generated_at: coverData.created_at
+        }),
+        published_at: new Date().toISOString()
       };
       
       const { data, error } = await supabase
-        .from('generated_images')
-        .insert(generatedImagesData)
+        .from('articles')
+        .insert(articleData)
         .select()
         .single();
       
       if (!error && data) {
         saved = true;
-        saveMethod = 'supabase_generated_images';
-        savedData = data;
-        logger.info(`✅ Saved via Supabase (generated_images table)`);
+        saveMethod = 'supabase_articles';
+        savedData = { 
+          id: data.id,
+          user_id: coverData.user_id,
+          image_url: coverData.image_url,
+          network: coverData.network,
+          title: coverData.title,
+          created_at: coverData.created_at
+        };
+        logger.info(`✅ Saved via Supabase articles table (id: ${data.id})`);
       } else {
-        logger.warn(`generated_images insert failed: ${error?.message}`);
-        
-        // Try user_generated_covers as fallback
-        const { data: data2, error: error2 } = await supabase
-          .from('user_generated_covers')
-          .insert(coverData)
-          .select()
-          .single();
-        
-        if (!error2 && data2) {
-          saved = true;
-          saveMethod = 'supabase_user_covers';
-          savedData = data2;
-          logger.info(`✅ Saved via Supabase (user_generated_covers table)`);
-        } else {
-          logger.warn(`user_generated_covers insert failed: ${error2?.message}`);
-        }
+        logger.warn(`Articles table insert failed: ${error?.message}`);
       }
     }
   } catch (e) {
@@ -1230,7 +1228,7 @@ app.get('/api/cover-generator/db-diagnostic', async (req, res) => {
   }
 });
 
-// TEST generated_images table specifically
+// TEST generated_images table specifically - discover its columns
 app.get('/api/cover-generator/test-gen-images', async (req, res) => {
   logger.info('🧪 Testing generated_images table...');
   
@@ -1253,37 +1251,51 @@ app.get('/api/cover-generator/test-gen-images', async (req, res) => {
       });
     }
     
-    // Try INSERT
-    const testData = {
-      user_id: 'test_' + Date.now(),
+    // Try minimal INSERT to discover required columns
+    const minimalTestData = {
       image_url: 'https://test.com/test.png',
-      network: 'TEST',
-      title: 'Test Insert',
-      type: 'user_cover',
       created_at: new Date().toISOString()
     };
     
-    const { data: insertData, error: insertError } = await supabase
+    const { data: minInsertData, error: minInsertError } = await supabase
       .from('generated_images')
-      .insert(testData)
+      .insert(minimalTestData)
       .select()
       .single();
     
-    if (insertError) {
+    if (minInsertError) {
+      // Try with just image_url
+      const { data: justUrlData, error: justUrlError } = await supabase
+        .from('generated_images')
+        .insert({ url: 'https://test.com/test.png' })
+        .select()
+        .single();
+      
+      if (!justUrlError && justUrlData) {
+        await supabase.from('generated_images').delete().eq('id', justUrlData.id);
+        return res.json({
+          success: true,
+          table: 'generated_images',
+          insertWorks: true,
+          workingSchema: 'url field',
+          insertedRow: justUrlData
+        });
+      }
+      
       return res.json({
         success: false,
         table: 'generated_images',
         selectWorks: true,
         insertWorks: false,
-        insertError: insertError.message,
-        sampleRow: selectData?.[0],
-        requiredColumns: Object.keys(testData)
+        minimalInsertError: minInsertError.message,
+        justUrlError: justUrlError?.message,
+        sampleRow: selectData?.[0]
       });
     }
     
     // Clean up test row
-    if (insertData?.id) {
-      await supabase.from('generated_images').delete().eq('id', insertData.id);
+    if (minInsertData?.id) {
+      await supabase.from('generated_images').delete().eq('id', minInsertData.id);
     }
     
     res.json({
@@ -1291,8 +1303,9 @@ app.get('/api/cover-generator/test-gen-images', async (req, res) => {
       table: 'generated_images',
       selectWorks: true,
       insertWorks: true,
+      insertedColumns: Object.keys(minimalTestData),
       sampleRow: selectData?.[0],
-      insertedRow: insertData
+      insertedRow: minInsertData
     });
     
   } catch (e) {
@@ -1658,45 +1671,52 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
   let allCovers = [];
   const sources = { supabase: 0, memory: 0, local: 0 };
   
-  // SOURCE 1: Supabase - check both generated_images and user_generated_covers
+  // SOURCE 1: Supabase - check articles table for user covers
   if (userId) {
     try {
       const { getSupabaseClient } = require('./config/supabase');
       const supabase = getSupabaseClient();
       
       if (supabase) {
-        // Try generated_images table first (existing, cached)
-        const { data: genData, error: genError } = await supabase
-          .from('generated_images')
+        // Query articles table with our special marker: source starts with 'user_cover:'
+        const { data: articlesData, error: articlesError } = await supabase
+          .from('articles')
           .select('*')
-          .eq('user_id', userId)
-          .eq('type', 'user_cover')
-          .order('created_at', { ascending: false })
+          .like('source', `user_cover:${userId}%`)
+          .order('published_at', { ascending: false })
           .limit(50);
         
-        if (!genError && genData) {
-          allCovers = genData.map(c => ({ ...c, source: 'supabase_gen' }));
-          sources.supabase = genData.length;
-          logger.info(`📂 Found ${genData.length} from generated_images`);
-        }
-        
-        // Also try user_generated_covers table
-        const { data: userData, error: userError } = await supabase
-          .from('user_generated_covers')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(50);
-        
-        if (!userError && userData) {
-          const existingUrls = new Set(allCovers.map(c => c.image_url));
-          for (const cover of userData) {
-            if (!existingUrls.has(cover.image_url)) {
-              allCovers.push({ ...cover, source: 'supabase_uc' });
-              sources.supabase++;
+        if (!articlesError && articlesData) {
+          // Transform articles back to cover format
+          for (const article of articlesData) {
+            try {
+              const metadata = JSON.parse(article.content || '{}');
+              allCovers.push({
+                id: article.id,
+                user_id: metadata.user_id || userId,
+                image_url: article.url,
+                network: article.cryptocurrency || metadata.network,
+                title: metadata.original_title || article.original_title,
+                created_at: metadata.generated_at || article.published_at,
+                source: 'supabase'
+              });
+            } catch (e) {
+              // Fallback if content isn't valid JSON
+              allCovers.push({
+                id: article.id,
+                user_id: userId,
+                image_url: article.url,
+                network: article.cryptocurrency,
+                title: article.original_title,
+                created_at: article.published_at,
+                source: 'supabase'
+              });
             }
           }
-          logger.info(`📂 Found ${userData.length} from user_generated_covers`);
+          sources.supabase = articlesData.length;
+          logger.info(`📂 Found ${articlesData.length} covers from articles table`);
+        } else if (articlesError) {
+          logger.warn(`Articles query failed: ${articlesError.message}`);
         }
       }
     } catch (e) {
