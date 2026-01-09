@@ -694,7 +694,6 @@ const NETWORKS_LIST = [
   { symbol: 'CANTON', name: 'Canton', type: 'network' },
   { symbol: 'MONAD', name: 'Monad', type: 'network' },
   { symbol: 'AXELAR', name: 'Axelar', type: 'network' },
-  { symbol: 'PACK', name: 'HashPack (PACK)', type: 'network' },
 ];
 
 const COMPANIES_LIST = [
