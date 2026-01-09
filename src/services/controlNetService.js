@@ -509,7 +509,10 @@ class ControlNetService {
       const svgBuffer = Buffer.from(logoData.svgContent);
       
       const pngBuffer = await sharp(svgBuffer)
-        .png({ quality: 100 })
+        .png({ 
+          palette: false,  // Force RGB/RGBA - never indexed!
+          compressionLevel: 6
+        })
         .resize(1024, 1024, { 
           fit: 'contain',
           background: { r: 255, g: 255, b: 255, alpha: 0 } // Transparent background
@@ -1522,7 +1525,10 @@ class ControlNetService {
         // 3D metallic logo
         { input: metallicLogo, left: logoX, top: logoY }
       ])
-      .png({ quality: 95 })
+      .png({ 
+        palette: false,  // Force RGB/RGBA - never indexed!
+        compressionLevel: 6
+      })
       .toBuffer();
     
     // Save final image
@@ -1641,7 +1647,10 @@ class ControlNetService {
             top: logoY
           }
         ])
-        .png({ quality: 95 })
+        .png({ 
+          palette: false,  // Force RGB/RGBA - never indexed!
+          compressionLevel: 6
+        })
         .toBuffer();
       
       // Save composited image
@@ -3444,9 +3453,12 @@ class ControlNetService {
       let logoBuffer;
       
       if (svgLogoData.svgContent) {
-        // Convert SVG to high-quality PNG
+        // Convert SVG to high-quality PNG (RGB/RGBA, not indexed)
         logoBuffer = await sharp(Buffer.from(svgLogoData.svgContent))
-          .png({ quality: 100 })
+          .png({ 
+            palette: false,  // Force RGB/RGBA - never indexed!
+            compressionLevel: 6
+          })
           .resize(1024, 1024, { 
             fit: 'contain',
             background: { r: 255, g: 255, b: 255, alpha: 0 }

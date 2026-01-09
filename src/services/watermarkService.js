@@ -42,7 +42,9 @@ class WatermarkService {
           position: 'center',  // Center the crop
           background: { r: 0, g: 0, b: 0, alpha: 1 }
         })
-        .png()
+        .png({
+          palette: false  // Force RGB/RGBA mode, never indexed/palette
+        })
         .toBuffer();
       
       logger.info(`✅ Image resized to 1800x900`);
@@ -95,7 +97,10 @@ class WatermarkService {
       
       await sharp(resizedImageBuffer)
         .composite(compositeOperations)
-        .png({ quality: 95 })
+        .png({ 
+          palette: false,  // Force RGB/RGBA mode - never indexed!
+          compressionLevel: 6  // Good compression without quality loss
+        })
         .toFile(finalOutputPath);
         
       logger.info(`✅ Final watermarked image saved at 1800x900: ${finalOutputPath}`);
