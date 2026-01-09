@@ -955,16 +955,17 @@ app.post('/api/cover-generator/save', async (req, res) => {
   let saveMethod = 'none';
   let savedData = null;
   
-  // ATTEMPT 1: Supabase Client - use articles table with only REQUIRED columns
+  // ATTEMPT 1: Supabase Client - use articles table with all REQUIRED columns
   try {
     const { getSupabaseClient } = require('./config/supabase');
     const supabase = getSupabaseClient();
     
     if (supabase) {
-      // Use ONLY the columns that are cached and required: title, content, published_at
+      // Required columns: title, content, url, published_at
       // Store all metadata in the content field as JSON
       const articleData = {
         title: `[USER_COVER] ${coverData.network}: ${coverData.title}`,
+        url: coverData.image_url,  // This is the image URL - required column!
         content: JSON.stringify({
           type: 'user_generated_cover',
           user_id: coverData.user_id,
@@ -1240,9 +1241,10 @@ app.get('/api/cover-generator/test-articles-save', async (req, res) => {
       return res.json({ success: false, error: 'Supabase not initialized' });
     }
     
-    // Exact same data structure as save endpoint
+    // Exact same data structure as save endpoint - all required columns
     const articleData = {
       title: `[USER_COVER] TEST: Test Cover`,
+      url: 'https://test.com/test.png',  // Required!
       content: JSON.stringify({
         type: 'user_generated_cover',
         user_id: 'test_user_123',
