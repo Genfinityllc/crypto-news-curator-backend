@@ -764,16 +764,15 @@ class ControlNetService {
       'shib': 'shiba-inu-shib', 'pepe': 'pepe-pepe'
     };
     
-    const slug = cdnSlugs[logoSymbol.toLowerCase()];
-    let logoUrl;
-    
     // ALWAYS pre-process logo onto a 16:9 canvas to ensure proper aspect ratio output
     // This prevents 1:1 square outputs that get stretched/cropped badly
     const processedLogoBuffer = await this.preprocessLogoFor16x9(logoBuffer);
-    const tempLogoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
-    await fs.writeFile(tempLogoPath, processedLogoBuffer);
-    logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
-    logger.info(`📷 Logo preprocessed to 16:9 canvas and hosted at: ${logoUrl}`);
+    
+    // Use base64 data URL - this works reliably with Wavespeed
+    // Server-hosted URLs may not be accessible from Wavespeed's servers
+    const base64Logo = processedLogoBuffer.toString('base64');
+    const logoUrl = `data:image/png;base64,${base64Logo}`;
+    logger.info(`📷 Logo preprocessed to 16:9 canvas, using base64 (${(processedLogoBuffer.length / 1024).toFixed(1)}KB)`);
     
     // Build our dynamic prompt for 3D glass/liquid effect
     const customKeyword = article?.customKeyword || null;
@@ -861,10 +860,7 @@ class ControlNetService {
     const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
     await fs.writeFile(imagePath, imageResponse.data);
     
-    // Clean up temp logo (we always create one now for 16:9 preprocessing)
-    try {
-      await fs.unlink(path.join(this.imageStorePath, `temp_logo_${imageId}.png`));
-    } catch (e) { /* ignore */ }
+    // No temp logo cleanup needed - using base64 directly
     
     logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
     return { imagePath, promptUsed: prompt };
