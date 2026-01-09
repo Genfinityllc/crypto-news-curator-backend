@@ -978,6 +978,8 @@ app.post('/api/cover-generator/save', async (req, res) => {
         published_at: new Date().toISOString()
       };
       
+      logger.info(`📝 Attempting articles table insert with data: ${JSON.stringify(articleData).substring(0, 200)}`);
+      
       const { data, error } = await supabase
         .from('articles')
         .insert(articleData)
@@ -997,7 +999,10 @@ app.post('/api/cover-generator/save', async (req, res) => {
         };
         logger.info(`✅ Saved via Supabase articles table (id: ${data.id})`);
       } else {
-        logger.warn(`Articles table insert failed: ${error?.message}`);
+        logger.error(`❌ Articles table insert failed: ${error?.message}`);
+        logger.error(`   Error code: ${error?.code}`);
+        logger.error(`   Error details: ${JSON.stringify(error?.details)}`);
+        logger.error(`   Error hint: ${error?.hint}`);
       }
     }
   } catch (e) {
@@ -1225,6 +1230,65 @@ app.get('/api/cover-generator/db-diagnostic', async (req, res) => {
   } catch (error) {
     diagnostic.error = error.message;
     res.json(diagnostic);
+  }
+});
+
+// TEST articles table insert for cover storage
+app.get('/api/cover-generator/test-articles-save', async (req, res) => {
+  logger.info('🧪 Testing articles table for cover storage...');
+  
+  try {
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return res.json({ success: false, error: 'Supabase not initialized' });
+    }
+    
+    const testData = {
+      title: `[USER_COVER] TEST: Test Article Insert`,
+      url: 'https://test.com/test-cover-' + Date.now() + '.png',
+      source: `user_cover:test_user_${Date.now()}`,
+      cryptocurrency: 'TEST',
+      original_title: 'Test Article Insert',
+      content: JSON.stringify({ type: 'user_generated_cover', test: true }),
+      published_at: new Date().toISOString()
+    };
+    
+    logger.info(`📝 Test data: ${JSON.stringify(testData)}`);
+    
+    const { data, error } = await supabase
+      .from('articles')
+      .insert(testData)
+      .select()
+      .single();
+    
+    if (error) {
+      logger.error(`❌ Articles insert failed: ${error.message}`);
+      return res.json({
+        success: false,
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        testData
+      });
+    }
+    
+    // Clean up
+    if (data?.id) {
+      await supabase.from('articles').delete().eq('id', data.id);
+    }
+    
+    res.json({
+      success: true,
+      insertWorks: true,
+      insertedId: data?.id,
+      cleaned: true
+    });
+    
+  } catch (e) {
+    res.json({ success: false, error: e.message, stack: e.stack?.substring(0, 200) });
   }
 });
 
