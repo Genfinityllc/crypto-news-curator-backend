@@ -333,7 +333,9 @@ class ControlNetService {
         'MOONPAY': ['MoonPay'],
         'NVIDIA': ['NVIDIA', 'Nvidia'],
         'PAXOS': ['Paxos', 'PAXOS'],
-        'ROBINHOOD': ['Robinhood']
+        'ROBINHOOD': ['Robinhood'],
+        'HASHPACK': ['HashPack', 'PACK'],
+        'PACK': ['HASHPACK', 'HashPack']
       };
       
       // Build list of possible names to search

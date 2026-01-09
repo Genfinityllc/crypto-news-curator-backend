@@ -694,6 +694,7 @@ const NETWORKS_LIST = [
   { symbol: 'CANTON', name: 'Canton', type: 'network' },
   { symbol: 'MONAD', name: 'Monad', type: 'network' },
   { symbol: 'AXELAR', name: 'Axelar', type: 'network' },
+  { symbol: 'PACK', name: 'HashPack (PACK)', type: 'network' },
 ];
 
 const COMPANIES_LIST = [
@@ -707,7 +708,7 @@ const COMPANIES_LIST = [
   { symbol: 'NVIDIA', name: 'NVIDIA', type: 'company' },
   { symbol: 'PAXOS', name: 'Paxos', type: 'company' },
   { symbol: 'ROBINHOOD', name: 'Robinhood', type: 'company' },
-  { symbol: 'HASHPACK', name: 'HashPack', type: 'company' },
+  { symbol: 'HASHPACK', name: 'HashPack (PACK)', type: 'company' },
   { symbol: 'KRAKEN', name: 'Kraken', type: 'company' },
   { symbol: 'KUCOIN', name: 'KuCoin', type: 'company' },
   { symbol: 'BINANCE', name: 'Binance Exchange', type: 'company' },
