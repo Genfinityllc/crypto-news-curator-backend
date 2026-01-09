@@ -1003,6 +1003,38 @@ app.get('/api/cover-generator/prompt-stats', async (req, res) => {
   }
 });
 
+// 🔧 DEBUG: Check PNG logo availability
+app.get('/api/debug/png-logos', async (req, res) => {
+  const path = require('path');
+  const fs = require('fs').promises;
+  
+  try {
+    const pngDir = path.join(__dirname, './services/../../uploads/png-logos');
+    const resolvedPath = path.resolve(pngDir);
+    
+    let files = [];
+    let error = null;
+    
+    try {
+      files = await fs.readdir(resolvedPath);
+      files = files.filter(f => f.toLowerCase().endsWith('.png'));
+    } catch (e) {
+      error = e.message;
+    }
+    
+    res.json({
+      success: !error,
+      pngDirectory: resolvedPath,
+      NODE_ENV: process.env.NODE_ENV,
+      totalPngs: files.length,
+      files: files,
+      error: error
+    });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // 🔧 DEBUG: Test Nano-Banana-Pro API directly
 app.post('/api/debug/nano-banana', async (req, res) => {
   const axios = require('axios');
