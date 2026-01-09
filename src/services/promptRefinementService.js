@@ -62,8 +62,16 @@ class PromptRefinementService {
   /**
    * Process a user rating and update preferences
    */
-  async processRating({ logoRating, backgroundRating, feedbackKeyword, promptUsed, network }) {
+  async processRating({ logoRating, logoSize, logoStyle, backgroundRating, backgroundStyle, feedbackKeyword, promptUsed, network }) {
     await this.loadPreferences();
+    
+    // Initialize new preference arrays if they don't exist
+    if (!this.preferences.logoSizeIssues) this.preferences.logoSizeIssues = [];
+    if (!this.preferences.logoStyleGood) this.preferences.logoStyleGood = [];
+    if (!this.preferences.logoStyleBad) this.preferences.logoStyleBad = [];
+    if (!this.preferences.bgStyleGood) this.preferences.bgStyleGood = [];
+    if (!this.preferences.bgStyleBad) this.preferences.bgStyleBad = [];
+    if (!this.preferences.ratingHistory) this.preferences.ratingHistory = [];
     
     const isLogoGood = logoRating === 'excellent' || logoRating === 'good';
     const isLogoBad = logoRating === 'okay' || logoRating === 'bad';
@@ -73,7 +81,59 @@ class PromptRefinementService {
     // Extract keywords from the prompt that was used
     const promptKeywords = this.extractKeywords(promptUsed);
     
-    // Update keyword lists based on ratings
+    // Process LOGO SIZE feedback
+    if (logoSize) {
+      if (logoSize === 'too_small') {
+        this.addToList('logoSizeIssues', ['increase_logo_size']);
+        logger.info('📏 Learning: Logo too small - will increase size in future prompts');
+      } else if (logoSize === 'too_large') {
+        this.addToList('logoSizeIssues', ['decrease_logo_size']);
+        logger.info('📏 Learning: Logo too large - will decrease size in future prompts');
+      } else if (logoSize === 'perfect') {
+        // Clear size issues if user says it's perfect
+        this.preferences.logoSizeIssues = this.preferences.logoSizeIssues.filter(
+          i => i !== 'increase_logo_size' && i !== 'decrease_logo_size'
+        );
+        logger.info('📏 Learning: Logo size is perfect!');
+      }
+    }
+    
+    // Process LOGO STYLE feedback
+    if (logoStyle) {
+      if (logoStyle === 'perfect_3d' || logoStyle === 'good_detail') {
+        this.addToList('logoStyleGood', [logoStyle]);
+        // Extract what made it good from the prompt
+        if (promptUsed) {
+          const materials = this.extractMaterials(promptUsed);
+          this.addToList('goodMaterials', materials);
+        }
+        logger.info(`✨ Learning: Logo style "${logoStyle}" works well!`);
+      } else if (logoStyle === 'looks_flat' || logoStyle === 'distorted') {
+        this.addToList('logoStyleBad', [logoStyle]);
+        logger.info(`⚠️ Learning: Logo style issue "${logoStyle}" - will adjust prompts`);
+      }
+    }
+    
+    // Process BACKGROUND STYLE feedback
+    if (backgroundStyle) {
+      if (backgroundStyle === 'love_it' || backgroundStyle === 'good') {
+        this.addToList('bgStyleGood', [backgroundStyle]);
+        if (promptUsed) {
+          const scenes = this.extractScenes(promptUsed);
+          this.addToList('goodScenes', scenes);
+        }
+        logger.info(`🖼️ Learning: Background style "${backgroundStyle}" is working!`);
+      } else if (backgroundStyle === 'generic' || backgroundStyle === 'too_busy' || backgroundStyle === 'wrong_theme') {
+        this.addToList('bgStyleBad', [backgroundStyle]);
+        if (promptUsed) {
+          const scenes = this.extractScenes(promptUsed);
+          this.addToList('badScenes', scenes);
+        }
+        logger.info(`⚠️ Learning: Background issue "${backgroundStyle}" - will avoid similar`);
+      }
+    }
+    
+    // Update keyword lists based on quality ratings
     if (isLogoGood && promptKeywords.length > 0) {
       this.addToList('logoGoodPatterns', promptKeywords);
     }
@@ -99,7 +159,7 @@ class PromptRefinementService {
       }
     }
     
-    // Extract and categorize prompt elements
+    // Extract and categorize prompt elements for overall quality
     if (promptUsed) {
       const materials = this.extractMaterials(promptUsed);
       const scenes = this.extractScenes(promptUsed);
@@ -121,12 +181,28 @@ class PromptRefinementService {
       }
     }
     
+    // Store rating history for analysis (keep last 100)
+    this.preferences.ratingHistory.push({
+      timestamp: new Date().toISOString(),
+      network,
+      logoRating, logoSize, logoStyle,
+      backgroundRating, backgroundStyle,
+      feedbackKeyword,
+      promptSample: promptUsed?.substring(0, 200)
+    });
+    if (this.preferences.ratingHistory.length > 100) {
+      this.preferences.ratingHistory = this.preferences.ratingHistory.slice(-100);
+    }
+    
     this.preferences.totalRatings++;
     this.preferences.lastUpdated = new Date().toISOString();
     
     await this.savePreferences();
     
     logger.info(`📊 Processed rating #${this.preferences.totalRatings} for ${network}`);
+    logger.info(`   Good patterns: ${this.preferences.logoGoodPatterns?.length || 0} logo, ${this.preferences.bgGoodPatterns?.length || 0} bg`);
+    logger.info(`   Bad patterns: ${this.preferences.logoBadPatterns?.length || 0} logo, ${this.preferences.bgBadPatterns?.length || 0} bg`);
+    logger.info(`   User keywords: ${this.preferences.userSuggestedKeywords?.length || 0}`);
   }
 
   /**

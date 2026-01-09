@@ -463,10 +463,14 @@ async function updateArticleCoverImage(articleId, coverImageUrl) {
   }
 }
 
+// Export the admin client for direct access
+const supabaseAdmin = getSupabaseClient();
+
 module.exports = {
   initializeSupabase,
   testSupabaseConnection,
   getSupabaseClient,
+  supabaseAdmin,  // Direct access to the Supabase client
   insertArticle,
   insertArticlesBatch,
   getArticles,

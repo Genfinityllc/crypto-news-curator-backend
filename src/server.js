@@ -863,31 +863,62 @@ app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
   const { imageUrl, network, title } = req.body;
   const userId = req.user?.uid; // Firebase uses 'uid' not 'id'
   
+  logger.info(`📥 Save cover request: userId=${userId}, network=${network}, imageUrl=${imageUrl?.substring(0, 50)}...`);
+  
   if (!userId) {
+    logger.warn('Save cover failed: No userId in token');
     return res.status(401).json({ success: false, error: 'Login required to save' });
   }
   
+  if (!imageUrl) {
+    logger.warn('Save cover failed: No imageUrl provided');
+    return res.status(400).json({ success: false, error: 'Image URL required' });
+  }
+  
   try {
-    const supabase = require('./config/supabase').supabaseAdmin;
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      logger.error('Supabase client not available');
+      return res.status(500).json({ success: false, error: 'Database not available' });
+    }
+    
+    logger.info(`💾 Inserting into user_generated_covers for user ${userId}...`);
     
     const { data, error } = await supabase
       .from('user_generated_covers')
       .insert({
         user_id: userId,
         image_url: imageUrl,
-        network: network,
+        network: network?.toUpperCase() || 'UNKNOWN',
         title: title || `${network} Cover`,
         created_at: new Date().toISOString()
       })
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      logger.error(`❌ Supabase insert error: ${error.message}`, error);
+      logger.error(`   Error code: ${error.code}, details: ${JSON.stringify(error.details)}`);
+      
+      // Check if table doesn't exist
+      if (error.code === '42P01' || error.message.includes('does not exist')) {
+        logger.error('⚠️ Table user_generated_covers does not exist! Please create it in Supabase.');
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Database table not configured. Please contact support.',
+          debug: 'Table user_generated_covers needs to be created'
+        });
+      }
+      
+      throw error;
+    }
     
-    logger.info(`✅ Cover saved for user ${userId}: ${network}`);
+    logger.info(`✅ Cover saved successfully for user ${userId}: ${network}, id=${data?.id}`);
     res.json({ success: true, saved: data });
   } catch (error) {
-    logger.error('Failed to save cover:', error);
+    logger.error('❌ Failed to save cover:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -896,12 +927,20 @@ app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
 app.get('/api/cover-generator/my-covers', coverAuthMiddleware, async (req, res) => {
   const userId = req.user?.uid; // Firebase uses 'uid' not 'id'
   
+  logger.info(`📂 Getting saved covers for user: ${userId}`);
+  
   if (!userId) {
     return res.status(401).json({ success: false, error: 'Login required' });
   }
   
   try {
-    const supabase = require('./config/supabase').supabaseAdmin;
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      logger.error('Supabase client not available');
+      return res.json({ success: true, covers: [] }); // Return empty instead of error
+    }
     
     const { data, error } = await supabase
       .from('user_generated_covers')
@@ -910,73 +949,129 @@ app.get('/api/cover-generator/my-covers', coverAuthMiddleware, async (req, res) 
       .order('created_at', { ascending: false })
       .limit(50);
     
-    if (error) throw error;
+    if (error) {
+      // If table doesn't exist, return empty array
+      if (error.code === '42P01' || error.message.includes('does not exist')) {
+        logger.warn('Table user_generated_covers does not exist yet');
+        return res.json({ success: true, covers: [] });
+      }
+      throw error;
+    }
     
+    logger.info(`📂 Found ${data?.length || 0} saved covers for user ${userId}`);
     res.json({ success: true, covers: data || [] });
   } catch (error) {
-    logger.error('Failed to get covers:', error);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error('Failed to get covers:', error.message);
+    res.json({ success: true, covers: [] }); // Graceful degradation
   }
 });
 
 // Submit rating feedback for prompt refinement
 app.post('/api/cover-generator/rating', async (req, res) => {
-  const { imageUrl, network, promptUsed, logoRating, backgroundRating, feedbackKeyword, userId } = req.body;
+  const { 
+    imageUrl, 
+    network, 
+    promptUsed, 
+    // Quality ratings
+    logoRating, 
+    backgroundRating,
+    // New detailed ratings
+    logoSize,       // 'too_small', 'perfect', 'too_large'
+    logoStyle,      // 'perfect_3d', 'looks_flat', 'distorted', 'good_detail'
+    backgroundStyle, // 'love_it', 'good', 'generic', 'too_busy', 'wrong_theme'
+    feedbackKeyword, 
+    userId 
+  } = req.body;
   
-  if (!logoRating && !backgroundRating) {
+  // Need at least one rating to process
+  const hasAnyRating = logoRating || backgroundRating || logoSize || logoStyle || backgroundStyle;
+  if (!hasAnyRating) {
     return res.status(400).json({ success: false, error: 'At least one rating required' });
   }
   
   try {
-    const supabase = require('./config/supabase').supabaseAdmin;
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
     const PromptRefinementService = require('./services/promptRefinementService');
     const promptRefinement = new PromptRefinementService();
     
-    // Save rating to database
-    const { data, error } = await supabase
-      .from('cover_ratings')
-      .insert({
-        image_url: imageUrl,
-        network: network?.toUpperCase(),
-        prompt_used: promptUsed,
-        logo_rating: logoRating,
-        background_rating: backgroundRating,
-        feedback_keyword: feedbackKeyword,
-        user_id: userId || null,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    // Build comprehensive rating log
+    const ratingLog = {
+      timestamp: new Date().toISOString(),
+      network: network?.toUpperCase(),
+      promptUsed: promptUsed?.substring(0, 500), // Store first 500 chars
+      ratings: {
+        logoQuality: logoRating,
+        logoSize: logoSize,
+        logoStyle: logoStyle,
+        backgroundQuality: backgroundRating,
+        backgroundStyle: backgroundStyle
+      },
+      feedbackKeyword: feedbackKeyword || null,
+      userId: userId || 'anonymous'
+    };
     
-    if (error) {
-      // If table doesn't exist, create it (first-time setup)
-      if (error.code === '42P01') {
-        logger.warn('cover_ratings table does not exist - creating...');
-        // Table will be created via migration or manually
-      } else {
-        throw error;
+    // Log to console for learning/debugging
+    logger.info('='.repeat(60));
+    logger.info('📊 COVER RATING RECEIVED - PROMPT REFINEMENT DATA');
+    logger.info('='.repeat(60));
+    logger.info(`🎯 Network: ${ratingLog.network}`);
+    logger.info(`📝 Prompt: ${ratingLog.promptUsed?.substring(0, 100)}...`);
+    logger.info(`🎨 Logo Quality: ${logoRating || 'not rated'}`);
+    logger.info(`📏 Logo Size: ${logoSize || 'not rated'}`);
+    logger.info(`✨ Logo Style: ${logoStyle || 'not rated'}`);
+    logger.info(`🖼️ Background Quality: ${backgroundRating || 'not rated'}`);
+    logger.info(`🎭 Background Style: ${backgroundStyle || 'not rated'}`);
+    logger.info(`💬 User Keyword: ${feedbackKeyword || 'none'}`);
+    logger.info('='.repeat(60));
+    
+    // Try to save to database (graceful if table doesn't exist)
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('cover_ratings')
+          .insert({
+            image_url: imageUrl,
+            network: network?.toUpperCase(),
+            prompt_used: promptUsed,
+            logo_rating: logoRating,
+            logo_size: logoSize,
+            logo_style: logoStyle,
+            background_rating: backgroundRating,
+            background_style: backgroundStyle,
+            feedback_keyword: feedbackKeyword,
+            user_id: userId || null,
+            created_at: new Date().toISOString()
+          });
+        
+        if (error && error.code !== '42P01') {
+          logger.warn('Could not save rating to DB:', error.message);
+        }
+      } catch (dbError) {
+        logger.warn('DB save failed (non-critical):', dbError.message);
       }
     }
     
-    // Process the rating to refine prompts
+    // Process the rating to refine prompts (this always works - saves to JSON file)
     await promptRefinement.processRating({
       logoRating,
+      logoSize,
+      logoStyle,
       backgroundRating,
+      backgroundStyle,
       feedbackKeyword,
       promptUsed,
       network
     });
     
-    logger.info(`📊 Rating received: Logo=${logoRating}, Background=${backgroundRating}, Keyword=${feedbackKeyword || 'none'}`);
-    
     res.json({ 
       success: true, 
-      message: 'Rating saved',
+      message: 'Feedback recorded - thank you for helping improve generations!',
       refinementApplied: true
     });
   } catch (error) {
-    logger.error('Failed to save rating:', error);
-    // Still return success if we got this far - don't fail user experience
+    logger.error('Failed to process rating:', error);
+    // Still return success - don't fail user experience
     res.json({ 
       success: true, 
       message: 'Rating received (storage pending)',
