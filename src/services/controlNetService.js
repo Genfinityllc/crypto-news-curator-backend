@@ -126,21 +126,22 @@ class ControlNetService {
 
   /**
    * NEW: Get PNG logo for a cryptocurrency with SVG fallback
+   * ALWAYS prioritize local files - never use CDN if local file exists
    */
   async getPngLogo(symbol) {
     try {
       const normalizedSymbol = symbol.toUpperCase();
       
-      // First, try to get PNG logo from server directory
+      // First, try to get PNG logo from server directory (ALWAYS prefer local files)
       logger.info(`🔍 Looking for ${symbol} logo in PNG directory: ${this.pngLogoDir}`);
       const pngLogo = await this.tryGetPngFromDirectory(symbol);
       if (pngLogo) {
-        logger.info(`✅ Found ${symbol} PNG logo from ${pngLogo.source}`);
+        logger.info(`✅ Found ${symbol} PNG logo from ${pngLogo.source} - USING LOCAL FILE (no CDN fallback)`);
         return pngLogo;
       }
       logger.info(`⚠️ ${symbol} PNG not found in directory`);
       
-      // Second: Try to fetch from public CDN
+      // Second: Try to fetch from public CDN (ONLY if local not found)
       logger.info(`🌐 Trying to fetch ${symbol} logo from public CDN...`);
       const cdnLogo = await this.fetchLogoFromCDN(symbol);
       if (cdnLogo) {
@@ -280,6 +281,43 @@ class ControlNetService {
         filenameLookup[baseName.toLowerCase()] = file;
       }
       
+      // PREFERRED FILE mapping - when multiple versions exist, use ONLY this one
+      // This prevents using both "HASHPACK.png" and "PACK.png" for the same logo
+      const preferredFile = {
+        'HASHPACK': 'HASHPACK.png',
+        'PACK': 'HASHPACK.png',  // Use HASHPACK.png, not PACK.png
+        'DAG': 'DAG.png',
+        'CONSTELLATION': 'DAG.png',  // Use DAG.png, not CONSTELLATION.png
+        'HEDERA': 'HEDERA.png',
+        'HBAR': 'HEDERA.png',  // Use HEDERA.png, not HBAR.png
+        'KRAKEN': 'Kraken.png',  // Use Kraken.png, not Kraken-1.png
+        'UPHOLD': 'Uphold.png',  // Use Uphold.png, not Uphold-1.png
+        'WLFI': 'WLFI.png',
+        'WORLDLIBERTYFINANCIAL': 'WLFI.png',  // Use WLFI.png, not "Worl Liberty Financial.png"
+        'ROBINHOOD': 'Robinhood.png'  // Explicit preferred file
+      };
+      
+      // Check if there's a preferred file for this symbol - use it directly
+      if (preferredFile[normalizedSymbol]) {
+        const preferredPath = path.join(this.pngLogoDir, preferredFile[normalizedSymbol]);
+        try {
+          await fs.access(preferredPath);
+          const logoBuffer = await fs.readFile(preferredPath);
+          const stats = await fs.stat(preferredPath);
+          logger.info(`🎯 PREFERRED FILE: Using ${preferredFile[normalizedSymbol]} for ${normalizedSymbol} (${(stats.size / 1024).toFixed(1)}KB)`);
+          return {
+            buffer: logoBuffer,
+            path: preferredPath,
+            filename: preferredFile[normalizedSymbol],
+            symbol: normalizedSymbol,
+            size: stats.size,
+            source: 'png_file_preferred'
+          };
+        } catch (e) {
+          logger.warn(`⚠️ Preferred file ${preferredFile[normalizedSymbol]} not found, continuing search...`);
+        }
+      }
+      
       // Alias mappings for common variations - COMPREHENSIVE for all 71 PNG logos
       const aliasMap = {
         // Major cryptocurrencies
@@ -397,24 +435,24 @@ class ControlNetService {
         const normalizedSearch = searchName.toUpperCase().replace(/\s+/g, '');
         if (filenameLookup[normalizedSearch] || filenameLookup[searchName.toUpperCase()] || filenameLookup[searchName]) {
           const filename = filenameLookup[normalizedSearch] || filenameLookup[searchName.toUpperCase()] || filenameLookup[searchName];
-          const logoPath = path.join(this.pngLogoDir, filename);
+        const logoPath = path.join(this.pngLogoDir, filename);
           
-          try {
-            await fs.access(logoPath);
-            const logoBuffer = await fs.readFile(logoPath);
-            const stats = await fs.stat(logoPath);
-            
-            logger.info(`🎯 Found PNG logo for ${symbol}: ${filename} (${(stats.size / 1024).toFixed(1)}KB)`);
-            
-            return {
-              buffer: logoBuffer,
-              path: logoPath,
-              filename,
-              symbol: normalizedSymbol,
-              size: stats.size,
-              source: 'png_file'
-            };
-          } catch (error) {
+        try {
+          await fs.access(logoPath);
+          const logoBuffer = await fs.readFile(logoPath);
+          const stats = await fs.stat(logoPath);
+          
+          logger.info(`🎯 Found PNG logo for ${symbol}: ${filename} (${(stats.size / 1024).toFixed(1)}KB)`);
+          
+          return {
+            buffer: logoBuffer,
+            path: logoPath,
+            filename,
+            symbol: normalizedSymbol,
+            size: stats.size,
+            source: 'png_file'
+          };
+        } catch (error) {
             // Continue searching
           }
         }
@@ -587,7 +625,7 @@ class ControlNetService {
       
       const result = await this.generateWithNanoBananaPro({
         logoBuffer: logoData.buffer,
-        logoSymbol: logoSymbol,
+            logoSymbol: logoSymbol,
         title: title,
         imageId: imageId,
         article: options  // Pass options for custom keyword
