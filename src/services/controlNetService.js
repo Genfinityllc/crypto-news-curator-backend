@@ -1031,37 +1031,40 @@ class ControlNetService {
       'formed by interconnected hexagonal cells', 'made of brushed copper with patina'
     ];
     
+    // CLEAN scenes - removed nebula, spiraling, sparkles, particles per user feedback
     const scenes = [
-      'hovering above a sea of scattered coins', 'floating in a dark void',
-      'as a 3D holographic projection', 'emerging from liquid metal',
-      'at the center of a swirling vortex', 'on a pedestal of stacked tokens',
-      'surrounded by orbiting smaller versions', 'breaking through a digital wall',
-      'at the intersection of light beams', 'within a geometric crystal structure',
-      'rising from a pool of mercury', 'suspended by invisible force',
-      'positioned at the center of a spiral galaxy', 'locked inside a transparent cube',
-      'rotating slowly above a reflective plane', 'emerging from a quantum portal'
+      'hovering above a dark reflective surface', 'floating in a dark void',
+      'as a solid 3D sculpture', 'emerging from liquid metal',
+      'on a sleek pedestal', 'on a dark marble surface',
+      'breaking through a digital wall', 'at the intersection of light beams',
+      'within a geometric crystal structure', 'rising from a pool of mercury',
+      'suspended above a mirror surface', 'locked inside a transparent cube',
+      'resting on a reflective plane', 'standing on a dark granite base',
+      'mounted on a futuristic display stand', 'positioned on polished concrete'
     ];
     
+    // CLEAN lighting - removed particles, aurora, pulsing effects per user feedback
     const lighting = [
       'with cyan and purple neon rim lighting', 'illuminated by golden rays',
-      'with dramatic blue backlighting', 'under matrix-green lighting',
-      'with warm amber accents', 'bathed in ethereal white glow',
-      'with rainbow prismatic reflections', 'under cold blue moonlight',
-      'with fiery orange underlighting', 'surrounded by bioluminescent particles',
-      'lit by multiple colored spotlights', 'with volumetric god rays',
-      'under soft diffused studio lighting', 'with harsh dramatic shadows',
-      'illuminated by aurora borealis colors', 'with pulsing energy light'
+      'with dramatic blue backlighting', 'under cool blue lighting',
+      'with warm amber accents', 'bathed in soft white glow',
+      'with subtle reflections', 'under cold blue moonlight',
+      'with warm orange accent lighting', 'with clean studio lighting',
+      'lit by a single spotlight', 'with volumetric god rays',
+      'under soft diffused studio lighting', 'with dramatic shadows',
+      'illuminated by gradient lighting', 'with professional product lighting'
     ];
     
+    // CLEAN backgrounds - removed particles, nebula effects per user feedback
     const backgrounds = [
-      'on a dark reflective surface', 'against a starfield backdrop',
-      'in foggy atmospheric environment', 'above flowing data streams',
+      'on a dark reflective surface', 'against a solid black backdrop',
+      'in a minimal dark environment', 'on a sleek dark platform',
       'within a geometric void', 'over a city skyline at night',
-      'in abstract gradient space', 'surrounded by floating particles',
-      'in a server room corridor', 'above clouds at sunrise',
+      'in abstract gradient space', 'on a polished dark floor',
+      'in a server room corridor', 'in a dark studio setting',
       'inside an empty black studio', 'within a futuristic laboratory',
-      'floating in deep ocean darkness', 'in a vast empty warehouse',
-      'against a wall of monitors', 'in an abandoned temple'
+      'on a dark marble surface', 'in a vast empty warehouse',
+      'against a dark textured wall', 'on a clean dark backdrop'
     ];
     
     // TRUE randomization using Math.random() - completely unique each call
@@ -1119,8 +1122,9 @@ class ControlNetService {
       }
     }
     
-    // CRITICAL: Prevent logo distortion
+    // CRITICAL: Prevent logo distortion and unwanted effects
     prompt += `, maintain exact logo proportions without stretching, professional 3D render, 8k quality`;
+    prompt += `, clean minimal aesthetic, no sparkles, no particles, no nebula, no spiraling effects, no floating debris`;
     
     // Log the unique combination
     logger.info(`🎬 UNIQUE prompt for ${networkName}:`);
@@ -1178,10 +1182,13 @@ class ControlNetService {
         logger.warn(`Could not load size preferences: ${e.message}`);
       }
       
-      // Calculate logo size - base is 60% of canvas height, adjusted by user feedback
-      const baseLogoHeight = Math.floor(targetHeight * 0.6);
+      // Calculate logo size - base is 75% of canvas height for PROMINENT logos
+      // User feedback indicated logos were too small, so we're making them much bigger by default
+      const baseLogoHeight = Math.floor(targetHeight * 0.75);  // Was 0.6, now 0.75
       const maxLogoHeight = Math.floor(baseLogoHeight * sizeMultiplier);
-      const maxLogoWidth = Math.floor(targetWidth * 0.5 * sizeMultiplier);
+      const maxLogoWidth = Math.floor(targetWidth * 0.6 * sizeMultiplier);  // Was 0.5, now 0.6
+      
+      logger.info(`📐 Logo size: ${maxLogoHeight}px height (${Math.round(maxLogoHeight/targetHeight*100)}% of canvas)`);
       
       // Resize logo maintaining aspect ratio to fit within bounds
       const logoResized = await sharp(logoBuffer)

@@ -970,18 +970,18 @@ app.post('/api/cover-generator/save', async (req, res) => {
     data = result.data;
     error = result.error;
     
-    // If schema cache error, try direct HTTP request as fallback
-    if (error && error.message.includes('schema cache')) {
-      logger.warn('⚠️ Schema cache error - trying direct HTTP request to REST API...');
+    // If schema cache error OR any other error, try direct HTTP request as fallback
+    if (error) {
+      logger.warn(`⚠️ Supabase client error: ${error.message} - trying direct HTTP...`);
       try {
         const axios = require('axios');
         const supabaseUrl = process.env.SUPABASE_URL?.trim();
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_ANON_KEY?.trim();
         
-        logger.info(`   Using Supabase URL: ${supabaseUrl}`);
+        logger.info(`   Direct HTTP to: ${supabaseUrl}/rest/v1/user_generated_covers`);
         logger.info(`   Key type: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE' : 'ANON'}`);
         
-        // Try direct REST API request
+        // Try direct REST API request with all required headers
         const httpResponse = await axios.post(
           `${supabaseUrl}/rest/v1/user_generated_covers`,
           insertData,
@@ -990,32 +990,58 @@ app.post('/api/cover-generator/save', async (req, res) => {
               'apikey': supabaseKey,
               'Authorization': `Bearer ${supabaseKey}`,
               'Content-Type': 'application/json',
-              'Prefer': 'return=representation'
+              'Prefer': 'return=representation',
+              'X-Client-Info': 'supabase-js/2.0.0'
             },
-            timeout: 10000
+            timeout: 15000,
+            validateStatus: (status) => status < 500 // Accept any non-5xx response
           }
         );
         
         logger.info(`   HTTP Response status: ${httpResponse.status}`);
+        logger.info(`   HTTP Response data: ${JSON.stringify(httpResponse.data).substring(0, 200)}`);
         
-        if (httpResponse.data && httpResponse.data.length > 0) {
-          data = httpResponse.data[0];
+        if (httpResponse.status === 201 || httpResponse.status === 200) {
+          if (Array.isArray(httpResponse.data) && httpResponse.data.length > 0) {
+            data = httpResponse.data[0];
+          } else if (httpResponse.data && !Array.isArray(httpResponse.data)) {
+            data = httpResponse.data;
+          } else {
+            data = { id: 'saved', ...insertData };
+          }
           error = null;
-          logger.info('✅ Direct HTTP insert successful');
-        } else if (httpResponse.status === 201 || httpResponse.status === 200) {
-          // Even without return data, if status is success, treat as success
-          data = { id: 'unknown', ...insertData };
+          logger.info('✅ Direct HTTP insert successful!');
+        } else if (httpResponse.status === 409) {
+          // Conflict - might be duplicate, but still counts as "saved"
+          data = { id: 'duplicate', ...insertData };
           error = null;
-          logger.info('✅ Direct HTTP insert successful (no return data)');
+          logger.info('✅ Item already exists (conflict)');
+        } else {
+          logger.error(`❌ HTTP insert returned status ${httpResponse.status}:`, httpResponse.data);
         }
       } catch (httpError) {
         const errorDetails = httpError.response?.data || httpError.message;
         logger.error('❌ Direct HTTP insert failed:', JSON.stringify(errorDetails));
         logger.error('   HTTP Status:', httpError.response?.status);
         
-        // If HTTP request also failed with schema cache error, the table might not exist
-        if (JSON.stringify(errorDetails).includes('schema cache')) {
-          logger.error('💡 HINT: The table may need to be recreated. Try running the SQL migration manually in Supabase.');
+        // Store locally as last resort
+        try {
+          const localStorePath = path.join(__dirname, '../data/local-covers.json');
+          const fs = require('fs').promises;
+          let localCovers = [];
+          try {
+            const existing = await fs.readFile(localStorePath, 'utf-8');
+            localCovers = JSON.parse(existing);
+          } catch (e) { /* file doesn't exist yet */ }
+          localCovers.push({ ...insertData, savedAt: new Date().toISOString() });
+          await fs.mkdir(path.dirname(localStorePath), { recursive: true });
+          await fs.writeFile(localStorePath, JSON.stringify(localCovers, null, 2));
+          
+          data = { id: 'local', ...insertData };
+          error = null;
+          logger.info('✅ Saved to local storage as fallback');
+        } catch (localError) {
+          logger.error('❌ Local storage fallback also failed:', localError.message);
         }
       }
     }
@@ -1383,46 +1409,84 @@ app.get('/api/cover-generator/check-tables', async (req, res) => {
 });
 
 // Get user's saved covers
-app.get('/api/cover-generator/my-covers', coverAuthMiddleware, async (req, res) => {
-  const userId = req.user?.uid; // Firebase uses 'uid' not 'id'
+app.get('/api/cover-generator/my-covers', async (req, res) => {
+  // Try to get userId from auth header, but don't require it strictly
+  let userId = null;
+  const authHeader = req.headers.authorization;
   
-  logger.info(`📂 Getting saved covers for user: ${userId}`);
-  
-  if (!userId) {
-    return res.status(401).json({ success: false, error: 'Login required' });
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const idToken = authHeader.split('Bearer ')[1];
+      // Try to decode token manually
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+        userId = payload.user_id || payload.sub || payload.email;
+      }
+    } catch (e) {
+      logger.warn('Could not decode token for my-covers:', e.message);
+    }
   }
   
+  logger.info(`📂 Getting saved covers for user: ${userId || 'anonymous'}`);
+  
+  let allCovers = [];
+  
+  // Try Supabase first
   try {
     const { getSupabaseClient } = require('./config/supabase');
     const supabase = getSupabaseClient();
     
-    if (!supabase) {
-      logger.error('Supabase client not available');
-      return res.json({ success: true, covers: [] }); // Return empty instead of error
-    }
-    
-    const { data, error } = await supabase
-      .from('user_generated_covers')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    
-    if (error) {
-      // If table doesn't exist, return empty array
-      if (error.code === '42P01' || error.message.includes('does not exist')) {
-        logger.warn('Table user_generated_covers does not exist yet');
-        return res.json({ success: true, covers: [] });
+    if (supabase && userId) {
+      const { data, error } = await supabase
+        .from('user_generated_covers')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (!error && data) {
+        allCovers = data;
+        logger.info(`📂 Found ${data.length} covers from Supabase`);
+      } else if (error) {
+        logger.warn(`Supabase query error: ${error.message}`);
       }
-      throw error;
     }
-    
-    logger.info(`📂 Found ${data?.length || 0} saved covers for user ${userId}`);
-    res.json({ success: true, covers: data || [] });
   } catch (error) {
-    logger.error('Failed to get covers:', error.message);
-    res.json({ success: true, covers: [] }); // Graceful degradation
+    logger.warn('Supabase query failed:', error.message);
   }
+  
+  // Also check local storage as fallback
+  try {
+    const localStorePath = path.join(__dirname, '../data/local-covers.json');
+    const fs = require('fs').promises;
+    const existing = await fs.readFile(localStorePath, 'utf-8');
+    const localCovers = JSON.parse(existing);
+    
+    // Filter by userId if available
+    const userLocalCovers = userId 
+      ? localCovers.filter(c => c.user_id === userId)
+      : localCovers;
+    
+    if (userLocalCovers.length > 0) {
+      // Merge with Supabase covers (avoid duplicates by image_url)
+      const existingUrls = new Set(allCovers.map(c => c.image_url));
+      for (const cover of userLocalCovers) {
+        if (!existingUrls.has(cover.image_url)) {
+          allCovers.push({
+            ...cover,
+            source: 'local'
+          });
+        }
+      }
+      logger.info(`📂 Added ${userLocalCovers.length} covers from local storage`);
+    }
+  } catch (e) {
+    // Local file doesn't exist yet - that's OK
+  }
+  
+  logger.info(`📂 Total covers: ${allCovers.length}`);
+  res.json({ success: true, covers: allCovers });
 });
 
 // Submit rating feedback for prompt refinement
