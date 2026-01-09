@@ -1035,10 +1035,12 @@ app.get('/api/debug/png-logos', async (req, res) => {
   }
 });
 
-// 🔧 DEBUG: Test Nano-Banana-Pro API directly
+// 🔧 DEBUG: Test Nano-Banana-Pro API directly with full PNG support
 app.post('/api/debug/nano-banana', async (req, res) => {
   const axios = require('axios');
   const logger = require('./utils/logger');
+  const fs = require('fs').promises;
+  const path = require('path');
   
   try {
     const { network = 'ETH' } = req.body;
@@ -1048,26 +1050,51 @@ app.post('/api/debug/nano-banana', async (req, res) => {
       return res.status(400).json({ success: false, error: 'WAVESPEED_API_KEY not set' });
     }
     
-    // Use a simple CDN logo URL
-    const cdnSlugs = {
-      'eth': 'ethereum-eth', 'btc': 'bitcoin-btc', 'xrp': 'xrp-xrp',
-      'sol': 'solana-sol', 'hbar': 'hedera-hbar'
-    };
-    const slug = cdnSlugs[network.toLowerCase()] || 'ethereum-eth';
-    const logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
+    // First, try to load PNG from our directory
+    const pngDir = path.resolve(__dirname, './services/../../uploads/png-logos');
+    let logoUrl;
+    let logoSource = 'unknown';
+    
+    try {
+      const pngPath = path.join(pngDir, `${network.toUpperCase()}.png`);
+      const logoBuffer = await fs.readFile(pngPath);
+      logoUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      logoSource = 'png_base64';
+      logger.info(`📷 DEBUG: Using base64 PNG for ${network} (${(logoBuffer.length/1024).toFixed(1)}KB)`);
+    } catch (e) {
+      // Fall back to CDN
+      const cdnSlugs = {
+        'eth': 'ethereum-eth', 'btc': 'bitcoin-btc', 'xrp': 'xrp-xrp',
+        'sol': 'solana-sol', 'hbar': 'hedera-hbar'
+      };
+      const slug = cdnSlugs[network.toLowerCase()] || 'ethereum-eth';
+      logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
+      logoSource = 'cdn';
+      logger.info(`📷 DEBUG: Using CDN URL for ${network}: ${logoUrl}`);
+    }
     
     logger.info(`🔧 DEBUG: Testing Nano-Banana-Pro with ${network}`);
     logger.info(`🔧 DEBUG: Logo URL: ${logoUrl}`);
     logger.info(`🔧 DEBUG: API Key: ${wavespeedApiKey.substring(0, 12)}...`);
     
-    const prompt = `The ${network} logo made of crystal glass, hovering above scattered coins, with cyan neon lighting, on a dark reflective surface`;
+    const prompt = `The ${network} logo made of crystal glass, hovering above scattered coins, with cyan neon lighting, on a dark reflective surface, maintain exact logo proportions without stretching`;
+    
+    // Full payload matching production settings
+    const payload = {
+      enable_base64_output: false,
+      enable_sync_mode: false,
+      images: [logoUrl],
+      output_format: "png",
+      prompt: prompt,
+      resolution: "2k",
+      aspect_ratio: "16:9"
+    };
     
     // Step 1: Submit job
-    logger.info(`🔧 DEBUG: Submitting to Wavespeed API...`);
-    const submitResponse = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
-      prompt: prompt,
-      images: [logoUrl]
-    }, {
+    logger.info(`🔧 DEBUG: Submitting to Wavespeed API with payload (excluding logo data)...`);
+    logger.info(`🔧 DEBUG: Payload: prompt=${prompt.substring(0, 100)}, resolution=2k, aspect_ratio=16:9, logoSource=${logoSource}`);
+    
+    const submitResponse = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', payload, {
       headers: {
         'Authorization': `Bearer ${wavespeedApiKey}`,
         'Content-Type': 'application/json'
@@ -1126,7 +1153,8 @@ app.post('/api/debug/nano-banana', async (req, res) => {
       method: 'nano_banana_pro_3d',
       imageUrl: outputs[0],
       prompt,
-      logoUrl
+      logoSource,
+      logoUrlPreview: logoSource === 'cdn' ? logoUrl : `base64 (${logoUrl.length} chars)`
     });
     
   } catch (error) {
