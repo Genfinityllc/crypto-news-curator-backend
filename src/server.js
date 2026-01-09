@@ -972,12 +972,16 @@ app.post('/api/cover-generator/save', async (req, res) => {
     
     // If schema cache error, try direct HTTP request as fallback
     if (error && error.message.includes('schema cache')) {
-      logger.warn('⚠️ Schema cache error - trying direct HTTP request...');
+      logger.warn('⚠️ Schema cache error - trying direct HTTP request to REST API...');
       try {
         const axios = require('axios');
         const supabaseUrl = process.env.SUPABASE_URL?.trim();
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_ANON_KEY?.trim();
         
+        logger.info(`   Using Supabase URL: ${supabaseUrl}`);
+        logger.info(`   Key type: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE' : 'ANON'}`);
+        
+        // Try direct REST API request
         const httpResponse = await axios.post(
           `${supabaseUrl}/rest/v1/user_generated_covers`,
           insertData,
@@ -987,18 +991,32 @@ app.post('/api/cover-generator/save', async (req, res) => {
               'Authorization': `Bearer ${supabaseKey}`,
               'Content-Type': 'application/json',
               'Prefer': 'return=representation'
-            }
+            },
+            timeout: 10000
           }
         );
+        
+        logger.info(`   HTTP Response status: ${httpResponse.status}`);
         
         if (httpResponse.data && httpResponse.data.length > 0) {
           data = httpResponse.data[0];
           error = null;
           logger.info('✅ Direct HTTP insert successful');
+        } else if (httpResponse.status === 201 || httpResponse.status === 200) {
+          // Even without return data, if status is success, treat as success
+          data = { id: 'unknown', ...insertData };
+          error = null;
+          logger.info('✅ Direct HTTP insert successful (no return data)');
         }
       } catch (httpError) {
-        logger.error('❌ Direct HTTP insert failed:', httpError.response?.data || httpError.message);
-        // Keep original error
+        const errorDetails = httpError.response?.data || httpError.message;
+        logger.error('❌ Direct HTTP insert failed:', JSON.stringify(errorDetails));
+        logger.error('   HTTP Status:', httpError.response?.status);
+        
+        // If HTTP request also failed with schema cache error, the table might not exist
+        if (JSON.stringify(errorDetails).includes('schema cache')) {
+          logger.error('💡 HINT: The table may need to be recreated. Try running the SQL migration manually in Supabase.');
+        }
       }
     }
     
