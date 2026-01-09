@@ -955,25 +955,51 @@ app.post('/api/cover-generator/save', async (req, res) => {
   let saveMethod = 'none';
   let savedData = null;
   
-  // ATTEMPT 1: Supabase Client
+  // ATTEMPT 1: Supabase Client - try generated_images table first (exists and is cached)
   try {
     const { getSupabaseClient } = require('./config/supabase');
     const supabase = getSupabaseClient();
     
     if (supabase) {
+      // First try the generated_images table (existing, cached)
+      const generatedImagesData = {
+        user_id: coverData.user_id,
+        image_url: coverData.image_url,
+        network: coverData.network,
+        title: coverData.title,
+        created_at: coverData.created_at,
+        type: 'user_cover'  // Mark as user-generated cover
+      };
+      
       const { data, error } = await supabase
-        .from('user_generated_covers')
-        .insert(coverData)
+        .from('generated_images')
+        .insert(generatedImagesData)
         .select()
         .single();
       
       if (!error && data) {
         saved = true;
-        saveMethod = 'supabase';
+        saveMethod = 'supabase_generated_images';
         savedData = data;
-        logger.info(`✅ Saved via Supabase client`);
+        logger.info(`✅ Saved via Supabase (generated_images table)`);
       } else {
-        logger.warn(`Supabase client failed: ${error?.message}`);
+        logger.warn(`generated_images insert failed: ${error?.message}`);
+        
+        // Try user_generated_covers as fallback
+        const { data: data2, error: error2 } = await supabase
+          .from('user_generated_covers')
+          .insert(coverData)
+          .select()
+          .single();
+        
+        if (!error2 && data2) {
+          saved = true;
+          saveMethod = 'supabase_user_covers';
+          savedData = data2;
+          logger.info(`✅ Saved via Supabase (user_generated_covers table)`);
+        } else {
+          logger.warn(`user_generated_covers insert failed: ${error2?.message}`);
+        }
       }
     }
   } catch (e) {
@@ -1562,23 +1588,45 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
   let allCovers = [];
   const sources = { supabase: 0, memory: 0, local: 0 };
   
-  // SOURCE 1: Supabase
+  // SOURCE 1: Supabase - check both generated_images and user_generated_covers
   if (userId) {
     try {
       const { getSupabaseClient } = require('./config/supabase');
       const supabase = getSupabaseClient();
       
       if (supabase) {
-        const { data, error } = await supabase
+        // Try generated_images table first (existing, cached)
+        const { data: genData, error: genError } = await supabase
+          .from('generated_images')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('type', 'user_cover')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (!genError && genData) {
+          allCovers = genData.map(c => ({ ...c, source: 'supabase_gen' }));
+          sources.supabase = genData.length;
+          logger.info(`📂 Found ${genData.length} from generated_images`);
+        }
+        
+        // Also try user_generated_covers table
+        const { data: userData, error: userError } = await supabase
           .from('user_generated_covers')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(50);
         
-        if (!error && data) {
-          allCovers = data.map(c => ({ ...c, source: 'supabase' }));
-          sources.supabase = data.length;
+        if (!userError && userData) {
+          const existingUrls = new Set(allCovers.map(c => c.image_url));
+          for (const cover of userData) {
+            if (!existingUrls.has(cover.image_url)) {
+              allCovers.push({ ...cover, source: 'supabase_uc' });
+              sources.supabase++;
+            }
+          }
+          logger.info(`📂 Found ${userData.length} from user_generated_covers`);
         }
       }
     } catch (e) {
