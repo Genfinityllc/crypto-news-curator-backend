@@ -830,10 +830,38 @@ app.post('/api/cover-generator/generate', async (req, res) => {
   }
 });
 
+// Firebase Auth Middleware for cover generator routes
+const coverAuthMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authorization token required'
+      });
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    const { verifyFirebaseToken } = require('./config/firebase');
+    const decodedToken = await verifyFirebaseToken(idToken);
+    
+    req.user = decodedToken;
+    next();
+    
+  } catch (error) {
+    logger.error('Firebase auth error:', error.message);
+    res.status(401).json({
+      success: false,
+      error: 'Invalid or expired token'
+    });
+  }
+};
+
 // Save generation to user profile (if logged in)
-app.post('/api/cover-generator/save', authMiddleware, async (req, res) => {
+app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
   const { imageUrl, network, title } = req.body;
-  const userId = req.user?.id;
+  const userId = req.user?.uid; // Firebase uses 'uid' not 'id'
   
   if (!userId) {
     return res.status(401).json({ success: false, error: 'Login required to save' });
@@ -856,6 +884,7 @@ app.post('/api/cover-generator/save', authMiddleware, async (req, res) => {
     
     if (error) throw error;
     
+    logger.info(`✅ Cover saved for user ${userId}: ${network}`);
     res.json({ success: true, saved: data });
   } catch (error) {
     logger.error('Failed to save cover:', error);
@@ -864,8 +893,8 @@ app.post('/api/cover-generator/save', authMiddleware, async (req, res) => {
 });
 
 // Get user's saved covers
-app.get('/api/cover-generator/my-covers', authMiddleware, async (req, res) => {
-  const userId = req.user?.id;
+app.get('/api/cover-generator/my-covers', coverAuthMiddleware, async (req, res) => {
+  const userId = req.user?.uid; // Firebase uses 'uid' not 'id'
   
   if (!userId) {
     return res.status(401).json({ success: false, error: 'Login required' });
