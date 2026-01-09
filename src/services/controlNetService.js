@@ -575,7 +575,8 @@ class ControlNetService {
           method = 'nano_banana_pro_3d';
           logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
         } catch (nanoError) {
-          logger.warn(`⚠️ Nano-Banana-Pro failed: ${nanoError.message}`);
+          logger.error(`❌ Nano-Banana-Pro failed: ${nanoError.message}`);
+          logger.error(`❌ Full error:`, nanoError.response?.data || nanoError.stack);
           imagePath = null;
         }
       }
