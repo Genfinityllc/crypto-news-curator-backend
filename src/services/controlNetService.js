@@ -879,7 +879,7 @@ class ControlNetService {
    * Now supports user-provided custom keywords and learned preferences
    */
   async getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
-    // Load user preferences from feedback
+    // Load user preferences from feedback - REAL-TIME for immediate effect
     let sizeHint = '';
     let styleHint = '';
     let bgHint = '';
@@ -887,8 +887,11 @@ class ControlNetService {
     try {
       const PromptRefinementService = require('./promptRefinementService');
       const promptRefinement = new PromptRefinementService();
-      await promptRefinement.loadPreferences();
+      // Force reload to get the LATEST feedback (real-time application)
+      await promptRefinement.loadPreferences(true);
       const prefs = promptRefinement.preferences || {};
+      
+      logger.info(`🔄 REAL-TIME PROMPT REFINEMENT: Applying latest feedback...`);
       
       // Apply logo size hints
       const sizeIssues = prefs.logoSizeIssues || [];
@@ -1142,20 +1145,31 @@ class ControlNetService {
       const metadata = await sharp(logoBuffer).metadata();
       logger.info(`📐 Original logo: ${metadata.width}x${metadata.height}`);
       
-      // Check for user size preferences from feedback
+      // Check for user size preferences from feedback - REAL-TIME application
       let sizeMultiplier = 1.0;  // Default
       try {
         const PromptRefinementService = require('./promptRefinementService');
         const promptRefinement = new PromptRefinementService();
-        await promptRefinement.loadPreferences();
+        // Force reload to get the LATEST feedback (real-time)
+        await promptRefinement.loadPreferences(true);
         const sizeIssues = promptRefinement.preferences?.logoSizeIssues || [];
         
-        if (sizeIssues.includes('increase_logo_size')) {
-          sizeMultiplier = 1.25;  // 25% bigger
-          logger.info(`📏 USER FEEDBACK: Making logo 25% BIGGER based on previous ratings`);
-        } else if (sizeIssues.includes('decrease_logo_size')) {
-          sizeMultiplier = 0.75;  // 25% smaller
-          logger.info(`📏 USER FEEDBACK: Making logo 25% SMALLER based on previous ratings`);
+        logger.info(`🔄 REAL-TIME FEEDBACK CHECK: logoSizeIssues = ${JSON.stringify(sizeIssues)}`);
+        
+        // Count how many times user said "too small" vs "too large"
+        const increaseCount = sizeIssues.filter(i => i === 'increase_logo_size').length;
+        const decreaseCount = sizeIssues.filter(i => i === 'decrease_logo_size').length;
+        
+        if (increaseCount > decreaseCount) {
+          // Scale based on how many times user said "too small" (max 50% increase)
+          sizeMultiplier = Math.min(1.5, 1 + (increaseCount * 0.15));
+          logger.info(`📏 APPLYING FEEDBACK: Making logo ${Math.round((sizeMultiplier - 1) * 100)}% BIGGER (${increaseCount} "too small" ratings)`);
+        } else if (decreaseCount > increaseCount) {
+          // Scale based on how many times user said "too large" (min 50% of original)
+          sizeMultiplier = Math.max(0.5, 1 - (decreaseCount * 0.15));
+          logger.info(`📏 APPLYING FEEDBACK: Making logo ${Math.round((1 - sizeMultiplier) * 100)}% SMALLER (${decreaseCount} "too large" ratings)`);
+        } else {
+          logger.info(`📏 No size adjustments needed (balanced feedback)`);
         }
       } catch (e) {
         logger.warn(`Could not load size preferences: ${e.message}`);

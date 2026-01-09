@@ -15,15 +15,17 @@ class PromptRefinementService {
   }
 
   /**
-   * Load preferences from disk
+   * Load preferences from disk - ALWAYS reads fresh for real-time feedback
+   * @param {boolean} forceReload - If true, always reads from disk (default: true for real-time)
    */
-  async loadPreferences() {
-    if (this.preferences) return this.preferences;
+  async loadPreferences(forceReload = true) {
+    // ALWAYS reload from disk to get the latest feedback in real-time
+    if (!forceReload && this.preferences) return this.preferences;
     
     try {
       const data = await fs.readFile(this.dataPath, 'utf-8');
       this.preferences = JSON.parse(data);
-      logger.info(`📊 Loaded prompt preferences: ${this.preferences.goodKeywords?.length || 0} good keywords, ${this.preferences.badKeywords?.length || 0} bad keywords`);
+      logger.info(`📊 Loaded FRESH preferences: ${this.preferences.logoSizeIssues?.length || 0} size issues, ${this.preferences.totalRatings || 0} total ratings`);
     } catch (error) {
       // Initialize default preferences if file doesn't exist
       this.preferences = {
@@ -38,6 +40,11 @@ class PromptRefinementService {
         logoBadPatterns: [],   // Logo-specific patterns that don't work
         bgGoodPatterns: [],    // Background patterns that work
         bgBadPatterns: [],     // Background patterns that don't work
+        logoSizeIssues: [],    // Size feedback: 'increase_logo_size' or 'decrease_logo_size'
+        logoStyleGood: [],     // Good logo styles
+        logoStyleBad: [],      // Bad logo styles
+        bgStyleGood: [],       // Good background styles
+        bgStyleBad: [],        // Bad background styles
         totalRatings: 0,
         lastUpdated: new Date().toISOString()
       };
@@ -48,12 +55,16 @@ class PromptRefinementService {
   }
 
   /**
-   * Save preferences to disk
+   * Save preferences to disk - saves immediately for real-time feedback
    */
   async savePreferences() {
     try {
       await fs.mkdir(path.dirname(this.dataPath), { recursive: true });
       await fs.writeFile(this.dataPath, JSON.stringify(this.preferences, null, 2));
+      logger.info(`💾 Preferences saved! Next generation will use updated feedback.`);
+      logger.info(`   Logo size adjustments: ${JSON.stringify(this.preferences.logoSizeIssues || [])}`);
+      logger.info(`   Logo style good: ${JSON.stringify(this.preferences.logoStyleGood || [])}`);
+      logger.info(`   Logo style bad: ${JSON.stringify(this.preferences.logoStyleBad || [])}`);
     } catch (error) {
       logger.error('Failed to save prompt preferences:', error.message);
     }
