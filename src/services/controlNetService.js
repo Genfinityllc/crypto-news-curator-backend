@@ -883,13 +883,14 @@ class ControlNetService {
     let sizeHint = '';
     let styleHint = '';
     let bgHint = '';
+    let prefs = {};  // Define outside try block so it's accessible throughout
     
     try {
       const PromptRefinementService = require('./promptRefinementService');
       const promptRefinement = new PromptRefinementService();
       // Force reload to get the LATEST feedback (real-time application)
       await promptRefinement.loadPreferences(true);
-      const prefs = promptRefinement.preferences || {};
+      prefs = promptRefinement.preferences || {};
       
       logger.info(`🔄 REAL-TIME PROMPT REFINEMENT: Applying latest feedback...`);
       
@@ -1108,8 +1109,10 @@ class ControlNetService {
     }
     
     // Add a random user-suggested keyword if available (from past feedback)
-    if (refinedElements?.userKeywords?.length > 0 && Math.random() > 0.5) {
-      const userKeyword = refinedElements.userKeywords[Math.floor(Math.random() * refinedElements.userKeywords.length)];
+    // Using prefs which was loaded at the start of this function
+    const userKeywords = prefs?.userSuggestedKeywords || [];
+    if (userKeywords.length > 0 && Math.random() > 0.5) {
+      const userKeyword = userKeywords[Math.floor(Math.random() * userKeywords.length)];
       if (userKeyword && !prompt.toLowerCase().includes(userKeyword)) {
         prompt += `, ${userKeyword} elements`;
         logger.info(`   User-suggested: "${userKeyword}"`);
