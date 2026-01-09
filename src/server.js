@@ -955,22 +955,20 @@ app.post('/api/cover-generator/save', async (req, res) => {
   let saveMethod = 'none';
   let savedData = null;
   
-  // ATTEMPT 1: Supabase Client - use articles table with special marker (GUARANTEED to work)
+  // ATTEMPT 1: Supabase Client - use articles table with only REQUIRED columns
   try {
     const { getSupabaseClient } = require('./config/supabase');
     const supabase = getSupabaseClient();
     
     if (supabase) {
-      // Use articles table (KNOWN WORKING) with a special marker in the source field
+      // Use ONLY the columns that are cached and required: title, content, published_at
+      // Store all metadata in the content field as JSON
       const articleData = {
         title: `[USER_COVER] ${coverData.network}: ${coverData.title}`,
-        url: coverData.image_url,
-        source: `user_cover:${coverData.user_id}`,  // Special marker to identify user covers
-        cryptocurrency: coverData.network,
-        original_title: `User Cover: ${coverData.title}`,
         content: JSON.stringify({
           type: 'user_generated_cover',
           user_id: coverData.user_id,
+          image_url: coverData.image_url,
           network: coverData.network,
           original_title: coverData.title,
           generated_at: coverData.created_at
@@ -978,7 +976,7 @@ app.post('/api/cover-generator/save', async (req, res) => {
         published_at: new Date().toISOString()
       };
       
-      logger.info(`📝 Attempting articles table insert with data: ${JSON.stringify(articleData).substring(0, 200)}`);
+      logger.info(`📝 Attempting articles insert: ${JSON.stringify(articleData).substring(0, 200)}`);
       
       const { data, error } = await supabase
         .from('articles')
@@ -999,10 +997,7 @@ app.post('/api/cover-generator/save', async (req, res) => {
         };
         logger.info(`✅ Saved via Supabase articles table (id: ${data.id})`);
       } else {
-        logger.error(`❌ Articles table insert failed: ${error?.message}`);
-        logger.error(`   Error code: ${error?.code}`);
-        logger.error(`   Error details: ${JSON.stringify(error?.details)}`);
-        logger.error(`   Error hint: ${error?.hint}`);
+        logger.error(`❌ Articles insert failed: ${error?.message}`);
       }
     }
   } catch (e) {
@@ -1735,50 +1730,44 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
   let allCovers = [];
   const sources = { supabase: 0, memory: 0, local: 0 };
   
-  // SOURCE 1: Supabase - check articles table for user covers
+  // SOURCE 1: Supabase - check articles table for user covers (title starts with [USER_COVER])
   if (userId) {
     try {
       const { getSupabaseClient } = require('./config/supabase');
       const supabase = getSupabaseClient();
       
       if (supabase) {
-        // Query articles table with our special marker: source starts with 'user_cover:'
+        // Query articles table where title starts with [USER_COVER] and content contains user_id
         const { data: articlesData, error: articlesError } = await supabase
           .from('articles')
-          .select('*')
-          .like('source', `user_cover:${userId}%`)
+          .select('id, title, content, published_at')
+          .like('title', '[USER_COVER]%')
           .order('published_at', { ascending: false })
-          .limit(50);
+          .limit(100);
         
         if (!articlesError && articlesData) {
-          // Transform articles back to cover format
+          // Filter to just this user's covers and transform
           for (const article of articlesData) {
             try {
               const metadata = JSON.parse(article.content || '{}');
-              allCovers.push({
-                id: article.id,
-                user_id: metadata.user_id || userId,
-                image_url: article.url,
-                network: article.cryptocurrency || metadata.network,
-                title: metadata.original_title || article.original_title,
-                created_at: metadata.generated_at || article.published_at,
-                source: 'supabase'
-              });
+              // Only include if it belongs to this user
+              if (metadata.user_id === userId) {
+                allCovers.push({
+                  id: article.id,
+                  user_id: metadata.user_id,
+                  image_url: metadata.image_url,
+                  network: metadata.network,
+                  title: metadata.original_title,
+                  created_at: metadata.generated_at || article.published_at,
+                  source: 'supabase'
+                });
+              }
             } catch (e) {
-              // Fallback if content isn't valid JSON
-              allCovers.push({
-                id: article.id,
-                user_id: userId,
-                image_url: article.url,
-                network: article.cryptocurrency,
-                title: article.original_title,
-                created_at: article.published_at,
-                source: 'supabase'
-              });
+              // Skip if content isn't valid JSON
             }
           }
-          sources.supabase = articlesData.length;
-          logger.info(`📂 Found ${articlesData.length} covers from articles table`);
+          sources.supabase = allCovers.length;
+          logger.info(`📂 Found ${allCovers.length} user covers from articles table`);
         } else if (articlesError) {
           logger.warn(`Articles query failed: ${articlesError.message}`);
         }
