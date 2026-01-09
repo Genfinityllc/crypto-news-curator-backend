@@ -923,6 +923,59 @@ app.post('/api/cover-generator/save', coverAuthMiddleware, async (req, res) => {
   }
 });
 
+// Debug endpoint to check table status
+app.get('/api/cover-generator/check-tables', async (req, res) => {
+  try {
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return res.json({ 
+        success: false, 
+        error: 'Supabase client not initialized',
+        instructions: 'Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Railway'
+      });
+    }
+    
+    // Try to query the user_generated_covers table
+    const { data: coversData, error: coversError } = await supabase
+      .from('user_generated_covers')
+      .select('id')
+      .limit(1);
+    
+    // Try to query the cover_ratings table
+    const { data: ratingsData, error: ratingsError } = await supabase
+      .from('cover_ratings')
+      .select('id')
+      .limit(1);
+    
+    const coversTableExists = !coversError || !coversError.message.includes('does not exist');
+    const ratingsTableExists = !ratingsError || !ratingsError.message.includes('does not exist');
+    
+    logger.info(`📊 Table check: user_generated_covers=${coversTableExists}, cover_ratings=${ratingsTableExists}`);
+    
+    res.json({
+      success: true,
+      tables: {
+        user_generated_covers: {
+          exists: coversTableExists,
+          error: coversError?.message || null
+        },
+        cover_ratings: {
+          exists: ratingsTableExists,
+          error: ratingsError?.message || null
+        }
+      },
+      instructions: (!coversTableExists || !ratingsTableExists) ? 
+        'Run the SQL in migrations/create_user_covers_tables.sql in your Supabase SQL Editor' : 
+        'All tables are ready!'
+    });
+  } catch (error) {
+    logger.error('Table check error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Get user's saved covers
 app.get('/api/cover-generator/my-covers', coverAuthMiddleware, async (req, res) => {
   const userId = req.user?.uid; // Firebase uses 'uid' not 'id'

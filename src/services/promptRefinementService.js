@@ -150,13 +150,79 @@ class PromptRefinementService {
       this.removeFromList('bgGoodPatterns', promptKeywords);
     }
     
-    // Add user-suggested keyword
+    // Process user feedback - can be keywords, phrases, or full sentences
     if (feedbackKeyword && feedbackKeyword.trim()) {
-      const cleanKeyword = feedbackKeyword.trim().toLowerCase();
-      if (!this.preferences.userSuggestedKeywords.includes(cleanKeyword)) {
-        this.preferences.userSuggestedKeywords.push(cleanKeyword);
-        logger.info(`✨ Added user-suggested keyword: "${cleanKeyword}"`);
+      const feedback = feedbackKeyword.trim();
+      
+      // Store full feedback for analysis
+      if (!this.preferences.userFeedback) this.preferences.userFeedback = [];
+      this.preferences.userFeedback.push({
+        text: feedback,
+        network,
+        timestamp: new Date().toISOString(),
+        ratings: { logoRating, logoSize, logoStyle, backgroundRating, backgroundStyle }
+      });
+      // Keep last 50 feedback entries
+      if (this.preferences.userFeedback.length > 50) {
+        this.preferences.userFeedback = this.preferences.userFeedback.slice(-50);
       }
+      
+      // Extract actionable items from feedback
+      const lowerFeedback = feedback.toLowerCase();
+      
+      // Check for size-related feedback
+      if (lowerFeedback.includes('bigger') || lowerFeedback.includes('larger') || lowerFeedback.includes('too small')) {
+        this.addToList('logoSizeIssues', ['increase_logo_size']);
+        logger.info('📏 Feedback indicates: Make logo BIGGER');
+      }
+      if (lowerFeedback.includes('smaller') || lowerFeedback.includes('too big') || lowerFeedback.includes('too large')) {
+        this.addToList('logoSizeIssues', ['decrease_logo_size']);
+        logger.info('📏 Feedback indicates: Make logo SMALLER');
+      }
+      
+      // Check for style preferences
+      if (lowerFeedback.includes('more 3d') || lowerFeedback.includes('more depth') || lowerFeedback.includes('not 3d enough')) {
+        this.addToList('logoStyleGood', ['needs_more_3d']);
+        logger.info('✨ Feedback indicates: Need MORE 3D effect');
+      }
+      if (lowerFeedback.includes('flat') || lowerFeedback.includes('looks 2d')) {
+        this.addToList('logoStyleBad', ['too_flat']);
+        logger.info('⚠️ Feedback indicates: Logo looks too FLAT');
+      }
+      
+      // Check for background preferences
+      if (lowerFeedback.includes('dark') || lowerFeedback.includes('darker')) {
+        this.addToList('bgStyleGood', ['prefer_dark']);
+        logger.info('🖼️ Feedback indicates: Prefer DARKER backgrounds');
+      }
+      if (lowerFeedback.includes('bright') || lowerFeedback.includes('lighter') || lowerFeedback.includes('too dark')) {
+        this.addToList('bgStyleGood', ['prefer_bright']);
+        logger.info('🖼️ Feedback indicates: Prefer BRIGHTER backgrounds');
+      }
+      if (lowerFeedback.includes('simple') || lowerFeedback.includes('minimal') || lowerFeedback.includes('less busy')) {
+        this.addToList('bgStyleGood', ['prefer_minimal']);
+        logger.info('🖼️ Feedback indicates: Prefer MINIMAL backgrounds');
+      }
+      if (lowerFeedback.includes('complex') || lowerFeedback.includes('more detail') || lowerFeedback.includes('too simple')) {
+        this.addToList('bgStyleGood', ['prefer_complex']);
+        logger.info('🖼️ Feedback indicates: Prefer MORE DETAILED backgrounds');
+      }
+      
+      // Extract any specific scene/theme keywords for future prompts
+      const sceneKeywords = ['space', 'city', 'ocean', 'mountain', 'forest', 'desert', 'tech', 'futuristic', 
+        'neon', 'gold', 'silver', 'crystal', 'glass', 'metal', 'liquid', 'fire', 'ice', 'water',
+        'sunset', 'sunrise', 'night', 'day', 'abstract', 'minimal', 'corporate', 'cyber'];
+      
+      for (const keyword of sceneKeywords) {
+        if (lowerFeedback.includes(keyword)) {
+          if (!this.preferences.userSuggestedKeywords.includes(keyword)) {
+            this.preferences.userSuggestedKeywords.push(keyword);
+            logger.info(`✨ Extracted keyword from feedback: "${keyword}"`);
+          }
+        }
+      }
+      
+      logger.info(`📝 Full user feedback stored: "${feedback.substring(0, 100)}${feedback.length > 100 ? '...' : ''}"`);
     }
     
     // Extract and categorize prompt elements for overall quality
