@@ -961,11 +961,11 @@ app.post('/api/cover-generator/save', async (req, res) => {
     const supabase = getSupabaseClient();
     
     if (supabase) {
-      // Required columns: title, content, url, published_at
-      // Store all metadata in the content field as JSON
+      // Required columns (NOT NULL): title, content, url, source, published_at
       const articleData = {
         title: `[USER_COVER] ${coverData.network}: ${coverData.title}`,
-        url: coverData.image_url,  // This is the image URL - required column!
+        url: coverData.image_url,
+        source: `user_cover_${coverData.user_id}`,  // Mark as user cover with user ID
         content: JSON.stringify({
           type: 'user_generated_cover',
           user_id: coverData.user_id,
@@ -1244,7 +1244,8 @@ app.get('/api/cover-generator/test-articles-save', async (req, res) => {
     // Exact same data structure as save endpoint - all required columns
     const articleData = {
       title: `[USER_COVER] TEST: Test Cover`,
-      url: 'https://test.com/test.png',  // Required!
+      url: 'https://test.com/test.png',
+      source: 'user_cover_test_user_123',  // Required!
       content: JSON.stringify({
         type: 'user_generated_cover',
         user_id: 'test_user_123',
@@ -1733,44 +1734,50 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
   let allCovers = [];
   const sources = { supabase: 0, memory: 0, local: 0 };
   
-  // SOURCE 1: Supabase - check articles table for user covers (title starts with [USER_COVER])
+  // SOURCE 1: Supabase - check articles table for user covers (source starts with user_cover_)
   if (userId) {
     try {
       const { getSupabaseClient } = require('./config/supabase');
       const supabase = getSupabaseClient();
       
       if (supabase) {
-        // Query articles table where title starts with [USER_COVER] and content contains user_id
+        // Query articles table where source matches user_cover_userId pattern
         const { data: articlesData, error: articlesError } = await supabase
           .from('articles')
-          .select('id, title, content, published_at')
-          .like('title', '[USER_COVER]%')
+          .select('id, title, url, content, published_at, source')
+          .eq('source', `user_cover_${userId}`)
           .order('published_at', { ascending: false })
           .limit(100);
         
         if (!articlesError && articlesData) {
-          // Filter to just this user's covers and transform
+          // Transform articles to cover format
           for (const article of articlesData) {
             try {
               const metadata = JSON.parse(article.content || '{}');
-              // Only include if it belongs to this user
-              if (metadata.user_id === userId) {
-                allCovers.push({
-                  id: article.id,
-                  user_id: metadata.user_id,
-                  image_url: metadata.image_url,
-                  network: metadata.network,
-                  title: metadata.original_title,
-                  created_at: metadata.generated_at || article.published_at,
-                  source: 'supabase'
-                });
-              }
+              allCovers.push({
+                id: article.id,
+                user_id: metadata.user_id || userId,
+                image_url: metadata.image_url || article.url,
+                network: metadata.network,
+                title: metadata.original_title,
+                created_at: metadata.generated_at || article.published_at,
+                source: 'supabase'
+              });
             } catch (e) {
-              // Skip if content isn't valid JSON
+              // Fallback if content isn't valid JSON
+              allCovers.push({
+                id: article.id,
+                user_id: userId,
+                image_url: article.url,
+                network: 'UNKNOWN',
+                title: article.title.replace('[USER_COVER] ', ''),
+                created_at: article.published_at,
+                source: 'supabase'
+              });
             }
           }
-          sources.supabase = allCovers.length;
-          logger.info(`📂 Found ${allCovers.length} user covers from articles table`);
+          sources.supabase = articlesData.length;
+          logger.info(`📂 Found ${articlesData.length} user covers from articles table`);
         } else if (articlesError) {
           logger.warn(`Articles query failed: ${articlesError.message}`);
         }
