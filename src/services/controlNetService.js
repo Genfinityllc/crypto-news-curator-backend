@@ -26,9 +26,12 @@ class ControlNetService {
     
     // PNG Logo Directory - NEW: Direct PNG logo support for maximum accuracy
     // Use server-side directory in production, local directory in development
+    // FIXED: Using path.resolve for consistent resolution
     this.pngLogoDir = process.env.NODE_ENV === 'production' 
-      ? path.join(__dirname, '../../uploads/png-logos')
-      : '/Users/valorkopeny/Desktop/SVG CRYPTO LOGOS/PNG';
+      ? path.resolve(__dirname, '../../uploads/png-logos')
+      : '/Users/valorkopeny/Desktop/crypto-news-curator-backend/uploads/png-logos';
+    
+    logger.info(`📁 PNG Logo Directory: ${this.pngLogoDir}`);
     
     // REVOLUTIONARY 2024 Two-Stage Depth-Aware ControlNet Settings
     this.optimalSettings = {
@@ -129,22 +132,28 @@ class ControlNetService {
       const normalizedSymbol = symbol.toUpperCase();
       
       // First, try to get PNG logo from server directory
+      logger.info(`🔍 Looking for ${symbol} logo in PNG directory: ${this.pngLogoDir}`);
       const pngLogo = await this.tryGetPngFromDirectory(symbol);
       if (pngLogo) {
+        logger.info(`✅ Found ${symbol} PNG logo from ${pngLogo.source}`);
         return pngLogo;
       }
+      logger.info(`⚠️ ${symbol} PNG not found in directory`);
       
       // Second: Try to fetch from public CDN
       logger.info(`🌐 Trying to fetch ${symbol} logo from public CDN...`);
       const cdnLogo = await this.fetchLogoFromCDN(symbol);
       if (cdnLogo) {
+        logger.info(`✅ Found ${symbol} logo from CDN`);
         return cdnLogo;
       }
+      logger.info(`⚠️ ${symbol} not found on CDN`);
       
       // Fallback: Generate PNG from SVG data
       logger.info(`🔄 PNG not found, generating from SVG for ${symbol}...`);
       const svgLogo = await this.generatePngFromSvg(symbol);
       if (svgLogo) {
+        logger.info(`✅ Generated ${symbol} logo from SVG`);
         return svgLogo;
       }
       
@@ -230,14 +239,17 @@ class ControlNetService {
   async tryGetPngFromDirectory(symbol) {
     try {
       const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+      logger.info(`📂 tryGetPngFromDirectory: Looking for "${normalizedSymbol}" in ${this.pngLogoDir}`);
       
       // First, scan the directory for all PNG files and create a case-insensitive lookup
       let allPngFiles = [];
       try {
         allPngFiles = await fs.readdir(this.pngLogoDir);
         allPngFiles = allPngFiles.filter(f => f.toLowerCase().endsWith('.png'));
+        logger.info(`📂 Found ${allPngFiles.length} PNG files: ${allPngFiles.join(', ')}`);
       } catch (e) {
-        logger.warn('Could not read PNG directory:', e.message);
+        logger.warn(`❌ Could not read PNG directory ${this.pngLogoDir}:`, e.message);
+        return null;
       }
       
       // Create case-insensitive filename lookup
