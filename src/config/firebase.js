@@ -1,6 +1,21 @@
-const { initializeApp, getApps, cert } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
-const { getAuth } = require('firebase-admin/auth');
+let initializeApp, getApps, cert, getFirestore, getAuth;
+let firebaseAdminAvailable = false;
+
+try {
+  const firebaseApp = require('firebase-admin/app');
+  const firebaseFirestore = require('firebase-admin/firestore');
+  const firebaseAuth = require('firebase-admin/auth');
+  
+  initializeApp = firebaseApp.initializeApp;
+  getApps = firebaseApp.getApps;
+  cert = firebaseApp.cert;
+  getFirestore = firebaseFirestore.getFirestore;
+  getAuth = firebaseAuth.getAuth;
+  firebaseAdminAvailable = true;
+} catch (e) {
+  console.warn('Firebase Admin SDK not available:', e.message);
+}
+
 const logger = require('../utils/logger');
 
 // Load environment variables
@@ -15,6 +30,12 @@ let app = null;
  */
 function initializeFirebase() {
   try {
+    // Check if firebase-admin module is available
+    if (!firebaseAdminAvailable) {
+      logger.warn('Firebase Admin SDK module not installed. Firebase features disabled.');
+      return { db: null, auth: null, app: null };
+    }
+    
     // Check if Firebase is already initialized
     if (getApps().length > 0) {
       app = getApps()[0];
