@@ -767,17 +767,13 @@ class ControlNetService {
     const slug = cdnSlugs[logoSymbol.toLowerCase()];
     let logoUrl;
     
-    if (slug) {
-      logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
-      logger.info(`📷 Using CDN logo URL: ${logoUrl}`);
-    } else {
-      // For tokens not on CDN (like HASHPACK), host on our server and provide public URL
-      // Wavespeed needs an accessible URL, not base64
-      const tempLogoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
-      await fs.writeFile(tempLogoPath, logoBuffer);
-      logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
-      logger.info(`📷 Hosted logo at public URL: ${logoUrl}`);
-    }
+    // ALWAYS pre-process logo onto a 16:9 canvas to ensure proper aspect ratio output
+    // This prevents 1:1 square outputs that get stretched/cropped badly
+    const processedLogoBuffer = await this.preprocessLogoFor16x9(logoBuffer);
+    const tempLogoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
+    await fs.writeFile(tempLogoPath, processedLogoBuffer);
+    logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
+    logger.info(`📷 Logo preprocessed to 16:9 canvas and hosted at: ${logoUrl}`);
     
     // Build our dynamic prompt for 3D glass/liquid effect
     const customKeyword = article?.customKeyword || null;
@@ -865,12 +861,10 @@ class ControlNetService {
     const imagePath = path.join(this.imageStorePath, `${imageId}.png`);
     await fs.writeFile(imagePath, imageResponse.data);
     
-    // Clean up temp logo if we created one
-    if (!slug) {
-      try {
-        await fs.unlink(path.join(this.imageStorePath, `temp_logo_${imageId}.png`));
-      } catch (e) { /* ignore */ }
-    }
+    // Clean up temp logo (we always create one now for 16:9 preprocessing)
+    try {
+      await fs.unlink(path.join(this.imageStorePath, `temp_logo_${imageId}.png`));
+    } catch (e) { /* ignore */ }
     
     logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
     return { imagePath, promptUsed: prompt };
@@ -1071,6 +1065,70 @@ class ControlNetService {
     logger.info(`   Context: ${context || 'none'}`);
     
     return prompt;
+  }
+  
+  /**
+   * Pre-process logo onto a 16:9 canvas for Nano-Banana-Pro
+   * This ensures the AI generates in 16:9 aspect ratio instead of 1:1
+   * The logo is centered on a transparent canvas
+   */
+  async preprocessLogoFor16x9(logoBuffer) {
+    try {
+      // Target dimensions: 1920x1080 (16:9 ratio, 2K equivalent)
+      const targetWidth = 1920;
+      const targetHeight = 1080;
+      
+      // Get logo metadata
+      const metadata = await sharp(logoBuffer).metadata();
+      logger.info(`📐 Original logo: ${metadata.width}x${metadata.height}`);
+      
+      // Calculate logo size - make it prominent but not full screen
+      // Use 60% of the canvas height for the logo
+      const maxLogoHeight = Math.floor(targetHeight * 0.6);
+      const maxLogoWidth = Math.floor(targetWidth * 0.5);
+      
+      // Resize logo maintaining aspect ratio to fit within bounds
+      const logoResized = await sharp(logoBuffer)
+        .resize({
+          width: maxLogoWidth,
+          height: maxLogoHeight,
+          fit: 'inside',  // Maintain aspect ratio, fit within bounds
+          withoutEnlargement: false  // Allow upscaling small logos
+        })
+        .png()
+        .toBuffer();
+      
+      const resizedMeta = await sharp(logoResized).metadata();
+      logger.info(`📐 Resized logo: ${resizedMeta.width}x${resizedMeta.height}`);
+      
+      // Calculate position to center logo on canvas
+      const left = Math.floor((targetWidth - resizedMeta.width) / 2);
+      const top = Math.floor((targetHeight - resizedMeta.height) / 2);
+      
+      // Create 16:9 canvas with transparent background and composite logo
+      const canvas = await sharp({
+        create: {
+          width: targetWidth,
+          height: targetHeight,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }  // Transparent
+        }
+      })
+        .composite([{
+          input: logoResized,
+          left: left,
+          top: top
+        }])
+        .png()
+        .toBuffer();
+      
+      logger.info(`✅ Logo preprocessed onto 16:9 canvas (${targetWidth}x${targetHeight})`);
+      return canvas;
+    } catch (error) {
+      logger.error('Error preprocessing logo for 16:9:', error.message);
+      // Fallback: return original
+      return logoBuffer;
+    }
   }
   
   /**
