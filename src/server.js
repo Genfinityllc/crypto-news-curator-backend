@@ -1230,6 +1230,76 @@ app.get('/api/cover-generator/db-diagnostic', async (req, res) => {
   }
 });
 
+// TEST generated_images table specifically
+app.get('/api/cover-generator/test-gen-images', async (req, res) => {
+  logger.info('🧪 Testing generated_images table...');
+  
+  try {
+    const { getSupabaseClient } = require('./config/supabase');
+    const supabase = getSupabaseClient();
+    
+    // Test SELECT on generated_images
+    const { data: selectData, error: selectError } = await supabase
+      .from('generated_images')
+      .select('*')
+      .limit(1);
+    
+    if (selectError) {
+      return res.json({
+        success: false,
+        table: 'generated_images',
+        selectWorks: false,
+        error: selectError.message
+      });
+    }
+    
+    // Try INSERT
+    const testData = {
+      user_id: 'test_' + Date.now(),
+      image_url: 'https://test.com/test.png',
+      network: 'TEST',
+      title: 'Test Insert',
+      type: 'user_cover',
+      created_at: new Date().toISOString()
+    };
+    
+    const { data: insertData, error: insertError } = await supabase
+      .from('generated_images')
+      .insert(testData)
+      .select()
+      .single();
+    
+    if (insertError) {
+      return res.json({
+        success: false,
+        table: 'generated_images',
+        selectWorks: true,
+        insertWorks: false,
+        insertError: insertError.message,
+        sampleRow: selectData?.[0],
+        requiredColumns: Object.keys(testData)
+      });
+    }
+    
+    // Clean up test row
+    if (insertData?.id) {
+      await supabase.from('generated_images').delete().eq('id', insertData.id);
+    }
+    
+    res.json({
+      success: true,
+      table: 'generated_images',
+      selectWorks: true,
+      insertWorks: true,
+      sampleRow: selectData?.[0],
+      insertedRow: insertData
+    });
+    
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // DIAGNOSTIC: Check Firebase and Supabase status
 app.get('/api/cover-generator/auth-status', async (req, res) => {
   try {
