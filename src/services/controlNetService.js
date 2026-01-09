@@ -744,16 +744,18 @@ class ControlNetService {
     
     const slug = cdnSlugs[logoSymbol.toLowerCase()];
     let logoUrl;
+    let useBase64 = false;
+    
     if (slug) {
       logoUrl = `https://cryptologos.cc/logos/${slug}-logo.png?v=040`;
       logger.info(`📷 Using CDN logo URL: ${logoUrl}`);
     } else {
-      // For tokens not on CDN, we need to use a hosted URL
-      // Save logo temporarily and use our server URL
-      const tempLogoPath = path.join(this.imageStorePath, `temp_logo_${imageId}.png`);
-      await fs.writeFile(tempLogoPath, logoBuffer);
-      logoUrl = `${this.baseUrl}/temp/controlnet-images/temp_logo_${imageId}.png`;
-      logger.info(`📷 Using server-hosted logo URL: ${logoUrl}`);
+      // For tokens not on CDN (like HASHPACK), use base64 data URL
+      // This ensures Wavespeed can always access the logo directly
+      const base64Logo = logoBuffer.toString('base64');
+      logoUrl = `data:image/png;base64,${base64Logo}`;
+      useBase64 = true;
+      logger.info(`📷 Using base64-encoded logo (${(logoBuffer.length / 1024).toFixed(1)}KB) for ${logoSymbol}`);
     }
     
     // Build our dynamic prompt for 3D glass/liquid effect (now async with refinement)
