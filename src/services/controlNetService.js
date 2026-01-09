@@ -778,9 +778,9 @@ class ControlNetService {
       logger.info(`📷 Using base64-encoded logo (${(logoBuffer.length / 1024).toFixed(1)}KB) for ${logoSymbol}`);
     }
     
-    // Build our dynamic prompt for 3D glass/liquid effect (now async with refinement)
+    // Build our dynamic prompt for 3D glass/liquid effect
     const customKeyword = article?.customKeyword || null;
-    const prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
+    const prompt = this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
     // EXACT Wavespeed API format from official docs
@@ -880,16 +880,17 @@ class ControlNetService {
    * Uses randomization + keyword extraction for variety
    * Now supports user-provided custom keywords and learned preferences
    */
-  async getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
-    // Load prompt refinement preferences if available
+  getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
+    // NOTE: Keeping this sync for reliability - refinement loading was causing issues
     let refinedElements = null;
-    try {
-      const PromptRefinementService = require('./promptRefinementService');
-      const promptRefinement = new PromptRefinementService();
-      refinedElements = await promptRefinement.getRefinedElements();
-    } catch (e) {
-      logger.warn('Could not load prompt refinements:', e.message);
-    }
+    // TODO: Re-enable refinement loading once stable
+    // try {
+    //   const PromptRefinementService = require('./promptRefinementService');
+    //   const promptRefinement = new PromptRefinementService();
+    //   refinedElements = await promptRefinement.getRefinedElements();
+    // } catch (e) {
+    //   logger.warn('Could not load prompt refinements:', e.message);
+    // }
     const networkNames = {
       // Major coins
       'BTC': 'Bitcoin', 'BITCOIN': 'Bitcoin', 'ETH': 'Ethereum', 'XRP': 'XRP Ripple',
