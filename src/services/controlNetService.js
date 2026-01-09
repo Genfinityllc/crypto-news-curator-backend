@@ -574,79 +574,28 @@ class ControlNetService {
       logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source}, ${(logoData.buffer?.length / 1024).toFixed(1)}KB)`);
       
       let imagePath;
-      let method = 'unknown';
-      
-      // PRIMARY: Use Google Nano-Banana-Pro Edit for stunning 3D glass effect
+      let method = 'nano_banana_pro_3d';
       let promptUsed = null;
       
-      if (process.env.WAVESPEED_API_KEY) {
-        try {
-          logger.info('🌟 Using Nano-Banana-Pro image edit for 3D glass/liquid effect...');
-          const result = await this.generateWithNanoBananaPro({
-            logoBuffer: logoData.buffer,
-            logoSymbol: logoSymbol,
-            title: title,
-            imageId: imageId,
-            article: article  // Pass article for custom keyword
-          });
-          imagePath = result.imagePath;
-          promptUsed = result.promptUsed;
-          method = 'nano_banana_pro_3d';
-          logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
-        } catch (nanoError) {
-          logger.error(`❌ Nano-Banana-Pro failed: ${nanoError.message}`);
-          logger.error(`❌ Full error:`, nanoError.response?.data || nanoError.stack);
-          imagePath = null;
-        }
+      // ONLY USE Nano-Banana-Pro - NO FALLBACKS
+      // If this fails, the generation fails. No bad quality fallbacks!
+      if (!process.env.WAVESPEED_API_KEY) {
+        throw new Error('WAVESPEED_API_KEY not configured - Nano-Banana-Pro is required');
       }
       
-      // FALLBACK 1: Wavespeed ControlNet
-      if (!imagePath && process.env.WAVESPEED_API_KEY) {
-        try {
-          logger.info('🔄 Trying Wavespeed ControlNet fallback...');
-          const controlImage = await this.prepareLogoForControlNet(logoData.buffer);
-          const controlImageBase64 = controlImage.toString('base64');
-          const scenePrompt = this.get3DScenePromptForLogo(title, logoSymbol);
-          
-          imagePath = await this.generateWithLogoControlNet({
-            prompt: scenePrompt,
-            controlImageBase64: controlImageBase64,
-            logoSymbol: logoSymbol,
-            imageId: imageId
-          });
-          method = 'wavespeed_controlnet_3d';
-          logger.info('✅ ControlNet fallback succeeded!');
-        } catch (controlNetError) {
-          logger.warn(`⚠️ ControlNet fallback failed: ${controlNetError.message}`);
-          imagePath = null;
-        }
-      }
+      logger.info('🌟 Using ONLY Nano-Banana-Pro (NO FALLBACKS) for 3D glass/liquid effect...');
       
-      // FALLBACK 2: Background + 3D metallic composite
-      if (!imagePath) {
-        logger.info('🔄 Final fallback: background + 3D metallic composite...');
-        try {
-          const backgroundPrompt = this.getPremiumBackgroundPrompt(title);
-          const backgroundPath = await this.generatePollinationsBackground({
-            prompt: backgroundPrompt,
-            imageId: imageId
-          });
-          
-          imagePath = await this.composite3DMetallicLogo(
-            backgroundPath,
-            logoData.buffer,
-            logoSymbol,
-            imageId
-          );
-          method = 'fallback_3d_metallic';
-        } catch (fallbackError) {
-          logger.error(`⚠️ Final fallback failed: ${fallbackError.message}`);
-        }
-      }
+      const result = await this.generateWithNanoBananaPro({
+        logoBuffer: logoData.buffer,
+        logoSymbol: logoSymbol,
+        title: title,
+        imageId: imageId,
+        article: options  // Pass options for custom keyword
+      });
       
-      if (!imagePath) {
-        throw new Error('All generation methods failed');
-      }
+      imagePath = result.imagePath;
+      promptUsed = result.promptUsed;
+      logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
       
       // Apply watermark
       await this.watermarkService.addWatermark(imagePath, imagePath, { title: logoSymbol });
