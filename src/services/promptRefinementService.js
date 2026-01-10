@@ -317,15 +317,27 @@ class PromptRefinementService {
       }
       
       // Extract any specific scene/theme keywords for future prompts
-      const sceneKeywords = ['space', 'city', 'ocean', 'mountain', 'forest', 'desert', 'tech', 'futuristic', 
-        'neon', 'gold', 'silver', 'crystal', 'glass', 'metal', 'liquid', 'fire', 'ice', 'water',
+      // NOTE: Don't extract glass/crystal if user is complaining about too much glass
+      const isGlassComplaint = lowerFeedback.includes('too much') || lowerFeedback.includes('less ');
+      const sceneKeywords = ['space', 'ocean', 'mountain', 'forest', 'desert', 'tech', 'futuristic', 
+        'neon', 'gold', 'silver', 'metal', 'liquid', 'fire', 'ice', 'water',
         'sunset', 'sunrise', 'night', 'day', 'abstract', 'minimal', 'corporate', 'cyber'];
+      
+      // Only add glass/crystal if it's a positive suggestion, not a complaint
+      if (!isGlassComplaint) {
+        sceneKeywords.push('crystal', 'glass');
+      }
       
       for (const keyword of sceneKeywords) {
         if (lowerFeedback.includes(keyword)) {
-          if (!this.preferences.userSuggestedKeywords.includes(keyword)) {
-            this.preferences.userSuggestedKeywords.push(keyword);
-            logger.info(`✨ Extracted keyword from feedback: "${keyword}"`);
+          // Don't add if it's in a negative context
+          if (!lowerFeedback.includes(`no ${keyword}`) && 
+              !lowerFeedback.includes(`less ${keyword}`) && 
+              !lowerFeedback.includes(`too much ${keyword}`)) {
+            if (!this.preferences.userSuggestedKeywords.includes(keyword)) {
+              this.preferences.userSuggestedKeywords.push(keyword);
+              logger.info(`✨ Extracted keyword from feedback: "${keyword}"`);
+            }
           }
         }
       }
