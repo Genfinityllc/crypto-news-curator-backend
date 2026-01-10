@@ -1,6 +1,7 @@
 /**
  * Prompt Refinement Service
  * Learns from user ratings to improve prompt generation over time
+ * NOW stores in Supabase for persistence across Railway deploys
  */
 
 const logger = require('../utils/logger');
@@ -9,65 +10,143 @@ const path = require('path');
 
 class PromptRefinementService {
   constructor() {
-    // Path to store learned preferences (persisted JSON)
+    // Fallback local path (for development)
     this.dataPath = path.join(__dirname, '../../data/prompt-preferences.json');
     this.preferences = null;
+    this.PREFS_KEY = 'global_prompt_preferences';  // Key for Supabase storage
   }
 
   /**
-   * Load preferences from disk - ALWAYS reads fresh for real-time feedback
-   * @param {boolean} forceReload - If true, always reads from disk (default: true for real-time)
+   * Load preferences - tries Supabase first, then local file
+   * @param {boolean} forceReload - If true, always reads fresh
    */
   async loadPreferences(forceReload = true) {
-    // ALWAYS reload from disk to get the latest feedback in real-time
     if (!forceReload && this.preferences) return this.preferences;
     
+    // TRY SUPABASE FIRST (persists across Railway deploys!)
+    try {
+      const { getSupabaseClient } = require('../config/supabase');
+      const supabase = getSupabaseClient();
+      
+      if (supabase) {
+        // Try to load from articles table with special marker
+        const { data, error } = await supabase
+          .from('articles')
+          .select('content')
+          .eq('source', 'system_preferences')
+          .eq('title', this.PREFS_KEY)
+          .single();
+        
+        if (!error && data?.content) {
+          try {
+            this.preferences = JSON.parse(data.content);
+            logger.info(`📊 Loaded preferences from Supabase: ${this.preferences.totalRatings || 0} ratings`);
+            return this.preferences;
+          } catch (e) {
+            logger.warn('Could not parse Supabase preferences');
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn(`Supabase preferences load failed: ${e.message}`);
+    }
+    
+    // FALLBACK: Try local file
     try {
       const data = await fs.readFile(this.dataPath, 'utf-8');
       this.preferences = JSON.parse(data);
-      logger.info(`📊 Loaded FRESH preferences: ${this.preferences.logoSizeIssues?.length || 0} size issues, ${this.preferences.totalRatings || 0} total ratings`);
+      logger.info(`📊 Loaded preferences from file: ${this.preferences.totalRatings || 0} ratings`);
     } catch (error) {
-      // Initialize default preferences if file doesn't exist
-      this.preferences = {
-        goodKeywords: [],      // Keywords that led to "So Good!" or "Good" ratings
-        badKeywords: [],       // Keywords that led to "Just Okay" or "Bad" ratings
-        userSuggestedKeywords: [], // Keywords users added that we should incorporate
-        goodMaterials: [],     // Material descriptions that work well (chrome, glass, etc.)
-        badMaterials: [],      // Materials to avoid
-        goodScenes: [],        // Scene descriptions that work well
-        badScenes: [],         // Scenes to avoid
-        logoGoodPatterns: [],  // Logo-specific patterns that work
-        logoBadPatterns: [],   // Logo-specific patterns that don't work
-        bgGoodPatterns: [],    // Background patterns that work
-        bgBadPatterns: [],     // Background patterns that don't work
-        logoSizeIssues: [],    // Size feedback: 'increase_logo_size' or 'decrease_logo_size'
-        logoStyleGood: [],     // Good logo styles
-        logoStyleBad: [],      // Bad logo styles
-        bgStyleGood: [],       // Good background styles
-        bgStyleBad: [],        // Bad background styles
-        totalRatings: 0,
-        lastUpdated: new Date().toISOString()
-      };
+      // Initialize defaults
+      this.preferences = this.getDefaultPreferences();
       await this.savePreferences();
     }
     
     return this.preferences;
   }
+  
+  /**
+   * Get default preferences structure
+   */
+  getDefaultPreferences() {
+    return {
+      goodKeywords: [],
+      badKeywords: [],
+      userSuggestedKeywords: [],
+      goodMaterials: [],
+      badMaterials: [],
+      goodScenes: [],
+      badScenes: [],
+      logoGoodPatterns: [],
+      logoBadPatterns: [],
+      bgGoodPatterns: [],
+      bgBadPatterns: [],
+      logoSizeIssues: [],
+      logoStyleGood: [],
+      logoStyleBad: [],
+      bgStyleGood: [],
+      bgStyleBad: [],
+      totalRatings: 0,
+      lastUpdated: new Date().toISOString()
+    };
+  }
 
   /**
-   * Save preferences to disk - saves immediately for real-time feedback
+   * Save preferences - saves to Supabase AND local file
    */
   async savePreferences() {
+    const prefsJson = JSON.stringify(this.preferences, null, 2);
+    
+    // SAVE TO SUPABASE (primary - persists across deploys)
+    try {
+      const { getSupabaseClient } = require('../config/supabase');
+      const supabase = getSupabaseClient();
+      
+      if (supabase) {
+        // Check if record exists
+        const { data: existing } = await supabase
+          .from('articles')
+          .select('id')
+          .eq('source', 'system_preferences')
+          .eq('title', this.PREFS_KEY)
+          .single();
+        
+        if (existing?.id) {
+          // Update existing
+          await supabase
+            .from('articles')
+            .update({ content: prefsJson, published_at: new Date().toISOString() })
+            .eq('id', existing.id);
+          logger.info(`💾 Updated preferences in Supabase (id: ${existing.id})`);
+        } else {
+          // Insert new
+          await supabase
+            .from('articles')
+            .insert({
+              title: this.PREFS_KEY,
+              source: 'system_preferences',
+              content: prefsJson,
+              url: 'system://preferences',
+              published_at: new Date().toISOString()
+            });
+          logger.info(`💾 Created preferences in Supabase`);
+        }
+      }
+    } catch (e) {
+      logger.warn(`Supabase preferences save failed: ${e.message}`);
+    }
+    
+    // ALSO save to local file (backup)
     try {
       await fs.mkdir(path.dirname(this.dataPath), { recursive: true });
-      await fs.writeFile(this.dataPath, JSON.stringify(this.preferences, null, 2));
-      logger.info(`💾 Preferences saved! Next generation will use updated feedback.`);
-      logger.info(`   Logo size adjustments: ${JSON.stringify(this.preferences.logoSizeIssues || [])}`);
-      logger.info(`   Logo style good: ${JSON.stringify(this.preferences.logoStyleGood || [])}`);
-      logger.info(`   Logo style bad: ${JSON.stringify(this.preferences.logoStyleBad || [])}`);
+      await fs.writeFile(this.dataPath, prefsJson);
     } catch (error) {
-      logger.error('Failed to save prompt preferences:', error.message);
+      // Local save failed - OK if Supabase worked
     }
+    
+    logger.info(`💾 Preferences saved! Total ratings: ${this.preferences.totalRatings}`);
+    logger.info(`   Size issues: ${JSON.stringify(this.preferences.logoSizeIssues || [])}`);
+    logger.info(`   Bad materials: ${JSON.stringify(this.preferences.badMaterials || [])}`);
   }
 
   /**
