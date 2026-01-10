@@ -1055,11 +1055,11 @@ class ControlNetService {
       'illuminated by gradient lighting', 'with professional product lighting'
     ];
     
-    // CLEAN backgrounds - removed particles, nebula effects per user feedback
+    // CLEAN backgrounds - removed particles, nebula, cityscapes per user feedback
     const backgrounds = [
       'on a dark reflective surface', 'against a solid black backdrop',
       'in a minimal dark environment', 'on a sleek dark platform',
-      'within a geometric void', 'over a city skyline at night',
+      'within a geometric void', 'on a polished obsidian floor',
       'in abstract gradient space', 'on a polished dark floor',
       'in a server room corridor', 'in a dark studio setting',
       'inside an empty black studio', 'within a futuristic laboratory',
@@ -1124,7 +1124,7 @@ class ControlNetService {
     
     // CRITICAL: Prevent logo distortion and unwanted effects
     prompt += `, maintain exact logo proportions without stretching, professional 3D render, 8k quality`;
-    prompt += `, clean minimal aesthetic, no sparkles, no particles, no nebula, no spiraling effects, no floating debris`;
+    prompt += `, clean minimal aesthetic, no sparkles, no particles, no nebula, no spiraling effects, no floating debris, no cityscape, no buildings, no skyline`;
     
     // Log the unique combination
     logger.info(`🎬 UNIQUE prompt for ${networkName}:`);
