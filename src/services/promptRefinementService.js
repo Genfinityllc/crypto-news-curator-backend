@@ -280,22 +280,38 @@ class PromptRefinementService {
         logger.info('⚠️ Feedback indicates: Logo looks too FLAT');
       }
       
-      // Check for GLASS preferences - user may want less glass
+      // Check for GLASS preferences - glass is fine, just not EVERYTHING glass
+      // User wants either glass logo OR glass background, not both
       if (lowerFeedback.includes('too much glass') || lowerFeedback.includes('everything glass') || 
-          lowerFeedback.includes('all glass') || lowerFeedback.includes('less glass')) {
-        this.addToList('badMaterials', ['glass', 'crystal', 'transparent']);
-        this.addToList('bgStyleBad', ['glass_overload']);
-        logger.info('🔮 Feedback indicates: REDUCE glass usage');
+          lowerFeedback.includes('all glass') || lowerFeedback.includes('whole scene') ||
+          lowerFeedback.includes('entire scene')) {
+        // Don't mark glass as bad - just mark that we need variety
+        this.addToList('bgStyleBad', ['glass_everywhere']);
+        this.addToList('logoStyleGood', ['mixed_materials']);  // Mix glass with non-glass
+        logger.info('🔮 Feedback: Glass overload - will alternate glass between logo/background');
       }
-      if (lowerFeedback.includes('glass logo') || lowerFeedback.includes('logo glass')) {
+      if (lowerFeedback.includes('glass logo') || lowerFeedback.includes('logo glass') ||
+          lowerFeedback.includes('just the logo')) {
         this.addToList('logoStyleGood', ['glass_logo_only']);
         this.addToList('bgStyleGood', ['solid_background']);
-        logger.info('🔮 Feedback indicates: Glass for LOGO ONLY, solid background');
+        // Remove glass from bad materials - it's good for logos!
+        this.removeFromList('badMaterials', ['glass', 'crystal']);
+        logger.info('🔮 Feedback: Glass for LOGO ONLY, solid background');
       }
-      if (lowerFeedback.includes('glass background') || lowerFeedback.includes('glass scene')) {
+      if (lowerFeedback.includes('glass background') || lowerFeedback.includes('glass scene') ||
+          lowerFeedback.includes('just the scene') || lowerFeedback.includes('just the background')) {
         this.addToList('bgStyleGood', ['glass_background_only']);
         this.addToList('logoStyleGood', ['solid_logo']);
-        logger.info('🔮 Feedback indicates: Glass for BACKGROUND ONLY, solid logo');
+        // Remove glass from bad materials - it's good for backgrounds!
+        this.removeFromList('badMaterials', ['glass', 'crystal']);
+        logger.info('🔮 Feedback: Glass for BACKGROUND ONLY, solid logo');
+      }
+      if (lowerFeedback.includes('like glass') || lowerFeedback.includes('love glass') ||
+          lowerFeedback.includes('glass is good') || lowerFeedback.includes('more glass')) {
+        // User explicitly likes glass - remove from bad list
+        this.removeFromList('badMaterials', ['glass', 'crystal', 'transparent']);
+        this.addToList('goodMaterials', ['glass']);
+        logger.info('🔮 Feedback: User LIKES glass - keeping it available');
       }
       
       // Check for background preferences

@@ -930,23 +930,36 @@ class ControlNetService {
         logger.info(`🖼️ PROMPT: Adding "minimal simple" background preference`);
       }
       
-      // Check for glass overload feedback
-      const badMaterials = prefs.badMaterials || [];
-      if (bgStyleBad.includes('glass_overload') || badMaterials.includes('glass')) {
-        styleHint += 'with solid opaque materials, ';
-        logger.info(`🔮 PROMPT: Reducing glass - user said too much glass!`);
+      // Check for glass preferences - user wants glass, just not EVERYTHING glass
+      const logoStyleGood = prefs.logoStyleGood || [];
+      
+      // Glass everywhere feedback - alternate between glass logo/solid bg OR solid logo/glass bg
+      if (bgStyleBad.includes('glass_everywhere')) {
+        // Randomly choose: glass logo + solid bg, OR solid logo + glass bg
+        const glassChoice = Math.random() > 0.5;
+        if (glassChoice) {
+          styleHint += 'crystalline glass filled with liquid, ';
+          bgHint = 'on a solid dark matte ';
+          logger.info(`🔮 PROMPT: Glass logo + solid background (alternating)`);
+        } else {
+          styleHint += 'polished chrome metal, ';
+          bgHint = 'on a reflective glass ';
+          logger.info(`🔮 PROMPT: Solid logo + glass background (alternating)`);
+        }
       }
       
-      // Glass for logo only
-      if (bgStyleGood.includes('solid_background') || prefs.logoStyleGood?.includes('glass_logo_only')) {
-        bgHint = 'on a solid matte ';
-        logger.info(`🔮 PROMPT: Solid background (glass logo only preference)`);
+      // Glass for logo only (user explicitly requested)
+      if (bgStyleGood.includes('solid_background') || logoStyleGood.includes('glass_logo_only')) {
+        styleHint += 'crystal glass with liquid interior, ';
+        bgHint = 'on a solid matte dark ';
+        logger.info(`🔮 PROMPT: Glass logo + solid background (user preference)`);
       }
       
-      // Glass for background only
-      if (prefs.logoStyleGood?.includes('solid_logo') || bgStyleGood.includes('glass_background_only')) {
-        styleHint += 'solid opaque metallic, ';
-        logger.info(`🔮 PROMPT: Solid logo (glass background only preference)`);
+      // Glass for background only (user explicitly requested)
+      if (logoStyleGood.includes('solid_logo') || bgStyleGood.includes('glass_background_only')) {
+        styleHint += 'solid polished metal, ';
+        bgHint = 'on a translucent glass ';
+        logger.info(`🔮 PROMPT: Solid logo + glass background (user preference)`);
       }
       
     } catch (e) {
@@ -1093,24 +1106,50 @@ class ControlNetService {
     // TRUE randomization using Math.random() - completely unique each call
     const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
     
-    // Filter materials based on user feedback
+    // Filter/adjust materials based on user feedback
     let availableMaterials = materials;
     const badMaterials = prefs.badMaterials || [];
     const bgStyleBad = prefs.bgStyleBad || [];
+    const logoStyleGood = prefs.logoStyleGood || [];
+    const bgStyleGood = prefs.bgStyleGood || [];
     
-    // If user said too much glass, filter out glass-related materials
-    if (bgStyleBad.includes('glass_overload') || badMaterials.includes('glass')) {
+    // If user said glass everywhere is bad, we'll handle this by NOT filtering
+    // Instead, we'll add instructions to the prompt for mixed materials
+    let useMixedMaterials = false;
+    let glassPreference = 'any';  // 'logo_only', 'background_only', 'any', 'avoid'
+    
+    if (bgStyleBad.includes('glass_everywhere')) {
+      useMixedMaterials = true;
+      logger.info(`🔮 Glass everywhere feedback - will use mixed materials`);
+    }
+    
+    if (logoStyleGood.includes('glass_logo_only')) {
+      glassPreference = 'logo_only';
+      // For logo-only glass, keep glass materials available (they're for the logo)
+      logger.info(`🔮 Glass for logo only preference`);
+    } else if (bgStyleGood.includes('glass_background_only')) {
+      glassPreference = 'background_only';
+      // Filter out glass from LOGO materials (use solid for logo, glass for bg)
       availableMaterials = materials.filter(m => 
         !m.toLowerCase().includes('glass') && 
-        !m.toLowerCase().includes('crystal') && 
-        !m.toLowerCase().includes('transparent')
+        !m.toLowerCase().includes('crystal')
       );
-      logger.info(`🔮 Filtered out glass materials. ${availableMaterials.length} options remaining.`);
-      
-      // Ensure we have at least some options
-      if (availableMaterials.length < 3) {
-        availableMaterials = materials.filter(m => !m.toLowerCase().includes('glass'));
-      }
+      logger.info(`🔮 Glass for background only - using solid logo materials`);
+    }
+    
+    // Only completely remove glass if user explicitly said "no glass" or glass is in badMaterials
+    if (badMaterials.includes('glass') && !bgStyleGood.includes('glass_background_only') && 
+        !logoStyleGood.includes('glass_logo_only')) {
+      availableMaterials = materials.filter(m => 
+        !m.toLowerCase().includes('glass') && 
+        !m.toLowerCase().includes('crystal')
+      );
+      logger.info(`🔮 User explicitly dislikes glass - filtering out`);
+    }
+    
+    // Ensure we have options
+    if (availableMaterials.length < 3) {
+      availableMaterials = materials;
     }
     
     // Build truly unique prompt each time - each element independently randomized
