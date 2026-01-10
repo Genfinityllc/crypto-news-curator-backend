@@ -201,6 +201,24 @@ class PromptRefinementService {
         logger.info('⚠️ Feedback indicates: Logo looks too FLAT');
       }
       
+      // Check for GLASS preferences - user may want less glass
+      if (lowerFeedback.includes('too much glass') || lowerFeedback.includes('everything glass') || 
+          lowerFeedback.includes('all glass') || lowerFeedback.includes('less glass')) {
+        this.addToList('badMaterials', ['glass', 'crystal', 'transparent']);
+        this.addToList('bgStyleBad', ['glass_overload']);
+        logger.info('🔮 Feedback indicates: REDUCE glass usage');
+      }
+      if (lowerFeedback.includes('glass logo') || lowerFeedback.includes('logo glass')) {
+        this.addToList('logoStyleGood', ['glass_logo_only']);
+        this.addToList('bgStyleGood', ['solid_background']);
+        logger.info('🔮 Feedback indicates: Glass for LOGO ONLY, solid background');
+      }
+      if (lowerFeedback.includes('glass background') || lowerFeedback.includes('glass scene')) {
+        this.addToList('bgStyleGood', ['glass_background_only']);
+        this.addToList('logoStyleGood', ['solid_logo']);
+        logger.info('🔮 Feedback indicates: Glass for BACKGROUND ONLY, solid logo');
+      }
+      
       // Check for background preferences
       if (lowerFeedback.includes('dark') || lowerFeedback.includes('darker')) {
         this.addToList('bgStyleGood', ['prefer_dark']);

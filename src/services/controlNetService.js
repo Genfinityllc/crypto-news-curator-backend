@@ -918,6 +918,7 @@ class ControlNetService {
       
       // Apply background style hints
       const bgStyleGood = prefs.bgStyleGood || [];
+      const bgStyleBad = prefs.bgStyleBad || [];
       if (bgStyleGood.includes('prefer_dark')) {
         bgHint = 'on a dark dramatic ';
         logger.info(`🖼️ PROMPT: Adding "dark dramatic" background preference`);
@@ -927,6 +928,25 @@ class ControlNetService {
       } else if (bgStyleGood.includes('prefer_minimal')) {
         bgHint = 'on a minimal simple ';
         logger.info(`🖼️ PROMPT: Adding "minimal simple" background preference`);
+      }
+      
+      // Check for glass overload feedback
+      const badMaterials = prefs.badMaterials || [];
+      if (bgStyleBad.includes('glass_overload') || badMaterials.includes('glass')) {
+        styleHint += 'with solid opaque materials, ';
+        logger.info(`🔮 PROMPT: Reducing glass - user said too much glass!`);
+      }
+      
+      // Glass for logo only
+      if (bgStyleGood.includes('solid_background') || prefs.logoStyleGood?.includes('glass_logo_only')) {
+        bgHint = 'on a solid matte ';
+        logger.info(`🔮 PROMPT: Solid background (glass logo only preference)`);
+      }
+      
+      // Glass for background only
+      if (prefs.logoStyleGood?.includes('solid_logo') || bgStyleGood.includes('glass_background_only')) {
+        styleHint += 'solid opaque metallic, ';
+        logger.info(`🔮 PROMPT: Solid logo (glass background only preference)`);
       }
       
     } catch (e) {
@@ -1020,15 +1040,18 @@ class ControlNetService {
     }
     
     // Expanded randomized building blocks for TRUE variety
+    // Materials - BALANCED: mix of metals, glass (limited), and other materials
+    // User feedback: too much glass everywhere - now only 3/16 are glass
     const materials = [
-      'made of polished chrome metal', 'as crystal glass filled with glowing liquid',
-      'constructed from circuit board components with glowing traces', 'forged from molten gold',
-      'carved from transparent diamond', 'built with holographic light beams',
-      'formed by neon energy particles', 'crafted from brushed titanium',
-      'made of iridescent opal glass', 'sculpted from liquid mercury',
-      'rendered in frosted glass with internal glow', 'built from stacked transparent layers',
-      'made of solid platinum with mirror finish', 'constructed from crystalline ice',
-      'formed by interconnected hexagonal cells', 'made of brushed copper with patina'
+      'made of polished chrome metal', 'forged from solid gold with matte finish',
+      'constructed from circuit board components with glowing traces', 'forged from molten bronze',
+      'carved from obsidian stone', 'built with holographic light beams',
+      'crafted from brushed titanium', 'made of solid platinum with mirror finish',
+      'sculpted from liquid mercury', 'made of brushed copper with patina',
+      'rendered in frosted glass with internal glow',  // Only glass option 1
+      'formed by interconnected hexagonal metal cells', 'constructed from carbon fiber',
+      'made of polished stainless steel', 'crafted from anodized aluminum',
+      'as crystal glass filled with glowing liquid'  // Only glass option 2
     ];
     
     // CLEAN scenes - removed nebula, spiraling, sparkles, particles per user feedback
@@ -1070,8 +1093,28 @@ class ControlNetService {
     // TRUE randomization using Math.random() - completely unique each call
     const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
     
+    // Filter materials based on user feedback
+    let availableMaterials = materials;
+    const badMaterials = prefs.badMaterials || [];
+    const bgStyleBad = prefs.bgStyleBad || [];
+    
+    // If user said too much glass, filter out glass-related materials
+    if (bgStyleBad.includes('glass_overload') || badMaterials.includes('glass')) {
+      availableMaterials = materials.filter(m => 
+        !m.toLowerCase().includes('glass') && 
+        !m.toLowerCase().includes('crystal') && 
+        !m.toLowerCase().includes('transparent')
+      );
+      logger.info(`🔮 Filtered out glass materials. ${availableMaterials.length} options remaining.`);
+      
+      // Ensure we have at least some options
+      if (availableMaterials.length < 3) {
+        availableMaterials = materials.filter(m => !m.toLowerCase().includes('glass'));
+      }
+    }
+    
     // Build truly unique prompt each time - each element independently randomized
-    const selectedMaterial = rand(materials);
+    const selectedMaterial = rand(availableMaterials);
     const selectedScene = rand(scenes);
     const selectedLighting = rand(lighting);
     const selectedBackground = rand(backgrounds);

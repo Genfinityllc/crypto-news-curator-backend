@@ -1834,6 +1834,49 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
   });
 });
 
+// DEBUG: View current prompt preferences (what feedback has been learned)
+app.get('/api/cover-generator/preferences', async (req, res) => {
+  try {
+    const PromptRefinementService = require('./services/promptRefinementService');
+    const promptRefinement = new PromptRefinementService();
+    await promptRefinement.loadPreferences(true);
+    
+    const prefs = promptRefinement.preferences || {};
+    
+    res.json({
+      success: true,
+      preferences: {
+        totalRatings: prefs.totalRatings || 0,
+        lastUpdated: prefs.lastUpdated,
+        
+        // Size adjustments
+        logoSizeIssues: prefs.logoSizeIssues || [],
+        
+        // Style feedback
+        logoStyleGood: prefs.logoStyleGood || [],
+        logoStyleBad: prefs.logoStyleBad || [],
+        bgStyleGood: prefs.bgStyleGood || [],
+        bgStyleBad: prefs.bgStyleBad || [],
+        
+        // Materials
+        goodMaterials: prefs.goodMaterials || [],
+        badMaterials: prefs.badMaterials || [],
+        
+        // User keywords
+        userSuggestedKeywords: prefs.userSuggestedKeywords || [],
+        
+        // Recent feedback
+        recentFeedback: (prefs.userFeedback || []).slice(-5),
+        
+        // Recent ratings
+        recentRatings: (prefs.ratingHistory || []).slice(-5)
+      }
+    });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Submit rating feedback for prompt refinement
 app.post('/api/cover-generator/rating', async (req, res) => {
   const { 
