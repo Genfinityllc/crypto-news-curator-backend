@@ -792,8 +792,19 @@ class ControlNetService {
     logger.info(`📷 Logo preprocessed to 16:9 canvas, using base64 (${(processedLogoBuffer.length / 1024).toFixed(1)}KB)`);
     
     // Build our dynamic prompt for 3D glass/liquid effect
+    // NOW USES CURATED STYLES from analyzed good examples!
     const customKeyword = article?.customKeyword || null;
-    const prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
+    
+    // Use the new AI-optimized curated prompts (based on good examples analysis)
+    let prompt;
+    try {
+      prompt = await this.getAIOptimizedPrompt(logoSymbol, title, customKeyword);
+      logger.info(`🎨 Using CURATED prompt from good examples`);
+    } catch (err) {
+      // Fallback to standard prompt generation
+      prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
+      logger.info(`📝 Using standard prompt generation`);
+    }
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
     
     // EXACT Wavespeed API format from official docs
