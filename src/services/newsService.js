@@ -1312,7 +1312,7 @@ async function fetchRealCryptoNews() {
             if (detectionResult && detectionResult.confidence > 20) {
               network = detectionResult.displayName;
               console.log(`✅ Network detected: ${network} (${detectionResult.crypto}) - Confidence: ${detectionResult.confidence}%, Pattern: "${detectionResult.matchedPattern}"`);
-            }
+          }
           } // Close the else block for general network detection
 
           // Determine category

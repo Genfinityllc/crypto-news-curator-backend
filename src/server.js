@@ -1975,10 +1975,48 @@ app.post('/api/cover-generator/rating', async (req, res) => {
       network
     });
     
+    // ALSO: Use AI to deeply analyze the feedback for contextual understanding
+    let aiAnalysis = null;
+    try {
+      const AIFeedbackAnalyzer = require('./services/aiFeedbackAnalyzer');
+      aiAnalysis = await AIFeedbackAnalyzer.analyzeFeedback({
+        feedbackText: feedbackKeyword,
+        logoRating,
+        logoSize,
+        logoStyle,
+        backgroundRating,
+        backgroundStyle,
+        network,
+        promptUsed
+      });
+      
+      if (aiAnalysis && aiAnalysis.aiAnalyzed) {
+        logger.info('🤖 AI Feedback Analysis completed:', aiAnalysis.reasoning);
+        
+        // Apply AI recommendations to preferences
+        if (aiAnalysis.logoAdjustments?.size) {
+          const adjustment = aiAnalysis.logoAdjustments.size;
+          if (adjustment > 0.1) {
+            promptRefinement.addToList('logoSizeIssues', ['increase_logo_size']);
+            logger.info(`📏 AI: Recommending larger logos (${adjustment})`);
+          } else if (adjustment < -0.1) {
+            promptRefinement.addToList('logoSizeIssues', ['decrease_logo_size']);
+            logger.info(`📏 AI: Recommending smaller logos (${adjustment})`);
+          }
+        }
+        
+        // Save AI-enhanced preferences
+        await promptRefinement.savePreferences();
+      }
+    } catch (aiError) {
+      logger.warn('AI analysis optional - continuing:', aiError.message);
+    }
+    
     res.json({ 
       success: true, 
       message: 'Feedback recorded - thank you for helping improve generations!',
-      refinementApplied: true
+      refinementApplied: true,
+      aiAnalyzed: aiAnalysis?.aiAnalyzed || false
     });
   } catch (error) {
     logger.error('Failed to process rating:', error);

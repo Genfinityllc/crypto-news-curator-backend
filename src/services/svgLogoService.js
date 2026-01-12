@@ -348,16 +348,16 @@ class SVGLogoService {
       }
       
       logger.info(`🎯 Detected ${detectionResult.crypto} (${detectionResult.displayName}) - Confidence: ${detectionResult.confidence}%`);
-      
+          
       // Get the logo for the detected crypto
       const logo = await this.getLogoBySymbol(detectionResult.crypto);
-      
+              
       if (!logo) {
         logger.warn(`⚠️ Logo not found for detected entity: ${detectionResult.crypto}`);
         return null;
       }
       
-      return {
+          return {
         detected: detectionResult.crypto,
         logo: logo,
         keyword: detectionResult.matchedPattern,

@@ -8,6 +8,7 @@ const SVGLogoService = require('./svgLogoService');
 const WatermarkService = require('./watermarkService');
 const FreeLoraService = require('./freeLoraService');
 const { logImageGeneration } = require('./outputMonitorService');
+const AIFeedbackAnalyzer = require('./aiFeedbackAnalyzer');
 
 /**
  * ControlNet Service - Precise Logo Generation with PNG + Stable Diffusion
@@ -23,6 +24,15 @@ class ControlNetService {
     this.svgLogoService = new SVGLogoService();
     this.watermarkService = new WatermarkService();
     this.freeLoraService = new FreeLoraService();
+    
+    // Generation counter for reference image feature (use good examples every 15th gen)
+    this.generationCount = 0;
+    this.useReferenceImageEvery = 15; // Every 15th generation uses a reference image
+    
+    // Good reference images directory
+    this.referenceImagesDir = '/Users/valorkopeny/Desktop/Sample outputs/Good Generations So Far';
+    this.referenceImages = [];
+    this.loadReferenceImages();
     
     // PNG Logo Directory - NEW: Direct PNG logo support for maximum accuracy
     // Use server-side directory in production, local directory in development
@@ -632,8 +642,8 @@ class ControlNetService {
         title: title,
         imageId: imageId,
         article: options  // Pass options for custom keyword
-      });
-      
+          });
+          
       imagePath = result.imagePath;
       promptUsed = result.promptUsed;
       logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
@@ -3981,6 +3991,94 @@ class ControlNetService {
     }
     
     throw new Error('Replicate prediction timed out');
+  }
+
+  /**
+   * Load reference images from the good examples directory
+   */
+  async loadReferenceImages() {
+    try {
+      const files = await fs.readdir(this.referenceImagesDir);
+      this.referenceImages = files.filter(f => f.endsWith('.png') || f.endsWith('.jpg'));
+      logger.info(`📁 Loaded ${this.referenceImages.length} reference images from good examples`);
+    } catch (error) {
+      logger.warn(`Could not load reference images: ${error.message}`);
+      this.referenceImages = [];
+    }
+  }
+
+  /**
+   * Get a random reference image for style transfer
+   * @returns {Buffer|null} Reference image buffer or null
+   */
+  async getRandomReferenceImage() {
+    if (this.referenceImages.length === 0) {
+      await this.loadReferenceImages();
+    }
+    
+    if (this.referenceImages.length === 0) {
+      return null;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * this.referenceImages.length);
+    const imagePath = path.join(this.referenceImagesDir, this.referenceImages[randomIndex]);
+    
+    try {
+      const buffer = await fs.readFile(imagePath);
+      logger.info(`🎨 Using reference image: ${this.referenceImages[randomIndex]}`);
+      return { buffer, filename: this.referenceImages[randomIndex] };
+    } catch (error) {
+      logger.warn(`Could not read reference image: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Check if we should use a reference image for this generation
+   * @returns {boolean}
+   */
+  shouldUseReferenceImage() {
+    this.generationCount++;
+    const shouldUse = this.generationCount % this.useReferenceImageEvery === 0;
+    if (shouldUse) {
+      logger.info(`🎯 Generation #${this.generationCount} - Using reference image for style inspiration`);
+    }
+    return shouldUse;
+  }
+
+  /**
+   * Get optimized prompt using AI feedback analyzer
+   * @param {string} logoSymbol - The cryptocurrency symbol
+   * @param {string} title - Article title for context
+   * @param {string} customKeyword - User's custom keyword
+   * @returns {string} Optimized prompt
+   */
+  async getAIOptimizedPrompt(logoSymbol, title, customKeyword = null) {
+    try {
+      // Load current preferences for AI analysis
+      const PromptRefinementService = require('./promptRefinementService');
+      const promptRefinement = new PromptRefinementService();
+      await promptRefinement.loadPreferences(true);
+      
+      // Get the generation count for style variety
+      const genCount = promptRefinement.preferences?.totalRatings || this.generationCount;
+      
+      // Build optimized prompt using curated styles
+      const optimizedPrompt = AIFeedbackAnalyzer.buildOptimizedPrompt(
+        logoSymbol,
+        null, // Will use curated styles instead of specific feedback
+        genCount,
+        customKeyword
+      );
+      
+      logger.info(`🤖 AI Optimized prompt generated for ${logoSymbol}`);
+      return optimizedPrompt;
+      
+    } catch (error) {
+      logger.warn(`AI prompt optimization failed, falling back: ${error.message}`);
+      // Fall back to the standard prompt generation
+      return this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
+    }
   }
 }
 
