@@ -1073,55 +1073,85 @@ class ControlNetService {
       if (titleLower.includes(kw)) { context = phrase; break; }
     }
     
-    // Expanded randomized building blocks for TRUE variety
-    // Materials - BALANCED: mix of metals, glass (limited), and other materials
-    // User feedback: too much glass everywhere - now only 3/16 are glass
+    // CURATED materials based on user's GOOD example generations
+    // Focus: 3D CGI renders with glass, liquid, chrome - NOT photography
+    // NO boxes, frames, or containers - logos float freely
     const materials = [
-      'made of polished chrome metal', 'forged from solid gold with matte finish',
-      'constructed from circuit board components with glowing traces', 'forged from molten bronze',
-      'carved from obsidian stone', 'built with holographic light beams',
-      'crafted from brushed titanium', 'made of solid platinum with mirror finish',
-      'sculpted from liquid mercury', 'made of brushed copper with patina',
-      'rendered in frosted glass with internal glow',  // Only glass option 1
-      'formed by interconnected hexagonal metal cells', 'constructed from carbon fiber',
-      'made of polished stainless steel', 'crafted from anodized aluminum',
-      'as crystal glass filled with glowing liquid'  // Only glass option 2
+      // Glass/Crystal options (user loves these)
+      'as iridescent holographic glass with rainbow refractions',
+      'as crystal glass filled with glowing amber-gold liquid',
+      'as gradient glass transitioning from cyan to magenta',
+      'as frosted crystal with internal blue glow',
+      'as transparent glass sphere containing the logo',
+      // Metal options
+      'as polished chrome with neon edge lighting',
+      'as liquid chrome metal mid-splash with droplets',
+      'as golden circuit board with embedded LED traces',
+      'as oxidized copper with turquoise patina',
+      'as molten gold/bronze liquid metal crown',
+      'as faceted diamond crystal with light refraction',
+      'as brushed titanium with subtle reflections',
+      // Premium options
+      'as holographic light sculpture',
+      'as platinum with mirror-polish finish'
     ];
     
-    // CLEAN scenes - removed nebula, spiraling, sparkles, particles per user feedback
+    // CURATED scenes - based on user's GOOD examples
+    // NO server racks, NO boxes, NO cityscapes - artistic 3D environments only
     const scenes = [
-      'hovering above a dark reflective surface', 'floating in a dark void',
-      'as a solid 3D sculpture', 'emerging from liquid metal',
-      'on a sleek pedestal', 'on a dark marble surface',
-      'breaking through a digital wall', 'at the intersection of light beams',
-      'within a geometric crystal structure', 'rising from a pool of mercury',
-      'suspended above a mirror surface', 'locked inside a transparent cube',
-      'resting on a reflective plane', 'standing on a dark granite base',
-      'mounted on a futuristic display stand', 'positioned on polished concrete'
+      // Temple/Ancient themes (user loves)
+      'floating inside ancient stone temple ruins with moss-covered pillars',
+      'positioned in ancient Roman temple ruins with statues',
+      // Underwater themes (user loves)
+      'submerged underwater with rising bubbles and caustic light',
+      'floating in deep ocean with light rays from surface',
+      // Space themes (user loves)
+      'floating against deep space starfield with distant nebula',
+      'mounted on sleek metallic pedestal in cosmic void',
+      // Coin scatter themes (user loves)
+      'standing on dark reflective surface with scattered glowing coins',
+      'surrounded by scattered cryptocurrency coins on mirror floor',
+      // Abstract/Minimal themes
+      'floating in pure geometric dark void',
+      'hovering above infinite dark reflective plane',
+      'suspended in abstract gradient space',
+      'positioned on minimalist dark concrete pedestal',
+      // Premium presentation
+      'floating freely in atmospheric dark studio',
+      'emerging from liquid metal splash'
     ];
     
-    // CLEAN lighting - removed particles, aurora, pulsing effects per user feedback
+    // CURATED lighting - dramatic cinematic options per user preference
     const lighting = [
-      'with cyan and purple neon rim lighting', 'illuminated by golden rays',
-      'with dramatic blue backlighting', 'under cool blue lighting',
-      'with warm amber accents', 'bathed in soft white glow',
-      'with subtle reflections', 'under cold blue moonlight',
-      'with warm orange accent lighting', 'with clean studio lighting',
-      'lit by a single spotlight', 'with volumetric god rays',
-      'under soft diffused studio lighting', 'with dramatic shadows',
-      'illuminated by gradient lighting', 'with professional product lighting'
+      'volumetric god rays streaming from above',
+      'golden backlight with radiating rays',
+      'caustic underwater light patterns',
+      'cyan and magenta neon rim lighting',
+      'dramatic cinematic golden hour lighting',
+      'soft ambient glow from below creating reflections',
+      'single dramatic spotlight from above',
+      'warm amber accent lighting with cool shadows',
+      'professional studio lighting with soft shadows',
+      'holographic data visualizations floating around',
+      'subtle bokeh with depth blur',
+      'gradient lighting from warm to cool'
     ];
     
-    // CLEAN backgrounds - removed particles, nebula, cityscapes per user feedback
+    // CURATED backgrounds - artistic 3D environments
+    // NO server racks, NO cityscapes, NO buildings
     const backgrounds = [
-      'on a dark reflective surface', 'against a solid black backdrop',
-      'in a minimal dark environment', 'on a sleek dark platform',
-      'within a geometric void', 'on a polished obsidian floor',
-      'in abstract gradient space', 'on a polished dark floor',
-      'in a server room corridor', 'in a dark studio setting',
-      'inside an empty black studio', 'within a futuristic laboratory',
-      'on a dark marble surface', 'in a vast empty warehouse',
-      'against a dark textured wall', 'on a clean dark backdrop'
+      'dark atmospheric temple interior with blue cyan ambient glow',
+      'deep dark water fading to black with warm light penetrating',
+      'infinite dark void with mirror floor reflection',
+      'pure black void with subtle depth',
+      'deep space starfield with subtle purple and blue hints',
+      'deep blue gradient fading to dark',
+      'solid dark matte backdrop with subtle gradient',
+      'abstract gradient from black to deep blue',
+      'dark atmospheric fog with volumetric light',
+      'minimalist dark concrete environment',
+      'polished obsidian floor with infinite reflection',
+      'pure darkness with dramatic edge lighting'
     ];
     
     // TRUE randomization using Math.random() - completely unique each call
@@ -1225,9 +1255,22 @@ class ControlNetService {
       }
     }
     
-    // CRITICAL: Prevent logo distortion and unwanted effects
-    prompt += `, maintain exact logo proportions without stretching, professional 3D render, 8k quality`;
-    prompt += `, clean minimal aesthetic, no sparkles, no particles, no nebula, no spiraling effects, no floating debris, no cityscape, no buildings, no skyline`;
+    // CRITICAL: Specify this is 3D CGI render, NOT photography
+    prompt += `, 3D CGI render, Octane render quality, Cinema 4D, Blender render`;
+    prompt += `, maintain exact logo proportions without stretching, 8k resolution`;
+    
+    // CRITICAL NEGATIVE PROMPTS - Things to ALWAYS avoid:
+    // 1. No boxes/frames - logos must float freely
+    // 2. No photography - must be 3D CGI
+    // 3. No server equipment - no data centers
+    // 4. No cityscapes - no buildings
+    // 5. No unwanted effects - no sparkles, nebula spirals
+    prompt += `. Negative: no box, no frame, no border, no container, logo floating freely`;
+    prompt += `, no photography, no photorealistic photo, no camera photo, no stock photo`;
+    prompt += `, no server rack, no server room, no data center, no computer equipment`;
+    prompt += `, no cityscape, no buildings, no skyline, no skyscrapers`;
+    prompt += `, no sparkles, no glitter, no nebula spiral, no spiraling effects`;
+    prompt += `, no blur, no distortion, no watermark, no text overlay`;
     
     // Log the unique combination
     logger.info(`🎬 UNIQUE prompt for ${networkName}:`);

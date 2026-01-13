@@ -1883,19 +1883,35 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     imageUrl, 
     network, 
     promptUsed, 
-    // Quality ratings
-    logoRating, 
-    backgroundRating,
-    // New detailed ratings
-    logoSize,       // 'too_small', 'perfect', 'too_large'
-    logoStyle,      // 'perfect_3d', 'looks_flat', 'distorted', 'good_detail'
-    backgroundStyle, // 'love_it', 'good', 'generic', 'too_busy', 'wrong_theme'
+    // NEW: 1-10 Numeric ratings for granularity
+    logoQuality,      // 1-10: Logo overall quality
+    logoSize,         // 1-10: 1-3=too small, 4-6=good, 7-10=too large
+    backgroundQuality, // 1-10: Background overall quality
+    backgroundStyle,  // 1-10: Background style appropriateness
+    // Written feedback
     feedbackKeyword, 
-    userId 
+    userId,
+    // LEGACY support - convert old checkbox values to numeric
+    logoRating,       // Old: 'good', 'bad'
+    backgroundRating  // Old: 'good', 'bad'
   } = req.body;
   
+  // Convert legacy ratings to numeric if present
+  let lq = parseInt(logoQuality) || 0;
+  let ls = parseInt(logoSize) || 5; // Default to 5 (good size)
+  let bq = parseInt(backgroundQuality) || 0;
+  let bs = parseInt(backgroundStyle) || 5;
+  
+  // Handle legacy string ratings
+  if (!lq && logoRating) {
+    lq = logoRating === 'good' || logoRating === 'excellent' ? 8 : 3;
+  }
+  if (!bq && backgroundRating) {
+    bq = backgroundRating === 'good' || backgroundRating === 'excellent' ? 8 : 3;
+  }
+  
   // Need at least one rating to process
-  const hasAnyRating = logoRating || backgroundRating || logoSize || logoStyle || backgroundStyle;
+  const hasAnyRating = lq || ls !== 5 || bq || bs !== 5 || feedbackKeyword;
   if (!hasAnyRating) {
     return res.status(400).json({ success: false, error: 'At least one rating required' });
   }
@@ -1906,34 +1922,37 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     const PromptRefinementService = require('./services/promptRefinementService');
     const promptRefinement = new PromptRefinementService();
     
-    // Build comprehensive rating log
+    // Build comprehensive rating log with numeric values
     const ratingLog = {
       timestamp: new Date().toISOString(),
       network: network?.toUpperCase(),
-      promptUsed: promptUsed?.substring(0, 500), // Store first 500 chars
+      promptUsed: promptUsed?.substring(0, 500),
       ratings: {
-        logoQuality: logoRating,
-        logoSize: logoSize,
-        logoStyle: logoStyle,
-        backgroundQuality: backgroundRating,
-        backgroundStyle: backgroundStyle
+        logoQuality: lq,
+        logoSize: ls,
+        backgroundQuality: bq,
+        backgroundStyle: bs
       },
       feedbackKeyword: feedbackKeyword || null,
       userId: userId || 'anonymous'
     };
     
+    // Interpret logo size rating
+    let sizeInterpretation = 'good size';
+    if (ls <= 3) sizeInterpretation = 'TOO SMALL - will increase';
+    else if (ls >= 7) sizeInterpretation = 'TOO LARGE - will decrease';
+    
     // Log to console for learning/debugging
     logger.info('='.repeat(60));
-    logger.info('📊 COVER RATING RECEIVED - PROMPT REFINEMENT DATA');
+    logger.info('📊 COVER RATING RECEIVED - NUMERIC RATINGS (1-10)');
     logger.info('='.repeat(60));
     logger.info(`🎯 Network: ${ratingLog.network}`);
     logger.info(`📝 Prompt: ${ratingLog.promptUsed?.substring(0, 100)}...`);
-    logger.info(`🎨 Logo Quality: ${logoRating || 'not rated'}`);
-    logger.info(`📏 Logo Size: ${logoSize || 'not rated'}`);
-    logger.info(`✨ Logo Style: ${logoStyle || 'not rated'}`);
-    logger.info(`🖼️ Background Quality: ${backgroundRating || 'not rated'}`);
-    logger.info(`🎭 Background Style: ${backgroundStyle || 'not rated'}`);
-    logger.info(`💬 User Keyword: ${feedbackKeyword || 'none'}`);
+    logger.info(`🎨 Logo Quality: ${lq}/10 ${lq >= 7 ? '✅' : lq <= 3 ? '❌' : '➖'}`);
+    logger.info(`📏 Logo Size: ${ls}/10 → ${sizeInterpretation}`);
+    logger.info(`🖼️ Background Quality: ${bq}/10 ${bq >= 7 ? '✅' : bq <= 3 ? '❌' : '➖'}`);
+    logger.info(`🎭 Background Style: ${bs}/10 ${bs >= 7 ? '✅' : bs <= 3 ? '❌' : '➖'}`);
+    logger.info(`💬 User Feedback: ${feedbackKeyword || 'none'}`);
     logger.info('='.repeat(60));
     
     // Try to save to database (graceful if table doesn't exist)
@@ -1945,11 +1964,10 @@ app.post('/api/cover-generator/rating', async (req, res) => {
             image_url: imageUrl,
             network: network?.toUpperCase(),
             prompt_used: promptUsed,
-            logo_rating: logoRating,
-            logo_size: logoSize,
-            logo_style: logoStyle,
-            background_rating: backgroundRating,
-            background_style: backgroundStyle,
+            logo_quality: lq,
+            logo_size: ls,
+            background_quality: bq,
+            background_style: bs,
             feedback_keyword: feedbackKeyword,
             user_id: userId || null,
             created_at: new Date().toISOString()
@@ -1963,13 +1981,12 @@ app.post('/api/cover-generator/rating', async (req, res) => {
       }
     }
     
-    // Process the rating to refine prompts (this always works - saves to JSON file)
+    // Process the rating to refine prompts using NEW numeric system
     await promptRefinement.processRating({
-      logoRating,
-      logoSize,
-      logoStyle,
-      backgroundRating,
-      backgroundStyle,
+      logoQuality: lq,
+      logoSize: ls,
+      backgroundQuality: bq,
+      backgroundStyle: bs,
       feedbackKeyword,
       promptUsed,
       network
@@ -1981,11 +1998,10 @@ app.post('/api/cover-generator/rating', async (req, res) => {
       const AIFeedbackAnalyzer = require('./services/aiFeedbackAnalyzer');
       aiAnalysis = await AIFeedbackAnalyzer.analyzeFeedback({
         feedbackText: feedbackKeyword,
-        logoRating,
-        logoSize,
-        logoStyle,
-        backgroundRating,
-        backgroundStyle,
+        logoQuality: lq,
+        logoSize: ls,
+        backgroundQuality: bq,
+        backgroundStyle: bs,
         network,
         promptUsed
       });
@@ -1993,15 +2009,27 @@ app.post('/api/cover-generator/rating', async (req, res) => {
       if (aiAnalysis && aiAnalysis.aiAnalyzed) {
         logger.info('🤖 AI Feedback Analysis completed:', aiAnalysis.reasoning);
         
-        // Apply AI recommendations to preferences
-        if (aiAnalysis.logoAdjustments?.size) {
-          const adjustment = aiAnalysis.logoAdjustments.size;
-          if (adjustment > 0.1) {
+        // Apply AI recommendations to preferences using new sizeMultiplier
+        if (aiAnalysis.logoAdjustments?.sizeMultiplier) {
+          const multiplier = aiAnalysis.logoAdjustments.sizeMultiplier;
+          if (multiplier > 1.1) {
             promptRefinement.addToList('logoSizeIssues', ['increase_logo_size']);
-            logger.info(`📏 AI: Recommending larger logos (${adjustment})`);
-          } else if (adjustment < -0.1) {
+            logger.info(`📏 AI: Recommending larger logos (${multiplier}x)`);
+          } else if (multiplier < 0.9) {
             promptRefinement.addToList('logoSizeIssues', ['decrease_logo_size']);
-            logger.info(`📏 AI: Recommending smaller logos (${adjustment})`);
+            logger.info(`📏 AI: Recommending smaller logos (${multiplier}x)`);
+          }
+        }
+        
+        // Apply AI-recommended negative prompts to avoid bad patterns
+        if (aiAnalysis.negativePrompts && aiAnalysis.negativePrompts.length > 0) {
+          for (const neg of aiAnalysis.negativePrompts) {
+            if (neg.includes('box') || neg.includes('frame')) {
+              promptRefinement.addToList('bgStyleBad', ['boxes_frames']);
+            }
+            if (neg.includes('server') || neg.includes('rack')) {
+              promptRefinement.addToList('bgStyleBad', ['server_equipment']);
+            }
           }
         }
         

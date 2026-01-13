@@ -1,6 +1,7 @@
 /**
  * AI-Powered Feedback Analyzer
  * Uses Claude to contextually understand user feedback and provide specific prompt adjustments
+ * Updated with curated prompts based on user's GOOD example generations
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
@@ -28,13 +29,13 @@ class AIFeedbackAnalyzer {
 
   /**
    * Analyze user feedback with AI understanding
+   * Now supports 1-10 numeric ratings for granularity
    * @param {Object} params - Feedback parameters
    * @param {string} params.feedbackText - User's written feedback
-   * @param {string} params.logoRating - good/bad rating for logo
-   * @param {string} params.logoSize - too_small/perfect/too_large
-   * @param {string} params.logoStyle - User's style feedback
-   * @param {string} params.backgroundRating - good/bad rating for background
-   * @param {string} params.backgroundStyle - User's background style feedback
+   * @param {number} params.logoQuality - 1-10 rating for logo quality
+   * @param {number} params.logoSize - 1-10 rating for logo size (5 = perfect)
+   * @param {number} params.backgroundQuality - 1-10 rating for background quality
+   * @param {number} params.backgroundStyle - 1-10 rating for background style
    * @param {string} params.network - The cryptocurrency network
    * @param {string} params.promptUsed - The prompt that was used
    * @returns {Object} Analyzed feedback with specific adjustments
@@ -42,10 +43,9 @@ class AIFeedbackAnalyzer {
   async analyzeFeedback(params) {
     const {
       feedbackText,
-      logoRating,
+      logoQuality,
       logoSize,
-      logoStyle,
-      backgroundRating,
+      backgroundQuality,
       backgroundStyle,
       network,
       promptUsed
@@ -57,38 +57,50 @@ class AIFeedbackAnalyzer {
     }
 
     try {
-      const systemPrompt = `You are an expert image generation prompt engineer specializing in 3D cryptocurrency cover art. 
+      const systemPrompt = `You are an expert image generation prompt engineer specializing in 3D CGI cryptocurrency cover art.
       
 Your task is to analyze user feedback about generated images and provide specific, actionable adjustments for future prompts.
 
-Based on user feedback, you must return a JSON object with these fields:
-- logoAdjustments: Object with size (number -0.3 to 0.3), material (string), style (string), avoid (array)
+CRITICAL STYLE REQUIREMENTS:
+- All images must be 3D CGI renders, NOT photography or photorealistic photos
+- Logos must NEVER be inside boxes, frames, or containers - they should float freely
+- NO server racks, data centers, or computer equipment in backgrounds
+- Focus on artistic 3D environments: temples, underwater, space, abstract voids
+
+Based on user feedback, return a JSON object with these fields:
+- logoAdjustments: Object with sizeMultiplier (0.7 to 1.5, where 1.0 is normal), material (string), style (string), avoid (array)
 - backgroundAdjustments: Object with type (string), mood (string), avoid (array)
 - promptModifiers: Array of specific phrases to add to prompts
 - negativePrompts: Array of things to explicitly avoid
-- overallQuality: "good" | "needs_improvement" | "poor"
+- overallQuality: "excellent" | "good" | "average" | "needs_improvement" | "poor"
 - confidenceScore: 0-1 how confident you are in the analysis
 - reasoning: Brief explanation of your analysis
 
-IMPORTANT CONTEXT - These are proven GOOD styles the user likes:
-1. Holographic iridescent glass logos in ancient temple settings with volumetric lighting
-2. Crystal/glass logos filled with colored liquid (amber, cyan) with underwater caustics
-3. Gold circuit board logos with LED lights on beds of dark crypto coins
-4. Copper/bronze logos with patina breaking through holographic data matrices
-5. Diamond/crystal text on metal pedestals with golden light rays
-6. Liquid metal (gold/bronze) splash effects in Roman temple ruins
+RATING INTERPRETATION (1-10 scale):
+- Logo Quality: 1-3 = poor, 4-5 = needs work, 6-7 = good, 8-10 = excellent
+- Logo Size: 1-3 = too small (need bigger), 4-6 = about right, 7-10 = too large (need smaller)
+- Background Quality: 1-3 = poor, 4-5 = needs work, 6-7 = good, 8-10 = excellent
+- Background Style: 1-3 = wrong style, 4-6 = acceptable, 7-10 = perfect style
 
-The user generally likes: glass effects (but not EVERYTHING glass), liquid-filled materials, dramatic lighting, 
-ancient/temple backgrounds, space backgrounds, underwater scenes, large prominent logos.`;
+PROVEN GOOD STYLES the user likes (from their approved examples):
+1. Iridescent glass Solana logo in ancient temple ruins with holographic trading data overlays
+2. Amber/gold liquid-filled crystal logo submerged underwater with caustic lighting and bubbles
+3. Crystal glass Hedera H logo on reflective surface with scattered glowing coins
+4. Floating glass spheres with logos inside, neon cyan/magenta lighting on dark background
+5. Crystal text on sleek metal pedestal with golden rays against deep space starfield
+6. Gradient glass logo (cyan to magenta) with scattered glass coins on reflective dark surface
+
+User likes: 3D CGI renders, glass/crystal materials, liquid-filled logos, dramatic lighting, 
+ancient/temple backgrounds, underwater scenes, space backgrounds, scattered coins, large prominent logos.
+User dislikes: boxes around logos, photorealistic photos, server racks, cityscapes, sparkles, nebula spirals.`;
 
       const userMessage = `Analyze this feedback for a ${network} cryptocurrency cover image:
 
-RATINGS:
-- Logo Rating: ${logoRating || 'not provided'}
-- Logo Size: ${logoSize || 'not provided'}  
-- Logo Style Feedback: ${logoStyle || 'not provided'}
-- Background Rating: ${backgroundRating || 'not provided'}
-- Background Style Feedback: ${backgroundStyle || 'not provided'}
+NUMERIC RATINGS (1-10 scale):
+- Logo Quality: ${logoQuality || 'not provided'}/10
+- Logo Size: ${logoSize || 'not provided'}/10 (1-3=too small, 4-6=good, 7-10=too large)
+- Background Quality: ${backgroundQuality || 'not provided'}/10
+- Background Style: ${backgroundStyle || 'not provided'}/10
 
 USER'S WRITTEN FEEDBACK:
 "${feedbackText || 'No written feedback provided'}"
@@ -132,34 +144,67 @@ Please analyze this feedback and return a JSON object with specific adjustments 
 
   /**
    * Basic rule-based analysis when AI is unavailable
+   * Updated to handle 1-10 numeric ratings
    */
   basicAnalysis(params) {
     const {
       feedbackText,
-      logoRating,
+      logoQuality,
       logoSize,
-      backgroundRating
+      backgroundQuality,
+      backgroundStyle
     } = params;
 
     const result = {
       success: true,
       aiAnalyzed: false,
-      logoAdjustments: { size: 0, material: null, style: null, avoid: [] },
+      logoAdjustments: { sizeMultiplier: 1.0, material: null, style: null, avoid: [] },
       backgroundAdjustments: { type: null, mood: null, avoid: [] },
       promptModifiers: [],
-      negativePrompts: [],
+      negativePrompts: ['box', 'frame', 'container', 'server rack', 'data center', 'photography', 'photorealistic photo'],
       overallQuality: 'needs_improvement',
       confidenceScore: 0.5,
       reasoning: 'Basic rule-based analysis (AI unavailable)'
     };
 
-    // Logo size adjustments
-    if (logoSize === 'too_small') {
-      result.logoAdjustments.size = 0.2;
-      result.promptModifiers.push('large prominent');
-    } else if (logoSize === 'too_large') {
-      result.logoAdjustments.size = -0.15;
-      result.promptModifiers.push('elegantly sized');
+    // Convert numeric ratings to adjustments
+    const lq = parseInt(logoQuality) || 5;
+    const ls = parseInt(logoSize) || 5;
+    const bq = parseInt(backgroundQuality) || 5;
+    const bs = parseInt(backgroundStyle) || 5;
+
+    // Logo size adjustments based on 1-10 scale
+    // 1-3 = too small (increase), 4-6 = good, 7-10 = too large (decrease)
+    if (ls <= 3) {
+      // Logo is too small - increase size
+      result.logoAdjustments.sizeMultiplier = 1.0 + (0.1 * (4 - ls)); // 1.1 to 1.3
+      result.promptModifiers.push('large prominent dominating');
+      logger.info(`📏 Logo size ${ls}/10 = too small, multiplier: ${result.logoAdjustments.sizeMultiplier}`);
+    } else if (ls >= 7) {
+      // Logo is too large - decrease size
+      result.logoAdjustments.sizeMultiplier = 1.0 - (0.05 * (ls - 6)); // 0.95 to 0.8
+      result.promptModifiers.push('elegantly proportioned');
+      logger.info(`📏 Logo size ${ls}/10 = too large, multiplier: ${result.logoAdjustments.sizeMultiplier}`);
+    }
+
+    // Logo quality adjustments
+    if (lq <= 3) {
+      result.promptModifiers.push('ultra detailed', 'sharp focus', 'high definition');
+      result.logoAdjustments.style = 'highly detailed 3D CGI';
+    } else if (lq >= 8) {
+      result.overallQuality = 'good';
+    }
+
+    // Background quality adjustments
+    if (bq <= 3) {
+      result.backgroundAdjustments.mood = 'dramatic atmospheric';
+      result.promptModifiers.push('cinematic background', 'professional lighting');
+    }
+
+    // Background style adjustments
+    if (bs <= 3) {
+      result.backgroundAdjustments.type = 'abstract void';
+      result.backgroundAdjustments.avoid.push('current_style');
     }
 
     // Parse feedback text for common issues
@@ -170,96 +215,122 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       result.promptModifiers.push('solid matte background');
     }
     
-    if (feedback.includes('small') || feedback.includes('bigger')) {
-      result.logoAdjustments.size = Math.max(result.logoAdjustments.size, 0.15);
+    if (feedback.includes('small') || feedback.includes('bigger') || feedback.includes('larger')) {
+      result.logoAdjustments.sizeMultiplier = Math.max(result.logoAdjustments.sizeMultiplier, 1.2);
     }
 
-    if (feedback.includes('dark') && feedback.includes('background')) {
-      result.backgroundAdjustments.mood = 'dark dramatic';
+    if (feedback.includes('box') || feedback.includes('frame') || feedback.includes('container')) {
+      result.negativePrompts.push('no box', 'no frame', 'no container', 'floating freely');
     }
 
-    // Quality assessment
-    if (logoRating === 'good' && backgroundRating === 'good') {
-      result.overallQuality = 'good';
-    } else if (logoRating === 'bad' && backgroundRating === 'bad') {
-      result.overallQuality = 'poor';
+    if (feedback.includes('server') || feedback.includes('rack') || feedback.includes('data center')) {
+      result.negativePrompts.push('no server', 'no rack', 'no data center', 'no computer equipment');
     }
+
+    if (feedback.includes('photo') || feedback.includes('realistic')) {
+      result.negativePrompts.push('no photography', 'no photorealistic', '3D CGI render only');
+    }
+
+    // Determine overall quality from combined ratings
+    const avgRating = (lq + bq + bs) / 3;
+    if (avgRating >= 8) result.overallQuality = 'excellent';
+    else if (avgRating >= 6) result.overallQuality = 'good';
+    else if (avgRating >= 4) result.overallQuality = 'average';
+    else if (avgRating >= 2) result.overallQuality = 'needs_improvement';
+    else result.overallQuality = 'poor';
 
     return result;
   }
 
   /**
-   * Get curated prompt based on proven good styles
+   * Get curated prompt based on proven good styles from user's examples
    * @param {string} network - The cryptocurrency network
    * @param {number} generationCount - Current generation count for variety
    * @returns {Object} Curated prompt components
    */
   getCuratedPromptStyle(network, generationCount = 0) {
-    // These are the proven styles from the good examples
+    // These are the proven styles from the user's GOOD example images
+    // All are 3D CGI renders with NO boxes, NO server racks, NO photography
     const curatedStyles = [
       {
-        name: 'temple_holographic',
-        material: 'holographic iridescent glass filled with swirling energy',
-        scene: 'ancient stone temple interior with moss-covered columns',
-        lighting: 'volumetric god rays from above',
-        extras: 'floating holographic trading charts and data visualizations',
-        mood: 'mystical technological fusion'
+        name: 'temple_holographic_solana',
+        description: 'Ancient temple with holographic trading data (Solana style)',
+        material: 'iridescent holographic glass with rainbow refraction',
+        scene: 'floating inside ancient stone temple ruins with moss-covered pillars',
+        lighting: 'volumetric god rays streaming from above through gaps',
+        extras: 'surrounded by floating holographic trading charts showing price data and candlesticks',
+        mood: 'mystical ancient technology fusion',
+        background: 'dark atmospheric temple interior with blue cyan ambient glow'
       },
       {
-        name: 'liquid_crystal_underwater',
-        material: 'crystal glass vessel filled with glowing amber liquid',
-        scene: 'submerged underwater environment',
-        lighting: 'caustic light patterns and gentle bubbles',
-        extras: 'underwater particles and light refraction',
-        mood: 'serene premium luxury'
+        name: 'underwater_amber_liquid',
+        description: 'Underwater scene with liquid-filled crystal (Robinhood style)',
+        material: 'crystal glass vessel filled with glowing amber-gold liquid',
+        scene: 'submerged underwater with rising bubbles',
+        lighting: 'caustic underwater light patterns with warm golden rays from above',
+        extras: 'tiny bubbles catching light, soft depth blur',
+        mood: 'serene luxury underwater elegance',
+        background: 'deep dark water fading to black with warm light penetrating from surface'
       },
       {
-        name: 'circuit_gold_coins',
-        material: 'golden circuit board with embedded LED lights and traces',
-        scene: 'scattered pile of dark metallic cryptocurrency coins',
-        lighting: 'dramatic top-down spotlight with green accent glow',
-        extras: 'subtle bokeh and depth of field',
-        mood: 'high-tech wealth'
+        name: 'crystal_coin_scatter',
+        description: 'Crystal logo on reflective surface with scattered coins (Hedera style)',
+        material: 'pure crystal glass with internal blue-violet glow',
+        scene: 'standing on a dark reflective mirror surface',
+        lighting: 'soft ambient neon glow from below creating reflections',
+        extras: 'scattered glowing cryptocurrency coins surrounding the logo',
+        mood: 'elegant wealth display',
+        background: 'infinite dark void with mirror floor reflection'
       },
       {
-        name: 'copper_data_warehouse',
-        material: 'oxidized copper with turquoise patina',
-        scene: 'vast industrial warehouse with concrete floors',
-        lighting: 'natural light from large windows',
-        extras: 'breaking through holographic digital matrix, debris particles',
-        mood: 'raw industrial power'
+        name: 'floating_glass_spheres',
+        description: 'Floating glass bubbles with logos (Hedera bubble style)',
+        material: 'transparent glass sphere with logo floating inside',
+        scene: 'floating in abstract dark space with other glass spheres in background',
+        lighting: 'rim lighting with cyan and magenta neon accents',
+        extras: 'multiple glass spheres at different depths with bokeh blur',
+        mood: 'ethereal floating dreams',
+        background: 'pure black void with subtle depth'
       },
       {
-        name: 'diamond_space_pedestal',
-        material: 'faceted diamond crystal with internal light refraction',
-        scene: 'sleek metallic pedestal against deep space starfield',
-        lighting: 'golden backlight with radiating rays',
-        extras: 'subtle nebula colors and star particles',
-        mood: 'cosmic premium'
+        name: 'space_pedestal_rays',
+        description: 'Crystal on pedestal with golden rays in space (Axelar style)',
+        material: 'faceted diamond crystal with golden internal light',
+        scene: 'mounted on sleek metallic pedestal against deep space',
+        lighting: 'dramatic golden light rays radiating outward from behind',
+        extras: 'distant stars and subtle colorful nebula in far background',
+        mood: 'cosmic premium prestige',
+        background: 'deep space starfield with subtle purple and blue nebula hints'
       },
       {
-        name: 'liquid_metal_temple',
-        material: 'molten gold/bronze liquid metal splash crown',
-        scene: 'ancient Roman temple ruins with statues',
-        lighting: 'dramatic cinematic golden hour',
-        extras: 'liquid droplets suspended in air',
-        mood: 'epic historical'
+        name: 'gradient_glass_coins',
+        description: 'Gradient glass logo with scattered coins (Solana coins style)',
+        material: 'gradient glass transitioning from cyan to magenta to teal',
+        scene: 'hovering above dark reflective surface with glass coins scattered',
+        lighting: 'soft diffused ambient light with subtle reflections',
+        extras: 'matching glass coins with same gradient lying around',
+        mood: 'modern premium crypto aesthetic',
+        background: 'deep blue gradient fading to dark'
       },
       {
-        name: 'holographic_glass_minimal',
-        material: 'prismatic holographic glass with rainbow refractions',
-        scene: 'minimalist dark concrete pedestal and wall',
-        lighting: 'soft studio lighting with subtle shadows',
-        extras: 'clean professional presentation',
-        mood: 'modern minimalist luxury'
+        name: 'liquid_chrome_splash',
+        description: 'Liquid metal splash effect',
+        material: 'liquid chrome metal with gold and bronze swirls mid-splash',
+        scene: 'frozen moment of liquid metal explosion',
+        lighting: 'dramatic studio lighting with strong highlights',
+        extras: 'droplets suspended in air catching light',
+        mood: 'dynamic energy and motion',
+        background: 'solid dark matte backdrop'
       },
       {
-        name: 'crystal_coins_reflection',
-        material: 'gradient crystalline glass with cyan and magenta tints',
-        scene: 'reflective dark surface with scattered glass coins',
-        lighting: 'soft ambient glow from below',
-        extras: 'mirror reflections and subtle fog',
-        mood: 'ethereal wealth'
+        name: 'neon_void_minimal',
+        description: 'Minimalist neon on dark void',
+        material: 'polished chrome with neon edge lighting',
+        scene: 'floating in pure geometric dark void',
+        lighting: 'sharp neon rim lights in cyan and purple',
+        extras: 'subtle geometric shapes in background',
+        mood: 'clean futuristic minimal',
+        background: 'pure matte black with subtle gradient'
       }
     ];
 
@@ -273,28 +344,38 @@ Please analyze this feedback and return a JSON object with specific adjustments 
   }
 
   /**
-   * Build an optimized prompt using curated styles and AI feedback
+   * Build an optimized prompt using curated styles and user ratings
    * @param {string} network - The cryptocurrency network
    * @param {Object} feedbackAnalysis - Previous AI feedback analysis
    * @param {number} generationCount - Current generation count
    * @param {string} customKeyword - User's custom keyword/phrase
+   * @param {Object} preferences - User preferences from promptRefinementService
    * @returns {string} Optimized prompt
    */
-  buildOptimizedPrompt(network, feedbackAnalysis = null, generationCount = 0, customKeyword = null) {
+  buildOptimizedPrompt(network, feedbackAnalysis = null, generationCount = 0, customKeyword = null, preferences = null) {
     const style = this.getCuratedPromptStyle(network, generationCount);
     
     let material = style.material;
     let scene = style.scene;
     let lighting = style.lighting;
     let extras = style.extras;
+    let background = style.background;
     
-    // Apply AI feedback adjustments if available
-    if (feedbackAnalysis && feedbackAnalysis.aiAnalyzed) {
-      const { logoAdjustments, backgroundAdjustments, promptModifiers, negativePrompts } = feedbackAnalysis;
+    // Apply feedback analysis adjustments if available
+    if (feedbackAnalysis) {
+      const { logoAdjustments, backgroundAdjustments, promptModifiers } = feedbackAnalysis;
       
       // Adjust material based on feedback
       if (logoAdjustments?.material) {
         material = logoAdjustments.material;
+      }
+      
+      // Adjust background based on feedback
+      if (backgroundAdjustments?.type) {
+        scene = backgroundAdjustments.type;
+      }
+      if (backgroundAdjustments?.mood) {
+        background = `${backgroundAdjustments.mood} ${background}`;
       }
       
       // Add prompt modifiers
@@ -303,37 +384,56 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       }
     }
     
-    // Build the prompt
-    let prompt = `A stunning 3D ${network} cryptocurrency logo rendered in ${material}, `;
-    prompt += `positioned in ${scene}, `;
-    prompt += `illuminated by ${lighting}, `;
-    prompt += `featuring ${extras}. `;
-    prompt += `The mood is ${style.mood}. `;
+    // Apply user preferences for size hints
+    let sizePrefix = '';
+    if (preferences?.logoSizeIssues?.includes('increase_logo_size')) {
+      sizePrefix = 'large prominent dominating ';
+    } else if (preferences?.logoSizeIssues?.includes('decrease_logo_size')) {
+      sizePrefix = 'elegantly proportioned ';
+    }
+    
+    // Build the prompt - explicitly 3D CGI, NOT photography
+    let prompt = `A stunning ${sizePrefix}${network} cryptocurrency logo, 3D CGI render, `;
+    prompt += `${material}, `;
+    prompt += `${scene}, `;
+    prompt += `${lighting}, `;
+    prompt += `${extras}, `;
+    prompt += `${background}. `;
+    prompt += `${style.mood}. `;
     
     // Add custom keyword naturally
     if (customKeyword && customKeyword.trim()) {
-      prompt += `Incorporating ${customKeyword.trim()} elements. `;
+      prompt += `With ${customKeyword.trim()} elements. `;
     }
     
-    // Standard quality boosters
-    prompt += `Ultra high quality, 8K resolution, professional 3D render, photorealistic, `;
-    prompt += `cinematic composition, award-winning digital art.`;
+    // Quality boosters - emphasize 3D CGI NOT photography
+    prompt += `Octane render, Cinema 4D quality, ultra high detail, 8K resolution, `;
+    prompt += `professional 3D CGI artwork, Blender render, unreal engine quality.`;
     
-    // Add negative prompt section
+    // CRITICAL negative prompts - things to ALWAYS avoid
     const negatives = [
-      'no text', 'no watermarks', 'no distortion', 'no blur',
-      'no low quality', 'no pixelation', 'no artifacts',
-      'no cityscape', 'no buildings', 'no skyline',
-      'no nebula spirals', 'no sparkle emissions'
+      // No boxes/frames
+      'no box', 'no frame', 'no border', 'no container', 'logo floating freely',
+      // No photography
+      'no photography', 'no photorealistic photo', 'no camera photo', 'no stock photo',
+      // No server equipment
+      'no server rack', 'no data center', 'no server room', 'no computer equipment',
+      // No cityscapes
+      'no cityscape', 'no buildings', 'no skyline', 'no skyscrapers',
+      // No unwanted effects
+      'no sparkles', 'no glitter particles', 'no nebula spiral', 'no spiraling effects',
+      // Quality
+      'no blur', 'no distortion', 'no watermark', 'no text overlay'
     ];
     
+    // Add any feedback-specific negatives
     if (feedbackAnalysis?.negativePrompts) {
       negatives.push(...feedbackAnalysis.negativePrompts);
     }
     
     prompt += ` Negative: ${negatives.join(', ')}.`;
     
-    logger.info(`📝 Built optimized prompt for ${network}:`, prompt.substring(0, 150) + '...');
+    logger.info(`📝 Built optimized 3D CGI prompt for ${network}:`, prompt.substring(0, 200) + '...');
     
     return prompt;
   }

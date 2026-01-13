@@ -151,76 +151,117 @@ class PromptRefinementService {
 
   /**
    * Process a user rating and update preferences
+   * NOW supports 1-10 numeric ratings for granularity
+   * @param {Object} params - Rating parameters
+   * @param {number} params.logoQuality - 1-10 rating for logo quality
+   * @param {number} params.logoSize - 1-10 rating for logo size (1-3=too small, 4-6=good, 7-10=too large)
+   * @param {number} params.backgroundQuality - 1-10 rating for background quality
+   * @param {number} params.backgroundStyle - 1-10 rating for background style
+   * @param {string} params.feedbackKeyword - User's written feedback
+   * @param {string} params.promptUsed - The prompt that generated the image
+   * @param {string} params.network - The cryptocurrency network
    */
-  async processRating({ logoRating, logoSize, logoStyle, backgroundRating, backgroundStyle, feedbackKeyword, promptUsed, network }) {
+  async processRating({ logoQuality, logoSize, backgroundQuality, backgroundStyle, feedbackKeyword, promptUsed, network }) {
     await this.loadPreferences();
     
-    // Initialize new preference arrays if they don't exist
+    // Initialize preference arrays if they don't exist
     if (!this.preferences.logoSizeIssues) this.preferences.logoSizeIssues = [];
     if (!this.preferences.logoStyleGood) this.preferences.logoStyleGood = [];
     if (!this.preferences.logoStyleBad) this.preferences.logoStyleBad = [];
     if (!this.preferences.bgStyleGood) this.preferences.bgStyleGood = [];
     if (!this.preferences.bgStyleBad) this.preferences.bgStyleBad = [];
     if (!this.preferences.ratingHistory) this.preferences.ratingHistory = [];
+    if (!this.preferences.numericRatings) this.preferences.numericRatings = { logoQuality: [], logoSize: [], bgQuality: [], bgStyle: [] };
     
-    const isLogoGood = logoRating === 'excellent' || logoRating === 'good';
-    const isLogoBad = logoRating === 'okay' || logoRating === 'bad';
-    const isBgGood = backgroundRating === 'excellent' || backgroundRating === 'good';
-    const isBgBad = backgroundRating === 'okay' || backgroundRating === 'bad';
+    // Parse numeric ratings (default to 5 if not provided)
+    const lq = parseInt(logoQuality) || 5;
+    const ls = parseInt(logoSize) || 5;
+    const bq = parseInt(backgroundQuality) || 5;
+    const bs = parseInt(backgroundStyle) || 5;
+    
+    logger.info(`📊 Processing numeric ratings - Logo Quality: ${lq}/10, Logo Size: ${ls}/10, BG Quality: ${bq}/10, BG Style: ${bs}/10`);
+    
+    // Store numeric ratings for trend analysis (keep last 50)
+    this.preferences.numericRatings.logoQuality.push(lq);
+    this.preferences.numericRatings.logoSize.push(ls);
+    this.preferences.numericRatings.bgQuality.push(bq);
+    this.preferences.numericRatings.bgStyle.push(bs);
+    
+    // Keep arrays manageable
+    if (this.preferences.numericRatings.logoQuality.length > 50) {
+      this.preferences.numericRatings.logoQuality = this.preferences.numericRatings.logoQuality.slice(-50);
+      this.preferences.numericRatings.logoSize = this.preferences.numericRatings.logoSize.slice(-50);
+      this.preferences.numericRatings.bgQuality = this.preferences.numericRatings.bgQuality.slice(-50);
+      this.preferences.numericRatings.bgStyle = this.preferences.numericRatings.bgStyle.slice(-50);
+    }
+    
+    // Determine quality from numeric ratings
+    const isLogoGood = lq >= 7;
+    const isLogoBad = lq <= 3;
+    const isBgGood = bq >= 7;
+    const isBgBad = bq <= 3;
     
     // Extract keywords from the prompt that was used
     const promptKeywords = this.extractKeywords(promptUsed);
     
-    // Process LOGO SIZE feedback
-    if (logoSize) {
-      if (logoSize === 'too_small') {
-        this.addToList('logoSizeIssues', ['increase_logo_size']);
-        logger.info('📏 Learning: Logo too small - will increase size in future prompts');
-      } else if (logoSize === 'too_large') {
-        this.addToList('logoSizeIssues', ['decrease_logo_size']);
-        logger.info('📏 Learning: Logo too large - will decrease size in future prompts');
-      } else if (logoSize === 'perfect') {
-        // Clear size issues if user says it's perfect
-        this.preferences.logoSizeIssues = this.preferences.logoSizeIssues.filter(
-          i => i !== 'increase_logo_size' && i !== 'decrease_logo_size'
-        );
-        logger.info('📏 Learning: Logo size is perfect!');
-      }
+    // Process LOGO SIZE feedback using 1-10 scale
+    // 1-3 = too small (need bigger), 4-6 = about right, 7-10 = too large (need smaller)
+    if (ls <= 3) {
+      // Logo is too small - user wants it BIGGER
+      this.addToList('logoSizeIssues', ['increase_logo_size']);
+      // Remove decrease if present
+      this.preferences.logoSizeIssues = this.preferences.logoSizeIssues.filter(i => i !== 'decrease_logo_size');
+      logger.info(`📏 Logo size ${ls}/10 = TOO SMALL - will increase size in future prompts`);
+    } else if (ls >= 7) {
+      // Logo is too large - user wants it SMALLER
+      this.addToList('logoSizeIssues', ['decrease_logo_size']);
+      // Remove increase if present
+      this.preferences.logoSizeIssues = this.preferences.logoSizeIssues.filter(i => i !== 'increase_logo_size');
+      logger.info(`📏 Logo size ${ls}/10 = TOO LARGE - will decrease size in future prompts`);
+    } else if (ls >= 4 && ls <= 6) {
+      // Size is perfect! Clear any size adjustments
+      this.preferences.logoSizeIssues = [];
+      logger.info(`📏 Logo size ${ls}/10 = PERFECT! No size adjustments needed`);
     }
     
-    // Process LOGO STYLE feedback
-    if (logoStyle) {
-      if (logoStyle === 'perfect_3d' || logoStyle === 'good_detail') {
-        this.addToList('logoStyleGood', [logoStyle]);
-        // Extract what made it good from the prompt
-        if (promptUsed) {
-          const materials = this.extractMaterials(promptUsed);
-          this.addToList('goodMaterials', materials);
-        }
-        logger.info(`✨ Learning: Logo style "${logoStyle}" works well!`);
-      } else if (logoStyle === 'looks_flat' || logoStyle === 'distorted') {
-        this.addToList('logoStyleBad', [logoStyle]);
-        logger.info(`⚠️ Learning: Logo style issue "${logoStyle}" - will adjust prompts`);
+    // Process LOGO QUALITY feedback
+    if (lq >= 8) {
+      this.addToList('logoStyleGood', ['high_quality']);
+      // Extract what made it good from the prompt
+      if (promptUsed) {
+        const materials = this.extractMaterials(promptUsed);
+        this.addToList('goodMaterials', materials);
       }
+      logger.info(`✨ Logo quality ${lq}/10 = EXCELLENT - saving successful patterns`);
+    } else if (lq <= 3) {
+      this.addToList('logoStyleBad', ['low_quality']);
+      logger.info(`⚠️ Logo quality ${lq}/10 = POOR - will adjust prompts for better quality`);
+    }
+    
+    // Process BACKGROUND QUALITY feedback
+    if (bq >= 8) {
+      this.addToList('bgStyleGood', ['high_quality_bg']);
+      if (promptUsed) {
+        const scenes = this.extractScenes(promptUsed);
+        this.addToList('goodScenes', scenes);
+      }
+      logger.info(`🖼️ Background quality ${bq}/10 = EXCELLENT - saving successful backgrounds`);
+    } else if (bq <= 3) {
+      this.addToList('bgStyleBad', ['low_quality_bg']);
+      if (promptUsed) {
+        const scenes = this.extractScenes(promptUsed);
+        this.addToList('badScenes', scenes);
+      }
+      logger.info(`⚠️ Background quality ${bq}/10 = POOR - will avoid similar backgrounds`);
     }
     
     // Process BACKGROUND STYLE feedback
-    if (backgroundStyle) {
-      if (backgroundStyle === 'love_it' || backgroundStyle === 'good') {
-        this.addToList('bgStyleGood', [backgroundStyle]);
-        if (promptUsed) {
-          const scenes = this.extractScenes(promptUsed);
-          this.addToList('goodScenes', scenes);
-        }
-        logger.info(`🖼️ Learning: Background style "${backgroundStyle}" is working!`);
-      } else if (backgroundStyle === 'generic' || backgroundStyle === 'too_busy' || backgroundStyle === 'wrong_theme') {
-        this.addToList('bgStyleBad', [backgroundStyle]);
-        if (promptUsed) {
-          const scenes = this.extractScenes(promptUsed);
-          this.addToList('badScenes', scenes);
-        }
-        logger.info(`⚠️ Learning: Background issue "${backgroundStyle}" - will avoid similar`);
-      }
+    if (bs >= 8) {
+      this.addToList('bgStyleGood', ['preferred_style']);
+      logger.info(`🎨 Background style ${bs}/10 = PERFECT STYLE - saving preferences`);
+    } else if (bs <= 3) {
+      this.addToList('bgStyleBad', ['wrong_style']);
+      logger.info(`⚠️ Background style ${bs}/10 = WRONG STYLE - will try different styles`);
     }
     
     // Update keyword lists based on quality ratings
