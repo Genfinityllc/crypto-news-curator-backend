@@ -291,7 +291,7 @@ class PromptRefinementService {
         text: feedback,
         network,
         timestamp: new Date().toISOString(),
-        ratings: { logoRating, logoSize, logoStyle, backgroundRating, backgroundStyle }
+        ratings: { logoQuality: lq, logoSize: ls, backgroundQuality: bq, backgroundStyle: bs }
       });
       // Keep last 50 feedback entries
       if (this.preferences.userFeedback.length > 50) {
@@ -428,8 +428,10 @@ class PromptRefinementService {
     this.preferences.ratingHistory.push({
       timestamp: new Date().toISOString(),
       network,
-      logoRating, logoSize, logoStyle,
-      backgroundRating, backgroundStyle,
+      logoQuality: lq,
+      logoSize: ls,
+      backgroundQuality: bq,
+      backgroundStyle: bs,
       feedbackKeyword,
       promptSample: promptUsed?.substring(0, 200)
     });
