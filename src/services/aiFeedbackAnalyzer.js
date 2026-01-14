@@ -81,7 +81,7 @@ Based on user feedback, return a JSON object with these fields:
 
 RATING INTERPRETATION (1-10 scale):
 - Logo Quality: 1-3 = poor, 4-5 = needs work, 6-7 = good, 8-10 = excellent
-- Logo Size: 1-3 = too small (need bigger), 4-6 = about right, 7-10 = too large (need smaller)
+- Logo Size: 1 = very bad size, 10 = perfect size (higher is better)
 - Logo Style: 1-3 = wrong style, 4-5 = needs work, 6-7 = good, 8-10 = perfect style
 - Background Quality: 1-3 = poor, 4-5 = needs work, 6-7 = good, 8-10 = excellent
 - Background Style: 1-3 = wrong style, 4-6 = acceptable, 7-10 = perfect style
@@ -104,7 +104,7 @@ User dislikes: boxes around logos, photorealistic photos, server racks, cityscap
 
 NUMERIC RATINGS (1-10 scale):
 - Logo Quality: ${logoQuality || 'not provided'}/10
-- Logo Size: ${logoSize || 'not provided'}/10 (1-3=too small, 4-6=good, 7-10=too large)
+- Logo Size: ${logoSize || 'not provided'}/10 (1=very bad size, 10=perfect size)
 - Logo Style: ${logoStyle || 'not provided'}/10
 - Background Quality: ${backgroundQuality || 'not provided'}/10
 - Background Style: ${backgroundStyle || 'not provided'}/10
@@ -185,15 +185,14 @@ Please analyze this feedback and return a JSON object with specific adjustments 
     // Logo size adjustments based on 1-10 scale
     // 1-3 = too small (increase), 4-6 = good, 7-10 = too large (decrease)
     if (ls <= 3) {
-      // Logo is too small - increase size
+      // Size rating is bad - prioritize making logo bigger
       result.logoAdjustments.sizeMultiplier = 1.0 + (0.1 * (4 - ls)); // 1.1 to 1.3
       result.promptModifiers.push('large prominent dominating');
-      logger.info(`📏 Logo size ${ls}/10 = too small, multiplier: ${result.logoAdjustments.sizeMultiplier}`);
-    } else if (ls >= 7) {
-      // Logo is too large - decrease size
-      result.logoAdjustments.sizeMultiplier = 1.0 - (0.05 * (ls - 6)); // 0.95 to 0.8
-      result.promptModifiers.push('elegantly proportioned');
-      logger.info(`📏 Logo size ${ls}/10 = too large, multiplier: ${result.logoAdjustments.sizeMultiplier}`);
+      logger.info(`📏 Logo size ${ls}/10 = bad, increasing size: ${result.logoAdjustments.sizeMultiplier}`);
+    } else if (ls >= 8) {
+      // Size is near perfect - keep proportions
+      result.promptModifiers.push('well-proportioned logo size');
+      logger.info(`📏 Logo size ${ls}/10 = perfect, keep size`);
     }
 
     // Logo quality adjustments

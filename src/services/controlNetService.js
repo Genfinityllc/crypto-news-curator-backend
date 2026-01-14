@@ -984,6 +984,11 @@ class ControlNetService {
         bgHint = 'on a minimal simple ';
         logger.info(`🖼️ PROMPT: Adding "minimal simple" background preference`);
       }
+
+      if (bgStyleGood.includes('prefer_depth')) {
+        bgHint += 'with deep layered depth and atmospheric separation ';
+        logger.info(`🖼️ PROMPT: Adding "deep layered depth" background preference`);
+      }
       
       // Check for glass preferences - user wants glass, just not EVERYTHING glass
       const logoStyleGood = prefs.logoStyleGood || [];
@@ -1416,6 +1421,9 @@ class ControlNetService {
     prompt += `, no cityscape, no buildings, no skyline, no skyscrapers`;
     prompt += `, no sparkles, no glitter, no nebula spiral, no spiraling effects`;
     prompt += `, no dominant red, no dominant yellow, no heavy warm tones`;
+    if ((prefs.bgStyleBad || []).includes('avoid_glow_ring')) {
+      prompt += `, no glowing ring, no halo, no circular glow around logo`;
+    }
     prompt += `, no blur, no distortion, no watermark, no text overlay`;
     
     // Log the unique combination

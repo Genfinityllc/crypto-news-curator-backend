@@ -232,24 +232,17 @@ class PromptRefinementService {
     // Extract keywords from the prompt that was used
     const promptKeywords = this.extractKeywords(promptUsed);
     
-    // Process LOGO SIZE feedback using 1-10 scale
-    // 1-3 = too small (need bigger), 4-6 = about right, 7-10 = too large (need smaller)
+    // Process LOGO SIZE feedback using 1-10 quality scale
+    // 1 = very bad size, 10 = perfect size
     if (ls <= 3) {
-      // Logo is too small - user wants it BIGGER
+      // Size feels bad → prioritize increasing size
       this.addToList('logoSizeIssues', ['increase_logo_size']);
-      // Remove decrease if present
       this.preferences.logoSizeIssues = this.preferences.logoSizeIssues.filter(i => i !== 'decrease_logo_size');
-      logger.info(`📏 Logo size ${ls}/10 = TOO SMALL - will increase size in future prompts`);
-    } else if (ls >= 7) {
-      // Logo is too large - user wants it SMALLER
-      this.addToList('logoSizeIssues', ['decrease_logo_size']);
-      // Remove increase if present
-      this.preferences.logoSizeIssues = this.preferences.logoSizeIssues.filter(i => i !== 'increase_logo_size');
-      logger.info(`📏 Logo size ${ls}/10 = TOO LARGE - will decrease size in future prompts`);
-    } else if (ls >= 4 && ls <= 6) {
-      // Size is perfect! Clear any size adjustments
+      logger.info(`📏 Logo size ${ls}/10 = BAD - will increase size in future prompts`);
+    } else if (ls >= 8) {
+      // Perfect size → clear size adjustments
       this.preferences.logoSizeIssues = [];
-      logger.info(`📏 Logo size ${ls}/10 = PERFECT! No size adjustments needed`);
+      logger.info(`📏 Logo size ${ls}/10 = PERFECT - no size adjustments needed`);
     }
     
     // Process LOGO QUALITY feedback
@@ -408,6 +401,14 @@ class PromptRefinementService {
       if (lowerFeedback.includes('complex') || lowerFeedback.includes('more detail') || lowerFeedback.includes('too simple')) {
         this.addToList('bgStyleGood', ['prefer_complex']);
         logger.info('🖼️ Feedback indicates: Prefer MORE DETAILED backgrounds');
+      }
+      if (lowerFeedback.includes('depth') || lowerFeedback.includes('layered')) {
+        this.addToList('bgStyleGood', ['prefer_depth']);
+        logger.info('🖼️ Feedback indicates: Prefer MORE DEPTH in background');
+      }
+      if (lowerFeedback.includes('circular') && (lowerFeedback.includes('glow') || lowerFeedback.includes('light') || lowerFeedback.includes('ring') || lowerFeedback.includes('halo'))) {
+        this.addToList('bgStyleBad', ['avoid_glow_ring']);
+        logger.info('⚠️ Feedback indicates: Avoid circular glowing light/halo');
       }
       
       // Extract any specific scene/theme keywords for future prompts
