@@ -1896,22 +1896,35 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     backgroundRating  // Old: 'good', 'bad'
   } = req.body;
   
-  // Convert legacy ratings to numeric if present
-  let lq = parseInt(logoQuality) || 0;
-  let ls = parseInt(logoSize) || 5; // Default to 5 (good size)
-  let bq = parseInt(backgroundQuality) || 0;
-  let bs = parseInt(backgroundStyle) || 5;
+  // Convert ratings to numeric - use null checks, not falsy checks (0 is a valid rating!)
+  // undefined/null → use default, but explicit 0 is preserved
+  const parseRating = (val, defaultVal) => {
+    if (val === undefined || val === null || val === '') return defaultVal;
+    const parsed = parseInt(val, 10);
+    return isNaN(parsed) ? defaultVal : parsed;
+  };
   
-  // Handle legacy string ratings
-  if (!lq && logoRating) {
+  let lq = parseRating(logoQuality, null);  // null = not provided
+  let ls = parseRating(logoSize, null);
+  let bq = parseRating(backgroundQuality, null);
+  let bs = parseRating(backgroundStyle, null);
+  
+  // Handle legacy string ratings (convert to numeric)
+  if (lq === null && logoRating) {
     lq = logoRating === 'good' || logoRating === 'excellent' ? 8 : 3;
   }
-  if (!bq && backgroundRating) {
+  if (bq === null && backgroundRating) {
     bq = backgroundRating === 'good' || backgroundRating === 'excellent' ? 8 : 3;
   }
   
-  // Need at least one rating to process
-  const hasAnyRating = lq || ls !== 5 || bq || bs !== 5 || feedbackKeyword;
+  // Check if ANY rating was actually provided (null means not provided)
+  const hasAnyRating = lq !== null || ls !== null || bq !== null || bs !== null || feedbackKeyword;
+  
+  // Apply defaults for processing (after the hasAnyRating check)
+  if (lq === null) lq = 5;  // Default to neutral
+  if (ls === null) ls = 5;  // Default to "good size"
+  if (bq === null) bq = 5;
+  if (bs === null) bs = 5;
   if (!hasAnyRating) {
     return res.status(400).json({ success: false, error: 'At least one rating required' });
   }
