@@ -34,6 +34,7 @@ class AIFeedbackAnalyzer {
    * @param {string} params.feedbackText - User's written feedback
    * @param {number} params.logoQuality - 1-10 rating for logo quality
    * @param {number} params.logoSize - 1-10 rating for logo size (5 = perfect)
+   * @param {number} params.logoStyle - 1-10 rating for logo style
    * @param {number} params.backgroundQuality - 1-10 rating for background quality
    * @param {number} params.backgroundStyle - 1-10 rating for background style
    * @param {string} params.network - The cryptocurrency network
@@ -45,6 +46,7 @@ class AIFeedbackAnalyzer {
       feedbackText,
       logoQuality,
       logoSize,
+      logoStyle,
       backgroundQuality,
       backgroundStyle,
       network,
@@ -63,9 +65,10 @@ Your task is to analyze user feedback about generated images and provide specifi
 
 CRITICAL STYLE REQUIREMENTS:
 - All images must be 3D CGI renders, NOT photography or photorealistic photos
+- The LOGO is always the PRIMARY subject; any extra elements are SECONDARY accents only
 - Logos must NEVER be inside boxes, frames, or containers - they should float freely
 - NO server racks, data centers, or computer equipment in backgrounds
-- Focus on artistic 3D environments: temples, underwater, space, abstract voids
+- Avoid red/yellow dominance; prefer cool tones and subtle warm highlights
 
 Based on user feedback, return a JSON object with these fields:
 - logoAdjustments: Object with sizeMultiplier (0.7 to 1.5, where 1.0 is normal), material (string), style (string), avoid (array)
@@ -79,26 +82,30 @@ Based on user feedback, return a JSON object with these fields:
 RATING INTERPRETATION (1-10 scale):
 - Logo Quality: 1-3 = poor, 4-5 = needs work, 6-7 = good, 8-10 = excellent
 - Logo Size: 1-3 = too small (need bigger), 4-6 = about right, 7-10 = too large (need smaller)
+- Logo Style: 1-3 = wrong style, 4-5 = needs work, 6-7 = good, 8-10 = perfect style
 - Background Quality: 1-3 = poor, 4-5 = needs work, 6-7 = good, 8-10 = excellent
 - Background Style: 1-3 = wrong style, 4-6 = acceptable, 7-10 = perfect style
 
 PROVEN GOOD STYLES the user likes (from their approved examples):
-1. Iridescent glass Solana logo in ancient temple ruins with holographic trading data overlays
-2. Amber/gold liquid-filled crystal logo submerged underwater with caustic lighting and bubbles
-3. Crystal glass Hedera H logo on reflective surface with scattered glowing coins
-4. Floating glass spheres with logos inside, neon cyan/magenta lighting on dark background
-5. Crystal text on sleek metal pedestal with golden rays against deep space starfield
-6. Gradient glass logo (cyan to magenta) with scattered glass coins on reflective dark surface
+1. Iridescent crystal prism logos with rainbow refractions on dark studio backgrounds
+2. Glass logos with subtle neon cyan/magenta edge lighting (clean, premium)
+3. Crystal or chrome logos on mirror floors with crisp reflections
+4. Glass logos with scattered coins as secondary accents
+5. Liquid metal splash beneath logo (logo remains primary)
+6. Minimal dark studio with premium product lighting and soft gradients
+7. Glass/metal logos with halo rings or subtle rim glow
+8. Clean pedestal presentations with golden rays (subtle, not dominant)
 
-User likes: 3D CGI renders, glass/crystal materials, liquid-filled logos, dramatic lighting, 
-ancient/temple backgrounds, underwater scenes, space backgrounds, scattered coins, large prominent logos.
-User dislikes: boxes around logos, photorealistic photos, server racks, cityscapes, sparkles, nebula spirals.`;
+User likes: 3D CGI renders, glass/crystal/chrome materials, reflective surfaces, premium studio lighting,
+clean dark backgrounds, subtle neon accents, large prominent logos.
+User dislikes: boxes around logos, photorealistic photos, server racks, cityscapes, sparkles, nebula spirals, dominant red/yellow.`;
 
       const userMessage = `Analyze this feedback for a ${network} cryptocurrency cover image:
 
 NUMERIC RATINGS (1-10 scale):
 - Logo Quality: ${logoQuality || 'not provided'}/10
 - Logo Size: ${logoSize || 'not provided'}/10 (1-3=too small, 4-6=good, 7-10=too large)
+- Logo Style: ${logoStyle || 'not provided'}/10
 - Background Quality: ${backgroundQuality || 'not provided'}/10
 - Background Style: ${backgroundStyle || 'not provided'}/10
 
@@ -151,6 +158,7 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       feedbackText,
       logoQuality,
       logoSize,
+      logoStyle,
       backgroundQuality,
       backgroundStyle
     } = params;
@@ -170,6 +178,7 @@ Please analyze this feedback and return a JSON object with specific adjustments 
     // Convert numeric ratings to adjustments
     const lq = parseInt(logoQuality) || 5;
     const ls = parseInt(logoSize) || 5;
+    const lst = parseInt(logoStyle) || 5;
     const bq = parseInt(backgroundQuality) || 5;
     const bs = parseInt(backgroundStyle) || 5;
 
@@ -193,6 +202,14 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       result.logoAdjustments.style = 'highly detailed 3D CGI';
     } else if (lq >= 8) {
       result.overallQuality = 'good';
+    }
+
+    // Logo style adjustments
+    if (lst <= 3) {
+      result.logoAdjustments.style = 'clean premium 3D styling';
+      result.promptModifiers.push('refined 3D styling', 'clean premium finish');
+    } else if (lst >= 8) {
+      result.promptModifiers.push('maintain current logo styling');
     }
 
     // Background quality adjustments

@@ -790,6 +790,24 @@ app.post('/api/cover-generator/generate', async (req, res) => {
   
   const startTime = Date.now();
   
+  // Optional: extract user context from auth header for per-user prompt preferences
+  let userId = null;
+  let userEmail = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const idToken = authHeader.split('Bearer ')[1];
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+        userId = payload.user_id || payload.sub || payload.uid || payload.email;
+        userEmail = payload.email || payload.user_email || null;
+      }
+    } catch (e) {
+      logger.warn('Could not decode token for generate:', e.message);
+    }
+  }
+  
   try {
     const ControlNetService = require('./services/controlNetService');
     const controlNetService = new ControlNetService();
@@ -802,7 +820,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       articleTitle,
       network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);
@@ -1838,7 +1856,8 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
 app.get('/api/cover-generator/preferences', async (req, res) => {
   try {
     const PromptRefinementService = require('./services/promptRefinementService');
-    const promptRefinement = new PromptRefinementService();
+    const isMaster = PromptRefinementService.isMasterAccount(userId, userEmail);
+    const promptRefinement = new PromptRefinementService({ userId, email: userEmail, isMaster });
     await promptRefinement.loadPreferences(true);
     
     const prefs = promptRefinement.preferences || {};
@@ -1886,11 +1905,13 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     // NEW: 1-10 Numeric ratings for granularity
     logoQuality,      // 1-10: Logo overall quality
     logoSize,         // 1-10: 1-3=too small, 4-6=good, 7-10=too large
+    logoStyle,        // 1-10: Logo style quality
     backgroundQuality, // 1-10: Background overall quality
     backgroundStyle,  // 1-10: Background style appropriateness
     // Written feedback
     feedbackKeyword, 
     userId,
+    userEmail,
     // LEGACY support - convert old checkbox values to numeric
     logoRating,       // Old: 'good', 'bad'
     backgroundRating  // Old: 'good', 'bad'
@@ -1906,6 +1927,7 @@ app.post('/api/cover-generator/rating', async (req, res) => {
   
   let lq = parseRating(logoQuality, null);  // null = not provided
   let ls = parseRating(logoSize, null);
+  let lstyle = parseRating(logoStyle, null);
   let bq = parseRating(backgroundQuality, null);
   let bs = parseRating(backgroundStyle, null);
   
@@ -1918,11 +1940,12 @@ app.post('/api/cover-generator/rating', async (req, res) => {
   }
   
   // Check if ANY rating was actually provided (null means not provided)
-  const hasAnyRating = lq !== null || ls !== null || bq !== null || bs !== null || feedbackKeyword;
+  const hasAnyRating = lq !== null || ls !== null || lstyle !== null || bq !== null || bs !== null || feedbackKeyword;
   
   // Apply defaults for processing (after the hasAnyRating check)
   if (lq === null) lq = 5;  // Default to neutral
   if (ls === null) ls = 5;  // Default to "good size"
+  if (lstyle === null) lstyle = 5;
   if (bq === null) bq = 5;
   if (bs === null) bs = 5;
   if (!hasAnyRating) {
@@ -1943,11 +1966,13 @@ app.post('/api/cover-generator/rating', async (req, res) => {
       ratings: {
         logoQuality: lq,
         logoSize: ls,
+        logoStyle: lstyle,
         backgroundQuality: bq,
         backgroundStyle: bs
       },
       feedbackKeyword: feedbackKeyword || null,
-      userId: userId || 'anonymous'
+      userId: userId || 'anonymous',
+      scope: isMaster ? 'global' : 'user'
     };
     
     // Interpret logo size rating
@@ -1962,10 +1987,12 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     logger.info(`🎯 Network: ${ratingLog.network}`);
     logger.info(`📝 Prompt: ${ratingLog.promptUsed?.substring(0, 100)}...`);
     logger.info(`🎨 Logo Quality: ${lq}/10 ${lq >= 7 ? '✅' : lq <= 3 ? '❌' : '➖'}`);
+    logger.info(`🎛️ Logo Style: ${lstyle}/10 ${lstyle >= 7 ? '✅' : lstyle <= 3 ? '❌' : '➖'}`);
     logger.info(`📏 Logo Size: ${ls}/10 → ${sizeInterpretation}`);
     logger.info(`🖼️ Background Quality: ${bq}/10 ${bq >= 7 ? '✅' : bq <= 3 ? '❌' : '➖'}`);
     logger.info(`🎭 Background Style: ${bs}/10 ${bs >= 7 ? '✅' : bs <= 3 ? '❌' : '➖'}`);
     logger.info(`💬 User Feedback: ${feedbackKeyword || 'none'}`);
+    logger.info(`👤 Preference Scope: ${isMaster ? 'global' : 'user'}`);
     logger.info('='.repeat(60));
     
     // Try to save to database (graceful if table doesn't exist)
@@ -1998,6 +2025,7 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     await promptRefinement.processRating({
       logoQuality: lq,
       logoSize: ls,
+      logoStyle: lstyle,
       backgroundQuality: bq,
       backgroundStyle: bs,
       feedbackKeyword,
@@ -2009,15 +2037,16 @@ app.post('/api/cover-generator/rating', async (req, res) => {
     let aiAnalysis = null;
     try {
       const AIFeedbackAnalyzer = require('./services/aiFeedbackAnalyzer');
-      aiAnalysis = await AIFeedbackAnalyzer.analyzeFeedback({
-        feedbackText: feedbackKeyword,
-        logoQuality: lq,
-        logoSize: ls,
-        backgroundQuality: bq,
-        backgroundStyle: bs,
-        network,
-        promptUsed
-      });
+        aiAnalysis = await AIFeedbackAnalyzer.analyzeFeedback({
+          feedbackText: feedbackKeyword,
+          logoQuality: lq,
+          logoSize: ls,
+          logoStyle: lstyle,
+          backgroundQuality: bq,
+          backgroundStyle: bs,
+          network,
+          promptUsed
+        });
       
       if (aiAnalysis && aiAnalysis.aiAnalyzed) {
         logger.info('🤖 AI Feedback Analysis completed:', aiAnalysis.reasoning);

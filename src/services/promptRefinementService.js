@@ -9,11 +9,35 @@ const fs = require('fs').promises;
 const path = require('path');
 
 class PromptRefinementService {
-  constructor() {
-    // Fallback local path (for development)
-    this.dataPath = path.join(__dirname, '../../data/prompt-preferences.json');
+  constructor(options = {}) {
+    const { userId = null, email = null, isMaster = null } = options;
+    this.userId = userId;
+    this.email = email;
+    this.isMaster = isMaster !== null ? isMaster : PromptRefinementService.isMasterAccount(userId, email);
     this.preferences = null;
-    this.PREFS_KEY = 'global_prompt_preferences';  // Key for Supabase storage
+    this.scopeSource = this.isMaster ? 'system_preferences' : 'user_preferences';
+    this.PREFS_KEY = this.isMaster
+      ? 'global_prompt_preferences'
+      : `user_prompt_preferences_${this.userId || 'anonymous'}`;
+
+    // Fallback local path (for development)
+    this.dataPath = path.join(__dirname, '../../data', `${this.PREFS_KEY}.json`);
+  }
+
+  static isMasterAccount(userId, email) {
+    const masterUid = process.env.MASTER_ACCOUNT_UID;
+    const masterEmail = process.env.MASTER_ACCOUNT_EMAIL;
+    const masterHint = process.env.MASTER_ACCOUNT_HINT; // optional substring
+
+    if (masterUid && userId && userId === masterUid) return true;
+    if (masterEmail && email && email.toLowerCase() === masterEmail.toLowerCase()) return true;
+    if (masterHint) {
+      const hint = masterHint.toLowerCase();
+      if (userId && userId.toLowerCase().includes(hint)) return true;
+      if (email && email.toLowerCase().includes(hint)) return true;
+    }
+
+    return false;
   }
 
   /**
@@ -33,7 +57,7 @@ class PromptRefinementService {
         const { data, error } = await supabase
           .from('articles')
           .select('content')
-          .eq('source', 'system_preferences')
+          .eq('source', this.scopeSource)
           .eq('title', this.PREFS_KEY)
           .single();
         
@@ -107,7 +131,7 @@ class PromptRefinementService {
         const { data: existing } = await supabase
           .from('articles')
           .select('id')
-          .eq('source', 'system_preferences')
+          .eq('source', this.scopeSource)
           .eq('title', this.PREFS_KEY)
           .single();
         
@@ -117,19 +141,19 @@ class PromptRefinementService {
             .from('articles')
             .update({ content: prefsJson, published_at: new Date().toISOString() })
             .eq('id', existing.id);
-          logger.info(`💾 Updated preferences in Supabase (id: ${existing.id})`);
+          logger.info(`💾 Updated preferences in Supabase (id: ${existing.id}) [scope: ${this.scopeSource}]`);
         } else {
           // Insert new
           await supabase
             .from('articles')
             .insert({
               title: this.PREFS_KEY,
-              source: 'system_preferences',
+              source: this.scopeSource,
               content: prefsJson,
               url: 'system://preferences',
               published_at: new Date().toISOString()
             });
-          logger.info(`💾 Created preferences in Supabase`);
+          logger.info(`💾 Created preferences in Supabase [scope: ${this.scopeSource}]`);
         }
       }
     } catch (e) {
@@ -155,13 +179,14 @@ class PromptRefinementService {
    * @param {Object} params - Rating parameters
    * @param {number} params.logoQuality - 1-10 rating for logo quality
    * @param {number} params.logoSize - 1-10 rating for logo size (1-3=too small, 4-6=good, 7-10=too large)
+   * @param {number} params.logoStyle - 1-10 rating for logo style
    * @param {number} params.backgroundQuality - 1-10 rating for background quality
    * @param {number} params.backgroundStyle - 1-10 rating for background style
    * @param {string} params.feedbackKeyword - User's written feedback
    * @param {string} params.promptUsed - The prompt that generated the image
    * @param {string} params.network - The cryptocurrency network
    */
-  async processRating({ logoQuality, logoSize, backgroundQuality, backgroundStyle, feedbackKeyword, promptUsed, network }) {
+  async processRating({ logoQuality, logoSize, logoStyle, backgroundQuality, backgroundStyle, feedbackKeyword, promptUsed, network }) {
     await this.loadPreferences();
     
     // Initialize preference arrays if they don't exist
@@ -171,19 +196,21 @@ class PromptRefinementService {
     if (!this.preferences.bgStyleGood) this.preferences.bgStyleGood = [];
     if (!this.preferences.bgStyleBad) this.preferences.bgStyleBad = [];
     if (!this.preferences.ratingHistory) this.preferences.ratingHistory = [];
-    if (!this.preferences.numericRatings) this.preferences.numericRatings = { logoQuality: [], logoSize: [], bgQuality: [], bgStyle: [] };
+    if (!this.preferences.numericRatings) this.preferences.numericRatings = { logoQuality: [], logoSize: [], logoStyle: [], bgQuality: [], bgStyle: [] };
     
     // Parse numeric ratings (default to 5 if not provided)
     const lq = parseInt(logoQuality) || 5;
     const ls = parseInt(logoSize) || 5;
+    const lst = parseInt(logoStyle) || 5;
     const bq = parseInt(backgroundQuality) || 5;
     const bs = parseInt(backgroundStyle) || 5;
     
-    logger.info(`📊 Processing numeric ratings - Logo Quality: ${lq}/10, Logo Size: ${ls}/10, BG Quality: ${bq}/10, BG Style: ${bs}/10`);
+    logger.info(`📊 Processing numeric ratings - Logo Quality: ${lq}/10, Logo Size: ${ls}/10, Logo Style: ${lst}/10, BG Quality: ${bq}/10, BG Style: ${bs}/10`);
     
     // Store numeric ratings for trend analysis (keep last 50)
     this.preferences.numericRatings.logoQuality.push(lq);
     this.preferences.numericRatings.logoSize.push(ls);
+    this.preferences.numericRatings.logoStyle.push(lst);
     this.preferences.numericRatings.bgQuality.push(bq);
     this.preferences.numericRatings.bgStyle.push(bs);
     
@@ -191,6 +218,7 @@ class PromptRefinementService {
     if (this.preferences.numericRatings.logoQuality.length > 50) {
       this.preferences.numericRatings.logoQuality = this.preferences.numericRatings.logoQuality.slice(-50);
       this.preferences.numericRatings.logoSize = this.preferences.numericRatings.logoSize.slice(-50);
+      this.preferences.numericRatings.logoStyle = this.preferences.numericRatings.logoStyle.slice(-50);
       this.preferences.numericRatings.bgQuality = this.preferences.numericRatings.bgQuality.slice(-50);
       this.preferences.numericRatings.bgStyle = this.preferences.numericRatings.bgStyle.slice(-50);
     }
@@ -236,6 +264,15 @@ class PromptRefinementService {
     } else if (lq <= 3) {
       this.addToList('logoStyleBad', ['low_quality']);
       logger.info(`⚠️ Logo quality ${lq}/10 = POOR - will adjust prompts for better quality`);
+    }
+
+    // Process LOGO STYLE feedback
+    if (lst >= 8) {
+      this.addToList('logoStyleGood', ['preferred_style']);
+      logger.info(`🎛️ Logo style ${lst}/10 = PREFERRED STYLE`);
+    } else if (lst <= 3) {
+      this.addToList('logoStyleBad', ['wrong_style']);
+      logger.info(`⚠️ Logo style ${lst}/10 = WRONG STYLE`);
     }
     
     // Process BACKGROUND QUALITY feedback
@@ -430,6 +467,7 @@ class PromptRefinementService {
       network,
       logoQuality: lq,
       logoSize: ls,
+      logoStyle: lst,
       backgroundQuality: bq,
       backgroundStyle: bs,
       feedbackKeyword,

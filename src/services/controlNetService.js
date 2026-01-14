@@ -820,11 +820,17 @@ class ControlNetService {
     // Use the new AI-optimized curated prompts (based on good examples analysis)
     let prompt;
     try {
-      prompt = await this.getAIOptimizedPrompt(logoSymbol, title, customKeyword);
+      prompt = await this.getAIOptimizedPrompt(logoSymbol, title, customKeyword, {
+        userId: article?.userId || null,
+        userEmail: article?.userEmail || null
+      });
       logger.info(`🎨 Using CURATED prompt from good examples`);
     } catch (err) {
       // Fallback to standard prompt generation
-      prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword);
+      prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword, {
+        userId: article?.userId || null,
+        userEmail: article?.userEmail || null
+      });
       logger.info(`📝 Using standard prompt generation`);
     }
     logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
@@ -921,7 +927,7 @@ class ControlNetService {
    * Uses randomization + keyword extraction for variety
    * Now supports user-provided custom keywords and learned preferences
    */
-  async getNanoBananaPrompt(logoSymbol, title, customKeyword = null) {
+  async getNanoBananaPrompt(logoSymbol, title, customKeyword = null, userContext = {}) {
     // Load user preferences from feedback - REAL-TIME for immediate effect
     let sizeHint = '';
     let styleHint = '';
@@ -930,7 +936,10 @@ class ControlNetService {
     
     try {
       const PromptRefinementService = require('./promptRefinementService');
-      const promptRefinement = new PromptRefinementService();
+      const promptRefinement = new PromptRefinementService({
+        userId: userContext?.userId || null,
+        email: userContext?.userEmail || null
+      });
       // Force reload to get the LATEST feedback (real-time application)
       await promptRefinement.loadPreferences(true);
       prefs = promptRefinement.preferences || {};
@@ -4241,11 +4250,14 @@ class ControlNetService {
    * @param {string} customKeyword - User's custom keyword
    * @returns {string} Optimized prompt
    */
-  async getAIOptimizedPrompt(logoSymbol, title, customKeyword = null) {
+  async getAIOptimizedPrompt(logoSymbol, title, customKeyword = null, userContext = {}) {
     try {
       // Load current preferences for AI analysis
       const PromptRefinementService = require('./promptRefinementService');
-      const promptRefinement = new PromptRefinementService();
+      const promptRefinement = new PromptRefinementService({
+        userId: userContext?.userId || null,
+        email: userContext?.userEmail || null
+      });
       await promptRefinement.loadPreferences(true);
       
       // Get the generation count for style variety
@@ -4256,7 +4268,8 @@ class ControlNetService {
         logoSymbol,
         null, // Will use curated styles instead of specific feedback
         genCount,
-        customKeyword
+        customKeyword,
+        promptRefinement.preferences || null
       );
       
       logger.info(`🤖 AI Optimized prompt generated for ${logoSymbol}`);
