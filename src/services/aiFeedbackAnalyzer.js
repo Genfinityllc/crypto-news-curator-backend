@@ -544,9 +544,11 @@ Please analyze this feedback and return a JSON object with specific adjustments 
     prompt += `${background}. `;
     prompt += `${style.mood}. `;
     
-    // Add custom keyword naturally
+    // Add custom keyword as SECONDARY elements (logo remains primary subject)
     if (customKeyword && customKeyword.trim()) {
-      prompt += `With ${customKeyword.trim()} elements. `;
+      const secondary = customKeyword.trim();
+      prompt += `Include subtle secondary elements of ${secondary} in the background or as accents, `;
+      prompt += `but keep the logo as the primary subject. `;
     }
     
     // Quality boosters - emphasize 3D CGI NOT photography
@@ -565,6 +567,8 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       'no cityscape', 'no buildings', 'no skyline', 'no skyscrapers',
       // No unwanted effects
       'no sparkles', 'no glitter particles', 'no nebula spiral', 'no spiraling effects',
+      // Avoid strong warm colors
+      'no dominant red', 'no dominant yellow', 'no heavy warm tones',
       // Quality
       'no blur', 'no distortion', 'no watermark', 'no text overlay'
     ];

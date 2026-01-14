@@ -1363,17 +1363,17 @@ class ControlNetService {
       }
       
       if (foundContext) {
-        // Use the mapped context phrase
-        prompt += `, ${foundContext}`;
+        // Use the mapped context phrase as secondary elements
+        prompt += `, with subtle secondary ${foundContext} elements in the background`;
       } else if (phrase.length > 30) {
         // Long phrase - use it directly as a scene description
-        prompt += `, in a scene featuring ${phrase}`;
+        prompt += `, with subtle secondary ${phrase} elements that do not overpower the logo`;
       } else if (phrase.includes(' ')) {
         // Multi-word phrase - incorporate naturally
-        prompt += `, with ${phrase} elements in the scene`;
+        prompt += `, with subtle secondary ${phrase} elements in the scene`;
       } else {
         // Single keyword - use aesthetic
-        prompt += `, with ${phrase} aesthetic`;
+        prompt += `, with subtle ${phrase} accents`;
       }
     }
     
@@ -1403,6 +1403,7 @@ class ControlNetService {
     prompt += `, no server rack, no server room, no data center, no computer equipment`;
     prompt += `, no cityscape, no buildings, no skyline, no skyscrapers`;
     prompt += `, no sparkles, no glitter, no nebula spiral, no spiraling effects`;
+    prompt += `, no dominant red, no dominant yellow, no heavy warm tones`;
     prompt += `, no blur, no distortion, no watermark, no text overlay`;
     
     // Log the unique combination
