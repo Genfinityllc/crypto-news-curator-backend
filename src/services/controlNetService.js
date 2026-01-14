@@ -1098,82 +1098,185 @@ class ControlNetService {
     // CURATED materials based on user's GOOD example generations
     // Focus: 3D CGI renders with glass, liquid, chrome - NOT photography
     // NO boxes, frames, or containers - logos float freely
+    // EXPANDED for maximum variety
     const materials = [
       // Glass/Crystal options (user loves these)
       'as iridescent holographic glass with rainbow refractions',
       'as crystal glass filled with glowing amber-gold liquid',
       'as gradient glass transitioning from cyan to magenta',
       'as frosted crystal with internal blue glow',
-      'as transparent glass sphere containing the logo',
-      // Metal options
+      'as transparent glass orb containing the logo',
+      'as prismatic crystal with light dispersion',
+      'as smoky quartz crystal with golden inclusions',
+      
+      // Liquid-filled options (user loves)
+      'as glass vessel filled with swirling cyan liquid',
+      'as crystal container with glowing magenta plasma',
+      'as glass chamber with golden honey liquid inside',
+      
+      // Chrome/Metal options
       'as polished chrome with neon edge lighting',
       'as liquid chrome metal mid-splash with droplets',
-      'as golden circuit board with embedded LED traces',
-      'as oxidized copper with turquoise patina',
-      'as molten gold/bronze liquid metal crown',
-      'as faceted diamond crystal with light refraction',
       'as brushed titanium with subtle reflections',
-      // Premium options
+      'as platinum with mirror-polish finish',
+      'as rose gold with soft pink reflections',
+      
+      // Gold options
+      'as solid 24k gold with smooth finish',
+      'as molten gold liquid metal crown',
+      'as golden circuit board with embedded LED traces',
+      'as ancient gold artifact with patina',
+      
+      // Copper/Bronze options
+      'as oxidized copper with turquoise patina',
+      'as polished bronze with warm reflections',
+      'as weathered copper with green oxidation',
+      
+      // Crystal/Gem options
+      'as faceted diamond crystal with light refraction',
+      'as raw amethyst crystal cluster',
+      'as polished sapphire blue gemstone',
+      'as emerald green precious stone',
+      'as ruby red crystal with internal glow',
+      
+      // Ice options
+      'as frozen ice sculpture with frost details',
+      'as glacial ice with blue transparency',
+      
+      // Special effects
       'as holographic light sculpture',
-      'as platinum with mirror-polish finish'
+      'as plasma energy construct',
+      'as neon light tubes formed into shape'
     ];
     
     // CURATED scenes - based on user's GOOD examples
     // NO server racks, NO boxes, NO cityscapes - artistic 3D environments only
+    // EXPANDED for maximum variety
     const scenes = [
       // Temple/Ancient themes (user loves)
       'floating inside ancient stone temple ruins with moss-covered pillars',
       'positioned in ancient Roman temple ruins with statues',
+      'resting on ancient Greek marble columns with golden light',
+      'in mystical Egyptian temple with hieroglyphic walls',
+      
       // Underwater themes (user loves)
       'submerged underwater with rising bubbles and caustic light',
       'floating in deep ocean with light rays from surface',
+      'in crystal clear tropical lagoon with coral reef below',
+      'suspended in bioluminescent deep sea environment',
+      
       // Space themes (user loves)
       'floating against deep space starfield with distant nebula',
-      'mounted on sleek metallic pedestal in cosmic void',
+      'orbiting a colorful gas giant planet',
+      'positioned near a glowing supernova explosion',
+      'floating in asteroid field with distant sun',
+      
+      // Nature/Organic themes
+      'resting on giant lily pad in serene pond',
+      'emerging from volcanic lava flow with fire particles',
+      'frozen in crystalline ice formation',
+      'floating above misty mountain peak at sunrise',
+      'suspended in bamboo forest with light filtering through',
+      
       // Coin scatter themes (user loves)
       'standing on dark reflective surface with scattered glowing coins',
       'surrounded by scattered cryptocurrency coins on mirror floor',
+      'atop pile of golden crypto coins',
+      
       // Abstract/Minimal themes
-      'floating in pure geometric dark void',
-      'hovering above infinite dark reflective plane',
-      'suspended in abstract gradient space',
-      'positioned on minimalist dark concrete pedestal',
+      'floating in pure geometric abstract space',
+      'hovering in infinite gradient void',
+      'suspended in liquid chrome environment',
+      'positioned on floating geometric platforms',
+      
       // Premium presentation
-      'floating freely in atmospheric dark studio',
-      'emerging from liquid metal splash'
+      'floating freely in atmospheric studio',
+      'emerging from liquid metal splash',
+      'positioned on marble podium with dramatic lighting',
+      'suspended in holographic data visualization'
     ];
     
-    // CURATED lighting - dramatic cinematic options per user preference
+    // CURATED lighting - DIVERSE dramatic cinematic options
     const lighting = [
+      // Dramatic/Cinematic
       'volumetric god rays streaming from above',
       'golden backlight with radiating rays',
-      'caustic underwater light patterns',
-      'cyan and magenta neon rim lighting',
       'dramatic cinematic golden hour lighting',
-      'soft ambient glow from below creating reflections',
       'single dramatic spotlight from above',
+      'rim lighting with dark background',
+      
+      // Underwater/Caustic
+      'caustic underwater light patterns',
+      'dappled sunlight through water surface',
+      
+      // Neon/Cyberpunk
+      'cyan and magenta neon rim lighting',
+      'purple and blue cyberpunk glow',
+      'rainbow holographic light refractions',
+      'electric blue accent lighting',
+      
+      // Warm/Golden
       'warm amber accent lighting with cool shadows',
+      'golden sunset backlighting',
+      'warm firelight glow from below',
+      'copper and bronze warm tones',
+      
+      // Cool/Ice
+      'cool blue ice lighting',
+      'arctic white diffused lighting',
+      'moonlight silver illumination',
+      
+      // Professional/Studio
       'professional studio lighting with soft shadows',
-      'holographic data visualizations floating around',
+      'soft ambient glow from below creating reflections',
+      'clean key light with subtle fill',
+      
+      // Abstract/Artistic
+      'gradient lighting from warm to cool',
       'subtle bokeh with depth blur',
-      'gradient lighting from warm to cool'
+      'prismatic rainbow light dispersion',
+      'aurora borealis color waves'
     ];
     
-    // CURATED backgrounds - artistic 3D environments
+    // CURATED backgrounds - DIVERSE artistic 3D environments
     // NO server racks, NO cityscapes, NO buildings
+    // VARIETY: dark, light, colorful, gradient themes
     const backgrounds = [
+      // Dark themes (user likes these)
       'dark atmospheric temple interior with blue cyan ambient glow',
       'deep dark water fading to black with warm light penetrating',
       'infinite dark void with mirror floor reflection',
       'pure black void with subtle depth',
-      'deep space starfield with subtle purple and blue hints',
-      'deep blue gradient fading to dark',
-      'solid dark matte backdrop with subtle gradient',
-      'abstract gradient from black to deep blue',
-      'dark atmospheric fog with volumetric light',
-      'minimalist dark concrete environment',
+      
+      // Space themes (colorful)
+      'deep space with vibrant purple and blue nebula clouds',
+      'cosmic starfield with warm orange and pink aurora',
+      'galactic background with swirling cyan and magenta gases',
+      
+      // Gradient themes (light to dark variety)
+      'smooth gradient from warm gold to deep purple',
+      'abstract gradient from teal to coral sunset',
+      'soft gradient from rose pink to deep blue',
+      'gradient from electric blue to deep violet',
+      
+      // Light/Bright themes
+      'ethereal white fog with soft diffused lighting',
+      'warm golden hour atmosphere with soft rays',
+      'pristine white studio environment with subtle shadows',
+      'clean ice blue frozen landscape abstract',
+      
+      // Colorful/Artistic themes
+      'underwater caustics with sunbeams in turquoise water',
+      'ancient temple ruins with golden afternoon light',
+      'crystalline ice cave with blue and cyan reflections',
+      'mystical forest clearing with green and gold light',
+      'volcanic landscape with orange magma glow',
+      'arctic aurora with green and purple bands',
+      
+      // Premium presentation themes
       'polished obsidian floor with infinite reflection',
-      'pure darkness with dramatic edge lighting'
+      'marble pedestal in dramatic spotlight',
+      'reflective chrome surface with ambient glow'
     ];
     
     // TRUE randomization using Math.random() - completely unique each call
@@ -1230,6 +1333,14 @@ class ControlNetService {
     const selectedScene = rand(scenes);
     const selectedLighting = rand(lighting);
     const selectedBackground = rand(backgrounds);
+    
+    // Log the variety to confirm randomization is working
+    logger.info(`🎨 PROMPT VARIETY CHECK:`);
+    logger.info(`   📦 Material: ${selectedMaterial.substring(0, 50)}...`);
+    logger.info(`   🏛️ Scene: ${selectedScene.substring(0, 50)}...`);
+    logger.info(`   💡 Lighting: ${selectedLighting.substring(0, 50)}...`);
+    logger.info(`   🖼️ Background: ${selectedBackground.substring(0, 50)}...`);
+    logger.info(`   📊 Available: ${availableMaterials.length} materials, ${scenes.length} scenes, ${lighting.length} lights, ${backgrounds.length} backgrounds`);
     
     // Start prompt with size hint if user feedback indicates size issues
     // sizeHint, styleHint, bgHint come from user feedback preferences
