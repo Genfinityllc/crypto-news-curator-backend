@@ -274,16 +274,8 @@ Please analyze this feedback and return a JSON object with specific adjustments 
         prompt: 'A {network} logo rendered as iridescent crystal glass with rainbow refractions, floating as the primary subject in a premium dark studio, clean rim lighting, subtle spectral reflections on edges, luxury 3D CGI product render, deep depth-of-field, dark gradient backdrop.'
       },
       {
-        name: 'glass_frame_logo',
-        prompt: 'A {network} logo floating inside a minimal clear glass frame with cyan/magenta edges, logo is the primary subject, clean futuristic studio lighting, light refractions along glass edges, dark matte studio background with soft geometric facets.'
-      },
-      {
         name: 'neon_edge_chrome',
         prompt: 'A {network} logo in polished chrome with subtle cyan/magenta edge glow, primary subject centered, soft studio key light, micro reflections on metal surface, premium dark studio gradient background.'
-      },
-      {
-        name: 'glass_liquid_core',
-        prompt: 'A {network} logo made of crystal glass with a glowing liquid core, primary subject floating, soft internal glow and gentle top light, liquid refraction inside glass, dark smooth gradient background with subtle haze.'
       },
       {
         name: 'mirror_floor_reflection',
@@ -298,16 +290,8 @@ Please analyze this feedback and return a JSON object with specific adjustments 
         prompt: 'A {network} logo in brushed metal floating above scattered metal coins (secondary), soft studio key light with subtle rim, premium financial aesthetic, dark neutral gradient background.'
       },
       {
-        name: 'liquid_metal_pool',
-        prompt: 'A {network} logo emerging from a smooth liquid metal pool, logo is primary subject, dramatic studio highlights on liquid chrome, soft ripples, dark studio background with subtle haze.'
-      },
-      {
         name: 'glass_shard_orbit',
         prompt: 'A {network} logo floating with a few minimal glass shards orbiting as accents, edge-lit glass, soft ambient fill, clean futuristic mood, dark geometric studio gradient.'
-      },
-      {
-        name: 'glass_panel_layers',
-        prompt: 'A {network} logo floating between layered glass panels, thin glass layers as secondary elements, soft edge lighting, gentle reflections, clean architectural studio look, dark matte background.'
       },
       {
         name: 'holographic_prism_edges',
@@ -322,16 +306,8 @@ Please analyze this feedback and return a JSON object with specific adjustments 
         prompt: 'A {network} logo in pearl white glossy plastic with soft sheen, primary subject floating, soft diffused light with mild rim, subtle color shift in gloss, dark matte studio gradient.'
       },
       {
-        name: 'glass_cube_minimal',
-        prompt: 'A {network} logo embedded in a clear glass cube, primary subject centered, edge lighting with soft reflections, clean refractions through cube, dark studio with subtle geometric panels.'
-      },
-      {
         name: 'blue_cyan_studio',
         prompt: 'A {network} logo in polished metal with cool blue reflections, primary subject, cool cyan key light with soft rim, soft light streak reflections, deep blue gradient background.'
-      },
-      {
-        name: 'clean_typographic_3d',
-        prompt: 'A {network} logo styled as clean 3D letters on a minimal pedestal, primary subject, subtle rays from behind, soft reflections, premium dark studio environment.'
       },
       {
         name: 'glass_outline_logo',
@@ -342,12 +318,48 @@ Please analyze this feedback and return a JSON object with specific adjustments 
         prompt: 'A {network} logo in crystal glass with a few tiny glass accents nearby, primary subject, soft studio lighting, refined minimal aesthetic, deep charcoal gradient background.'
       },
       {
-        name: 'coin_pedestal_minimal',
-        prompt: 'A {network} logo resting on a sleek pedestal with a few coins as secondary accents, soft spotlight with subtle rim, premium finance mood, dark studio with gentle fog.'
-      },
-      {
         name: 'glass_bevel_highlight',
         prompt: 'A {network} logo made of beveled crystal glass with strong specular highlights, primary subject floating, crisp bevel reflections, soft fill light, dark blue to black gradient backdrop.'
+      },
+      {
+        name: 'glass_logo_coin_orbit',
+        prompt: 'A {network} logo in crystal glass floating as primary subject, with several {network} logo coins orbiting at different angles as secondary elements, clean studio lighting, dark gradient background, premium 3D CGI render.'
+      },
+      {
+        name: 'logo_scattered_glass_tokens',
+        prompt: 'A {network} logo floating as primary subject, surrounded by scattered glass tokens showing the {network} logo at varied angles, soft neon rim light, dark studio gradient with depth.'
+      },
+      {
+        name: 'abstract_glass_shapes',
+        prompt: 'A {network} logo in polished chrome as primary subject, with floating abstract glass shapes (prisms and shards) as subtle secondary accents, soft studio key light, dark geometric studio background.'
+      },
+      {
+        name: 'cgi_glass_spheres',
+        prompt: 'A {network} logo floating as primary subject, surrounded by CGI glass spheres at different depths, clean rim lighting, subtle refractions, dark studio gradient background.'
+      },
+      {
+        name: 'floating_glass_rings',
+        prompt: 'A {network} logo in crystal glass as primary subject, with a few floating glass rings and arcs nearby as secondary elements (no halo around logo), soft studio lighting, deep dark gradient.'
+      },
+      {
+        name: 'dual_material_logo_scatter',
+        prompt: 'A {network} logo in glass and chrome mixed materials, primary subject, with scattered {network} logo coins (glass) and minimal abstract shapes as secondary elements, clean studio lighting, dark gradient background.'
+      },
+      {
+        name: 'logo_coin_river',
+        prompt: 'A {network} logo floating as primary subject above a subtle river-like trail of {network} logo coins at varied angles, soft reflections, dark studio gradient, premium 3D CGI render.'
+      },
+      {
+        name: 'multi_depth_tokens',
+        prompt: 'A {network} logo floating as primary subject, with multiple {network} logo tokens at different depths and angles, shallow depth-of-field, soft studio lighting, dark blue gradient background.'
+      },
+      {
+        name: 'glass_orbit_clusters',
+        prompt: 'A {network} logo in iridescent glass, primary subject, with small clusters of floating glass shapes and {network} logo coins as secondary elements, soft rim lighting, dark studio gradient.'
+      },
+      {
+        name: 'holo_coin_spheres',
+        prompt: 'A {network} logo in holographic glass, primary subject, with floating glass spheres and {network} logo coins as secondary accents, clean studio light, deep dark gradient background.'
       },
       {
         name: 'iridescent_gradient_glass',
