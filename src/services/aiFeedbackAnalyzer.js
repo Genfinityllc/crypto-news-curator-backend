@@ -268,226 +268,102 @@ Please analyze this feedback and return a JSON object with specific adjustments 
     // These are the proven styles from the user's GOOD example images
     // All are 3D CGI renders with NO boxes, NO server racks, NO photography
     const curatedStyles = [
-      // CORE STYLES FROM USER'S GOOD EXAMPLES (NO temple fusion, no distracting subjects)
+      // PROMPT CATALOG BASED ON USER-APPROVED EXAMPLES
       {
         name: 'iridescent_prism_logo',
-        description: 'Iridescent crystal prism logo, premium studio',
-        material: 'iridescent crystal glass with rainbow refractions',
-        scene: 'logo floating at center, primary subject',
-        lighting: 'clean studio lighting with soft rim highlights',
-        extras: 'subtle spectral reflections on edges',
-        mood: 'luxury premium minimal',
-        background: 'dark gradient studio backdrop with soft falloff'
+        prompt: 'A {network} logo rendered as iridescent crystal glass with rainbow refractions, floating as the primary subject in a premium dark studio, clean rim lighting, subtle spectral reflections on edges, luxury 3D CGI product render, deep depth-of-field, dark gradient backdrop.'
       },
       {
         name: 'glass_frame_logo',
-        description: 'Floating glass frame around logo (minimal, elegant)',
-        material: 'clear glass frame with cyan/magenta edges',
-        scene: 'logo floating inside a minimal glass frame, primary subject',
-        lighting: 'neon edge lighting with soft ambient fill',
-        extras: 'light refractions along glass edges',
-        mood: 'clean futuristic elegance',
-        background: 'dark matte studio with subtle geometric facets'
+        prompt: 'A {network} logo floating inside a minimal clear glass frame with cyan/magenta edges, logo is the primary subject, clean futuristic studio lighting, light refractions along glass edges, dark matte studio background with soft geometric facets.'
       },
       {
         name: 'neon_edge_chrome',
-        description: 'Polished chrome logo with controlled neon edges',
-        material: 'polished chrome with subtle neon edge glow',
-        scene: 'logo floating, primary subject',
-        lighting: 'cyan/magenta rim light with soft studio key',
-        extras: 'micro reflections on metal surface',
-        mood: 'premium futuristic minimal',
-        background: 'deep charcoal gradient with faint shapes'
+        prompt: 'A {network} logo in polished chrome with subtle cyan/magenta edge glow, primary subject centered, soft studio key light, micro reflections on metal surface, premium dark studio gradient background.'
       },
       {
         name: 'glass_liquid_core',
-        description: 'Glass logo with liquid-filled core',
-        material: 'crystal glass with glowing liquid interior',
-        scene: 'logo floating, primary subject',
-        lighting: 'soft internal glow with gentle top light',
-        extras: 'liquid refraction inside glass',
-        mood: 'luxury high-tech',
-        background: 'dark smooth gradient with subtle haze'
+        prompt: 'A {network} logo made of crystal glass with a glowing liquid core, primary subject floating, soft internal glow and gentle top light, liquid refraction inside glass, dark smooth gradient background with subtle haze.'
       },
       {
         name: 'mirror_floor_reflection',
-        description: 'Logo on mirror floor with crisp reflection',
-        material: 'polished metal or crystal glass',
-        scene: 'logo floating just above mirror floor, primary subject',
-        lighting: 'soft studio light with strong reflections',
-        extras: 'clean mirror reflection beneath logo',
-        mood: 'premium product render',
-        background: 'infinite dark studio with mirror floor'
+        prompt: 'A {network} logo hovering just above a mirror floor with crisp reflection, primary subject, polished metal or crystal glass finish, clean studio lighting with strong reflections, infinite dark studio space.'
       },
       {
         name: 'glass_coin_scatter',
-        description: 'Logo with scattered glass coins',
-        material: 'glass logo with subtle iridescence',
-        scene: 'logo floating above scattered glass coins',
-        lighting: 'soft neon edge light with gentle ambient fill',
-        extras: 'glass coins with matching tint',
-        mood: 'elegant crypto luxury',
-        background: 'dark blue gradient with soft reflections'
+        prompt: 'A {network} logo of subtle iridescent glass floating above scattered glass coins, coins are secondary accents, soft neon edge lighting with gentle ambient fill, dark blue gradient background with soft reflections.'
       },
       {
         name: 'metal_coin_scatter',
-        description: 'Logo with metal coin scatter (clean)',
-        material: 'brushed metal logo with warm highlights',
-        scene: 'logo floating above scattered metal coins',
-        lighting: 'studio key light with subtle rim',
-        extras: 'coins with soft depth-of-field',
-        mood: 'premium financial',
-        background: 'dark neutral gradient with subtle glow'
+        prompt: 'A {network} logo in brushed metal floating above scattered metal coins (secondary), soft studio key light with subtle rim, premium financial aesthetic, dark neutral gradient background.'
       },
       {
         name: 'liquid_metal_pool',
-        description: 'Logo rising from a liquid metal pool',
-        material: 'chrome or liquid metal surface',
-        scene: 'logo emerging from smooth liquid metal pool',
-        lighting: 'dramatic studio highlights on metal',
-        extras: 'soft ripples in liquid metal',
-        mood: 'high-end cinematic',
-        background: 'dark studio with subtle haze'
+        prompt: 'A {network} logo emerging from a smooth liquid metal pool, logo is primary subject, dramatic studio highlights on liquid chrome, soft ripples, dark studio background with subtle haze.'
       },
       {
         name: 'glass_shard_orbit',
-        description: 'Logo with glass shard orbit (subtle)',
-        material: 'clear glass with cyan/magenta accents',
-        scene: 'logo floating with few glass shards orbiting',
-        lighting: 'edge-lit glass with soft fill',
-        extras: 'small glass shards, minimal count',
-        mood: 'clean futuristic',
-        background: 'dark geometric studio gradient'
-      },
-      {
-        name: 'neon_halo_ring',
-        description: 'Logo with glowing halo ring',
-        material: 'polished chrome or crystal glass',
-        scene: 'logo centered with a soft glowing ring behind',
-        lighting: 'halo glow with soft studio key',
-        extras: 'subtle light bloom around ring',
-        mood: 'premium futuristic minimal',
-        background: 'black to deep blue gradient'
+        prompt: 'A {network} logo floating with a few minimal glass shards orbiting as accents, edge-lit glass, soft ambient fill, clean futuristic mood, dark geometric studio gradient.'
       },
       {
         name: 'glass_panel_layers',
-        description: 'Logo with layered glass panels',
-        material: 'clear glass panels with light tint',
-        scene: 'logo floating between layered glass panels',
-        lighting: 'soft edge lighting with gentle reflections',
-        extras: 'thin glass layers, minimal',
-        mood: 'clean and architectural',
-        background: 'dark matte studio'
+        prompt: 'A {network} logo floating between layered glass panels, thin glass layers as secondary elements, soft edge lighting, gentle reflections, clean architectural studio look, dark matte background.'
       },
       {
         name: 'holographic_prism_edges',
-        description: 'Logo with holographic prism edges',
-        material: 'crystal glass with holographic rim',
-        scene: 'logo floating, primary subject',
-        lighting: 'prismatic rim light with soft ambient',
-        extras: 'rainbow refraction along edges',
-        mood: 'luxury futuristic',
-        background: 'deep navy gradient'
+        prompt: 'A {network} logo made of crystal glass with holographic prism edges, primary subject, prismatic rim light with soft ambient fill, rainbow refraction along edges, deep navy gradient background.'
       },
       {
         name: 'platinum_brush',
-        description: 'Brushed platinum logo, clean studio',
-        material: 'brushed platinum with subtle reflections',
-        scene: 'logo floating, primary subject',
-        lighting: 'soft studio key with gentle rim',
-        extras: 'fine brushed texture highlights',
-        mood: 'executive premium',
-        background: 'dark grey studio gradient'
+        prompt: 'A {network} logo in brushed platinum with subtle reflections, primary subject floating, soft studio key light with gentle rim, refined executive aesthetic, dark grey studio gradient.'
       },
       {
         name: 'pearl_gloss_plastic',
-        description: 'Pearl glossy plastic logo',
-        material: 'pearl white glossy plastic with soft sheen',
-        scene: 'logo floating, primary subject',
-        lighting: 'soft diffused light with mild rim',
-        extras: 'subtle color shift in gloss',
-        mood: 'clean modern luxury',
-        background: 'dark matte studio with faint gradient'
+        prompt: 'A {network} logo in pearl white glossy plastic with soft sheen, primary subject floating, soft diffused light with mild rim, subtle color shift in gloss, dark matte studio gradient.'
       },
       {
         name: 'glass_cube_minimal',
-        description: 'Minimal glass cube with logo',
-        material: 'clear glass cube with logo embedded',
-        scene: 'logo inside glass cube, centered',
-        lighting: 'edge lighting with soft reflections',
-        extras: 'clean refractions through cube',
-        mood: 'minimal premium',
-        background: 'dark studio with subtle geometric panels'
+        prompt: 'A {network} logo embedded in a clear glass cube, primary subject centered, edge lighting with soft reflections, clean refractions through cube, dark studio with subtle geometric panels.'
       },
       {
         name: 'blue_cyan_studio',
-        description: 'Cool cyan studio glow',
-        material: 'polished metal with cool blue reflections',
-        scene: 'logo floating, primary subject',
-        lighting: 'cool cyan key with soft rim',
-        extras: 'soft light streak reflections',
-        mood: 'cool futuristic',
-        background: 'deep blue gradient'
-      },
-      {
-        name: 'warm_amber_studio',
-        description: 'Warm amber studio glow',
-        material: 'golden metal with warm highlights',
-        scene: 'logo floating, primary subject',
-        lighting: 'warm amber key with soft rim',
-        extras: 'gentle glow and reflections',
-        mood: 'premium warm',
-        background: 'dark brown to black gradient'
+        prompt: 'A {network} logo in polished metal with cool blue reflections, primary subject, cool cyan key light with soft rim, soft light streak reflections, deep blue gradient background.'
       },
       {
         name: 'clean_typographic_3d',
-        description: '3D letters styled logo (Axelar style)',
-        material: 'polished metal letters with glass edges',
-        scene: 'logo letters standing on a clean pedestal',
-        lighting: 'golden rays from behind with soft fill',
-        extras: 'subtle pedestal reflection',
-        mood: 'prestige premium',
-        background: 'dark studio with soft light rays'
+        prompt: 'A {network} logo styled as clean 3D letters on a minimal pedestal, primary subject, subtle rays from behind, soft reflections, premium dark studio environment.'
       },
       {
         name: 'glass_outline_logo',
-        description: 'Glass outline logo with inner glow',
-        material: 'clear glass outline with inner glow',
-        scene: 'logo centered, primary subject',
-        lighting: 'edge glow with soft ambient',
-        extras: 'subtle internal light',
-        mood: 'minimal neon',
-        background: 'black gradient with soft vignette'
+        prompt: 'A {network} logo as a clear glass outline with inner glow, primary subject centered, edge glow with soft ambient fill, minimal neon aesthetic, black gradient with soft vignette.'
       },
       {
-        name: 'micro_shard_sparkle_free',
-        description: 'Logo with micro glass accents (no sparkles)',
-        material: 'crystal glass with clean edges',
-        scene: 'logo floating with a few tiny glass accents',
-        lighting: 'soft studio lighting',
-        extras: 'no sparkles, no particles',
-        mood: 'refined minimal',
-        background: 'deep charcoal gradient'
+        name: 'micro_shard_clean',
+        prompt: 'A {network} logo in crystal glass with a few tiny glass accents nearby, primary subject, soft studio lighting, refined minimal aesthetic, deep charcoal gradient background.'
       },
       {
         name: 'coin_pedestal_minimal',
-        description: 'Logo on clean pedestal with coins',
-        material: 'polished metal logo with glass accents',
-        scene: 'logo resting on sleek pedestal, minimal coins',
-        lighting: 'soft spotlight with subtle rim',
-        extras: 'few coins, low clutter',
-        mood: 'premium finance',
-        background: 'dark studio with gentle fog'
+        prompt: 'A {network} logo resting on a sleek pedestal with a few coins as secondary accents, soft spotlight with subtle rim, premium finance mood, dark studio with gentle fog.'
       },
       {
         name: 'glass_bevel_highlight',
-        description: 'Beveled glass logo with strong highlights',
-        material: 'beveled crystal glass with internal glow',
-        scene: 'logo floating, primary subject',
-        lighting: 'bright specular highlights with soft fill',
-        extras: 'crisp bevel reflections',
-        mood: 'luxury precision',
-        background: 'dark blue to black gradient'
+        prompt: 'A {network} logo made of beveled crystal glass with strong specular highlights, primary subject floating, crisp bevel reflections, soft fill light, dark blue to black gradient backdrop.'
+      },
+      {
+        name: 'iridescent_gradient_glass',
+        prompt: 'A {network} logo in gradient glass shifting cyan to magenta, primary subject, soft studio lighting, gentle refractions, dark studio gradient with subtle depth.'
+      },
+      {
+        name: 'neon_edge_minimal',
+        prompt: 'A {network} logo in smooth chrome with restrained neon edge accents, primary subject, clean studio key light, minimal background, dark charcoal gradient.'
+      },
+      {
+        name: 'coins_glass_surface',
+        prompt: 'A {network} logo floating above a clean reflective surface with scattered glass coins, coins are secondary, soft neon edge highlights, dark blue gradient with reflections.'
+      },
+      {
+        name: 'studio_depth_layers',
+        prompt: 'A {network} logo in polished metal with layered depth lighting in the background, primary subject, atmospheric separation, soft studio highlights, deep dark gradient.'
       }
     ];
 
@@ -552,13 +428,19 @@ Please analyze this feedback and return a JSON object with specific adjustments 
     }
     
     // Build the prompt - explicitly 3D CGI, NOT photography
-    let prompt = `A stunning ${sizePrefix}${network} cryptocurrency logo, 3D CGI render, `;
-    prompt += `${material}, `;
-    prompt += `${scene}, `;
-    prompt += `${lighting}, `;
-    prompt += `${extras}, `;
-    prompt += `${background}. `;
-    prompt += `${style.mood}. `;
+    let prompt;
+    if (style.prompt) {
+      // Use curated prompt template
+      prompt = style.prompt.replace('{network}', network);
+    } else {
+      prompt = `A stunning ${sizePrefix}${network} cryptocurrency logo, 3D CGI render, `;
+      prompt += `${material}, `;
+      prompt += `${scene}, `;
+      prompt += `${lighting}, `;
+      prompt += `${extras}, `;
+      prompt += `${background}. `;
+      prompt += `${style.mood}. `;
+    }
     
     // Add custom keyword as SECONDARY elements (logo remains primary subject)
     if (customKeyword && customKeyword.trim()) {
