@@ -249,7 +249,7 @@ class ControlNetService {
    */
   async tryGetPngFromDirectory(symbol) {
     try {
-      const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+      const normalizedSymbol = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
       logger.info(`📂 tryGetPngFromDirectory: Looking for "${normalizedSymbol}" in ${this.pngLogoDir}`);
       
       // FIRST: Try direct file access (fastest and most reliable)
@@ -286,9 +286,12 @@ class ControlNetService {
       const filenameLookup = {};
       for (const file of allPngFiles) {
         const baseName = file.replace(/\.png$/i, '');
-        filenameLookup[baseName.toUpperCase().replace(/\s+/g, '')] = file;
-        filenameLookup[baseName.toUpperCase()] = file;
+        const upper = baseName.toUpperCase();
+        const normalized = upper.replace(/[^A-Z0-9]/g, '');
+        filenameLookup[upper.replace(/\s+/g, '')] = file;
+        filenameLookup[upper] = file;
         filenameLookup[baseName.toLowerCase()] = file;
+        filenameLookup[normalized] = file; // allow matching hyphen/underscore filenames
       }
       
       // PREFERRED FILE mapping - when multiple versions exist, use ONLY this one
