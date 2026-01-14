@@ -101,7 +101,7 @@ class ControlNetService {
       
       floating_coins: {
         // Like XRP13.jpg - Multiple 3D coins with proper perspective
-        environmentPrompt: "dark space environment with subtle atmospheric effects, professional studio lighting setup, gradual depth transitions, metallic surfaces for reflections, minimal background allowing coin focus, cinematic composition with depth layers, volumetric lighting effects",
+        environmentPrompt: "dark space environment with subtle atmospheric effects, professional cinematic lighting setup, gradual depth transitions, metallic surfaces for reflections, minimal background allowing coin focus, cinematic composition with depth layers, volumetric lighting effects",
         
         logoIntegration: "multiple 3D cryptocurrency coins at different depths and angles, each coin showing proper perspective distortion, metallic materials with environmental reflections, coins tilted to show dimensionality, logo symbols precisely embossed into coin surfaces, realistic physics-based placement, varied lighting on each coin surface",
         
@@ -1207,7 +1207,7 @@ class ControlNetService {
       'positioned on floating geometric platforms',
       
       // Premium presentation
-      'floating freely in atmospheric studio',
+      'floating freely in atmospheric cinematic space',
       'emerging from liquid metal splash',
       'positioned on marble podium with dramatic lighting',
       'suspended in holographic data visualization'
@@ -1244,7 +1244,7 @@ class ControlNetService {
       'moonlight silver illumination',
       
       // Professional/Studio
-      'professional studio lighting with soft shadows',
+      'professional cinematic lighting with soft shadows',
       'soft ambient glow from below creating reflections',
       'clean key light with subtle fill',
       
@@ -1279,7 +1279,7 @@ class ControlNetService {
       // Light/Bright themes
       'ethereal white fog with soft diffused lighting',
       'warm golden hour atmosphere with soft rays',
-      'pristine white studio environment with subtle shadows',
+      'pristine white minimal environment with subtle shadows',
       'clean ice blue frozen landscape abstract',
       
       // Colorful/Artistic themes
@@ -2147,7 +2147,7 @@ class ControlNetService {
       the logo casting realistic shadows and receiving environmental lighting,
       photorealistic materials with proper surface properties,
       absolutely no flat overlays or 2D sticker effects,
-      pure 3D environmental integration, studio-quality cinematography`;
+      pure 3D environmental integration, cinematic-quality rendering`;
       
       logger.info(`🎯 Using SVG-derived ControlNet with dynamic prompt`);
       
@@ -2330,7 +2330,7 @@ class ControlNetService {
     the logo casting realistic shadows and receiving environmental reflections,
     photorealistic surface properties and atmospheric depth,
     absolutely no flat overlays or 2D sticker effects,
-    cinematic composition with professional studio lighting`;
+    cinematic composition with professional lighting`;
     
     // Add logo-specific material properties for 3D realism
     switch (logoSymbol.toUpperCase()) {
@@ -2373,7 +2373,7 @@ class ControlNetService {
     if (fullText.includes('trading') || fullText.includes('price') || fullText.includes('chart')) {
       environment = 'sophisticated trading floor with massive curved holographic displays showing live market data';
       sceneElements = 'candlestick charts floating in 3D space, dynamic price indicators, professional financial workstations';
-      lighting = 'dramatic blue and green monitor lighting with professional studio accents';
+      lighting = 'dramatic blue and green monitor lighting with professional accents';
       keywords = ['trading', 'financial', 'market'];
     }
     else if (fullText.includes('bank') || fullText.includes('payment') || fullText.includes('financial institution')) {
@@ -3692,7 +3692,7 @@ class ControlNetService {
         pure environmental scene ready for logo integration, 
         photorealistic 3D environment with proper lighting and depth,
         cinematic composition with clear focal areas for logo placement,
-        professional studio lighting setup, 8k resolution`;
+        professional cinematic lighting setup, 8k resolution`;
         
         logger.info(`🎨 Using dynamic environment: ${analysis.environmentType}`);
       } else {
