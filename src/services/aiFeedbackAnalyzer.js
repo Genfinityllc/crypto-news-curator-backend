@@ -331,14 +331,97 @@ Please analyze this feedback and return a JSON object with specific adjustments 
         extras: 'subtle geometric shapes in background',
         mood: 'clean futuristic minimal',
         background: 'pure matte black with subtle gradient'
+      },
+      // NEW DIVERSE STYLES - Added for more variety
+      {
+        name: 'volcanic_gold',
+        description: 'Molten gold volcanic scene',
+        material: 'solid 24k gold with molten edges',
+        scene: 'emerging from volcanic lava flow',
+        lighting: 'warm orange and red fire glow from below',
+        extras: 'fire particles and smoke wisps rising',
+        mood: 'powerful raw elemental energy',
+        background: 'dark volcanic rock with orange magma veins'
+      },
+      {
+        name: 'arctic_ice',
+        description: 'Frozen ice sculpture scene',
+        material: 'glacial ice sculpture with frost crystals',
+        scene: 'frozen in crystalline ice cave',
+        lighting: 'cool blue ice lighting with white highlights',
+        extras: 'snowflakes and ice particles floating',
+        mood: 'pristine frozen elegance',
+        background: 'ice blue frozen landscape with aurora hints'
+      },
+      {
+        name: 'sunset_gradient',
+        description: 'Warm sunset gradient atmosphere',
+        material: 'rose gold with warm reflections',
+        scene: 'floating above misty clouds at sunset',
+        lighting: 'golden hour warm backlighting',
+        extras: 'soft clouds below, warm color rays',
+        mood: 'serene golden hour magic',
+        background: 'gradient from warm gold to coral to deep purple'
+      },
+      {
+        name: 'emerald_forest',
+        description: 'Mystical forest clearing',
+        material: 'emerald green crystal with internal glow',
+        scene: 'suspended in mystical bamboo forest clearing',
+        lighting: 'dappled green and gold light filtering through',
+        extras: 'floating leaves and magical particles',
+        mood: 'natural mystical tranquility',
+        background: 'deep green forest with golden light beams'
+      },
+      {
+        name: 'ruby_throne',
+        description: 'Royal ruby precious gem',
+        material: 'deep ruby red crystal with internal fire',
+        scene: 'resting on ancient marble throne',
+        lighting: 'dramatic red and gold royal lighting',
+        extras: 'scattered gems and golden coins around',
+        mood: 'royal opulent power',
+        background: 'dark marble palace with red and gold accents'
+      },
+      {
+        name: 'ocean_depths',
+        description: 'Deep bioluminescent ocean',
+        material: 'transparent glass filled with cyan plasma',
+        scene: 'floating in deep bioluminescent ocean',
+        lighting: 'ethereal blue-green bioluminescent glow',
+        extras: 'jellyfish and glowing particles drifting',
+        mood: 'mysterious deep sea wonder',
+        background: 'deep blue-black ocean with glowing creatures'
+      },
+      {
+        name: 'copper_patina',
+        description: 'Aged copper with turquoise patina',
+        material: 'weathered copper with turquoise patina spots',
+        scene: 'positioned in ancient Greek temple ruins',
+        lighting: 'warm afternoon sun with long shadows',
+        extras: 'ivy and moss on ancient stone columns',
+        mood: 'timeless ancient heritage',
+        background: 'weathered stone temple with blue sky glimpses'
+      },
+      {
+        name: 'nebula_birth',
+        description: 'Cosmic nebula creation',
+        material: 'prismatic crystal with rainbow light dispersion',
+        scene: 'floating at the heart of a colorful nebula',
+        lighting: 'multicolor nebula gas illumination',
+        extras: 'swirling colorful cosmic gas clouds',
+        mood: 'cosmic creation majesty',
+        background: 'vibrant purple, pink, and blue nebula clouds'
       }
     ];
 
-    // Select style based on generation count for variety
-    const styleIndex = generationCount % curatedStyles.length;
+    // TRUE RANDOM selection - Math.random() is unique per call
+    // Previously used generationCount % length which always picked the same style
+    // when generationCount didn't change between requests
+    const styleIndex = Math.floor(Math.random() * curatedStyles.length);
     const selectedStyle = curatedStyles[styleIndex];
 
-    logger.info(`🎨 Selected curated style: ${selectedStyle.name} (gen #${generationCount})`);
+    logger.info(`🎨 RANDOMLY selected curated style: ${selectedStyle.name} (index ${styleIndex}/${curatedStyles.length})`);
 
     return selectedStyle;
   }
