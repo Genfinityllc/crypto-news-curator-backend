@@ -441,6 +441,59 @@ async function insertArticlesBatch(articlesData) {
 }
 
 /**
+ * Upload image to Supabase Storage for permanent hosting
+ * Returns a public URL that persists across server restarts
+ */
+async function uploadImageToStorage(imageBuffer, filename, bucket = 'cover-images') {
+  try {
+    const client = getSupabaseClient();
+    if (!client) {
+      logger.warn('Supabase not available for image upload');
+      return null;
+    }
+
+    // Ensure bucket exists (will fail silently if already exists)
+    try {
+      await client.storage.createBucket(bucket, {
+        public: true,
+        fileSizeLimit: 10485760 // 10MB
+      });
+    } catch (bucketError) {
+      // Bucket likely already exists, which is fine
+    }
+
+    // Upload the image
+    const { data, error } = await client.storage
+      .from(bucket)
+      .upload(filename, imageBuffer, {
+        contentType: 'image/png',
+        cacheControl: '31536000', // 1 year cache
+        upsert: true // Overwrite if exists
+      });
+
+    if (error) {
+      logger.error('Supabase storage upload failed:', error.message);
+      return null;
+    }
+
+    // Get the public URL
+    const { data: urlData } = client.storage
+      .from(bucket)
+      .getPublicUrl(filename);
+
+    if (urlData?.publicUrl) {
+      logger.info(`✅ Image uploaded to Supabase Storage: ${filename}`);
+      return urlData.publicUrl;
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('Error uploading to Supabase Storage:', error.message);
+    return null;
+  }
+}
+
+/**
  * Update article cover image
  */
 async function updateArticleCoverImage(articleId, coverImageUrl) {
@@ -486,5 +539,6 @@ module.exports = {
   getPressReleases,
   updateArticleEngagement,
   updateArticleCoverImage,
+  uploadImageToStorage,  // For permanent image hosting
   transformArticleForSupabase
 };

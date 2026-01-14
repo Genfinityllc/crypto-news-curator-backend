@@ -654,6 +654,27 @@ class ControlNetService {
       const totalTime = Math.round((Date.now() - startTime) / 1000);
       logger.info(`✅ Generation completed in ${totalTime}s using ${method}`);
       
+      // CRITICAL: Upload to Supabase Storage for PERMANENT URL
+      // Railway's temp folder is ephemeral - files are lost on redeploy!
+      let permanentImageUrl = this.getImageUrl(imageId); // Fallback to local URL
+      
+      try {
+        const { uploadImageToStorage } = require('../config/supabase');
+        const imageBuffer = await fs.readFile(imagePath);
+        const timestamp = Date.now();
+        const filename = `${logoSymbol.toLowerCase()}_${imageId}_${timestamp}.png`;
+        
+        const supabaseUrl = await uploadImageToStorage(imageBuffer, filename);
+        if (supabaseUrl) {
+          permanentImageUrl = supabaseUrl;
+          logger.info(`☁️ Image uploaded to Supabase Storage: ${permanentImageUrl}`);
+        } else {
+          logger.warn(`⚠️ Supabase upload failed, using local URL (will break on redeploy)`);
+        }
+      } catch (uploadError) {
+        logger.warn(`⚠️ Could not upload to permanent storage: ${uploadError.message}`);
+      }
+      
       // 📊 MONITOR: Log generation
       await logImageGeneration({
         ...monitorData,
@@ -663,7 +684,7 @@ class ControlNetService {
         controlNetType: method.includes('controlnet') ? 'logo_shape_guide' : '3d_metallic_composite',
         logoSource: logoData.source,
         success: true,
-        imageUrl: this.getImageUrl(imageId),
+        imageUrl: permanentImageUrl,
         localPath: imagePath,
         processingTimeMs: totalTime * 1000,
         apiUsed: method.split('_')[0],
@@ -675,7 +696,7 @@ class ControlNetService {
       return {
         success: true,
         imageId: imageId,
-        imageUrl: this.getImageUrl(imageId),
+        imageUrl: permanentImageUrl,
         localPath: imagePath,
         metadata: {
           method: method,
@@ -684,7 +705,8 @@ class ControlNetService {
           totalProcessingTime: totalTime,
           logoAccuracy: '100% (actual logo shape used)',
           controlNetUsed: method.includes('controlnet'),
-          promptUsed: promptUsed || null
+          promptUsed: promptUsed || null,
+          storageType: permanentImageUrl.includes('supabase') ? 'supabase' : 'local'
         }
       };
         
