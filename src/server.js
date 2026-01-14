@@ -920,8 +920,9 @@ app.post('/api/cover-generator/save', async (req, res) => {
   
   logger.info(`📥 Save cover request: network=${network}, imageUrl=${imageUrl?.substring(0, 50)}...`);
   
-  // Extract userId from token (flexible approach)
+  // Extract userId/email from token (flexible approach)
   let userId = null;
+  let userEmail = null;
   const authHeader = req.headers.authorization;
   
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -945,6 +946,7 @@ app.post('/api/cover-generator/save', async (req, res) => {
         if (tokenParts.length === 3) {
           const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
           userId = payload.user_id || payload.sub || payload.uid || payload.email;
+          userEmail = payload.email || payload.user_email || userEmail;
           logger.info(`📧 Token decoded: ${userId}`);
         }
       }
@@ -987,6 +989,7 @@ app.post('/api/cover-generator/save', async (req, res) => {
         content: JSON.stringify({
           type: 'user_generated_cover',
           user_id: coverData.user_id,
+          user_email: userEmail || null,
           image_url: coverData.image_url,
           network: coverData.network,
           original_title: coverData.title,
@@ -1015,6 +1018,46 @@ app.post('/api/cover-generator/save', async (req, res) => {
           created_at: coverData.created_at
         };
         logger.info(`✅ Saved via Supabase articles table (id: ${data.id})`);
+        
+        // ALSO save to master account's covers (if configured and user isn't master)
+        try {
+          const PromptRefinementService = require('./services/promptRefinementService');
+          const isMaster = PromptRefinementService.isMasterAccount(coverData.user_id, userEmail);
+          const masterEmail = process.env.MASTER_ACCOUNT_EMAIL;
+          const masterUid = process.env.MASTER_ACCOUNT_UID;
+          const masterSourceId = masterUid || masterEmail;
+          
+          if (!isMaster && masterSourceId) {
+            const masterArticleData = {
+              title: `[USER_COVER] ${coverData.network}: ${coverData.title}`,
+              url: coverData.image_url,
+              source: `user_cover_${masterSourceId}`,
+              content: JSON.stringify({
+                type: 'user_generated_cover',
+                user_id: masterSourceId,
+                image_url: coverData.image_url,
+                network: coverData.network,
+                original_title: coverData.title,
+                generated_at: coverData.created_at,
+                original_user_id: coverData.user_id,
+                original_user_email: userEmail || null
+              }),
+              published_at: new Date().toISOString()
+            };
+            
+            const { error: masterError } = await supabase
+              .from('articles')
+              .insert(masterArticleData);
+            
+            if (masterError) {
+              logger.warn(`Master cover save failed: ${masterError.message}`);
+            } else {
+              logger.info(`✅ Also saved to master account covers (${masterSourceId})`);
+            }
+          }
+        } catch (masterSaveError) {
+          logger.warn(`Master cover save skipped: ${masterSaveError.message}`);
+        }
       } else {
         logger.error(`❌ Articles insert failed: ${error?.message}`);
       }
@@ -1730,8 +1773,9 @@ app.get('/api/cover-generator/check-tables', async (req, res) => {
 
 // Get user's saved covers
 app.get('/api/cover-generator/my-covers', async (req, res) => {
-  // Extract userId from auth header
+  // Extract userId/email from auth header
   let userId = null;
+  let userEmail = null;
   const authHeader = req.headers.authorization;
   
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -1741,6 +1785,7 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
       if (tokenParts.length === 3) {
         const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
         userId = payload.user_id || payload.sub || payload.uid || payload.email;
+        userEmail = payload.email || payload.user_email || null;
       }
     } catch (e) {
       logger.warn('Could not decode token for my-covers:', e.message);
@@ -1759,13 +1804,22 @@ app.get('/api/cover-generator/my-covers', async (req, res) => {
       const supabase = getSupabaseClient();
       
       if (supabase) {
-        // Query articles table where source matches user_cover_userId pattern
+        // If master, also fetch master email-based covers
+        const PromptRefinementService = require('./services/promptRefinementService');
+        const isMaster = PromptRefinementService.isMasterAccount(userId, userEmail);
+        const masterEmail = process.env.MASTER_ACCOUNT_EMAIL;
+        const sourcesToFetch = new Set([`user_cover_${userId}`]);
+        if (isMaster && masterEmail) {
+          sourcesToFetch.add(`user_cover_${masterEmail}`);
+        }
+        
+        // Query articles table where source matches any of the sources
         const { data: articlesData, error: articlesError } = await supabase
           .from('articles')
           .select('id, title, url, content, published_at, source')
-          .eq('source', `user_cover_${userId}`)
+          .in('source', Array.from(sourcesToFetch))
           .order('published_at', { ascending: false })
-          .limit(100);
+          .limit(150);
         
         if (!articlesError && articlesData) {
           // Transform articles to cover format
