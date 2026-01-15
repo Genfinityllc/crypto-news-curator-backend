@@ -69,6 +69,8 @@ CRITICAL STYLE REQUIREMENTS:
 - Logos must NEVER be inside boxes, frames, or containers - they should float freely
 - NO server racks, data centers, or computer equipment in backgrounds
 - Avoid red/yellow dominance; prefer cool tones and subtle warm highlights
+- Color palette: dark base with reflective surfaces, 2–3 main colors max
+- Accent colors allowed: subtle purple, neon green, occasional pink (paired well)
 
 Based on user feedback, return a JSON object with these fields:
 - logoAdjustments: Object with sizeMultiplier (0.7 to 1.5, where 1.0 is normal), material (string), style (string), avoid (array)
@@ -97,7 +99,8 @@ PROVEN GOOD STYLES the user likes (from their approved examples):
 8. Clean pedestal presentations with golden rays (subtle, not dominant)
 
 User likes: 3D CGI renders, glass/crystal/chrome materials, reflective surfaces, premium cinematic lighting,
-clean dark backgrounds, subtle neon accents, large prominent logos.
+clean dark backgrounds with depth and reflections, subtle neon accents (purple/green/pink), large prominent logos,
+limited palettes (no more than 3 main colors).
 User dislikes: boxes around logos, photorealistic photos, server racks, cityscapes, sparkles, nebula spirals, dominant red/yellow.`;
 
       const userMessage = `Analyze this feedback for a ${network} cryptocurrency cover image:
@@ -491,6 +494,10 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       prompt += ` ${angleHint}.`;
     }
 
+    // Add color palette guidance (dark base, limited palette, accent colors)
+    prompt += ` Use a dark reflective base with depth and refractions, limit to 2-3 main colors.`;
+    prompt += ` Preferred accent colors: subtle purple, neon green, occasional pink when paired well.`;
+
     // Add custom keyword as SECONDARY elements (logo remains primary subject)
     if (customKeyword && customKeyword.trim()) {
       const secondary = customKeyword.trim();
@@ -516,6 +523,7 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       'no sparkles', 'no glitter particles', 'no nebula spiral', 'no spiraling effects',
       // Avoid strong warm colors
       'no dominant red', 'no dominant yellow', 'no heavy warm tones',
+      'no more than three main colors',
       // Quality
       'no blur', 'no distortion', 'no watermark', 'no text overlay'
     ];
