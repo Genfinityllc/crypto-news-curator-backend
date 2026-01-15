@@ -306,6 +306,30 @@ Please analyze this feedback and return a JSON object with specific adjustments 
         prompt: 'A {network} logo in pearl white glossy plastic with soft sheen, primary subject floating, soft diffused light with mild rim, subtle color shift in gloss, dark matte gradient.'
       },
       {
+        name: 'anodized_titanium',
+        prompt: 'A {network} logo in anodized titanium with cool blue-violet sheen, primary subject floating, crisp specular highlights, refined cinematic lighting, deep dark gradient background.'
+      },
+      {
+        name: 'obsidian_glass',
+        prompt: 'A {network} logo in obsidian black glass with sharp reflections, primary subject floating, rim lighting emphasizing depth, subtle reflections, deep charcoal gradient background.'
+      },
+      {
+        name: 'ceramic_white',
+        prompt: 'A {network} logo in matte ceramic white with subtle gloss edges, primary subject floating, soft cinematic key light with gentle rim, minimal dark gradient background.'
+      },
+      {
+        name: 'carbon_fiber',
+        prompt: 'A {network} logo in dark carbon fiber with metallic inlays, primary subject floating, crisp highlights on texture, cinematic lighting, deep blue-black gradient background.'
+      },
+      {
+        name: 'satin_aluminum',
+        prompt: 'A {network} logo in satin aluminum with soft reflections, primary subject floating, clean cinematic lighting, subtle edge highlights, dark neutral gradient background.'
+      },
+      {
+        name: 'liquid_steel',
+        prompt: 'A {network} logo in liquid steel with smooth flowing reflections, primary subject floating, dramatic highlights, cinematic depth, dark gradient background.'
+      },
+      {
         name: 'blue_cyan_cinematic',
         prompt: 'A {network} logo in polished metal with cool blue reflections, primary subject, cool cyan key light with soft rim, soft light streak reflections, deep blue gradient background.'
       },
@@ -454,6 +478,19 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       prompt += `${style.mood}. `;
     }
     
+    // Add logo angle variation for depth (tilted perspectives)
+    const anglePhrases = [
+      'tilted three-quarter view to emphasize depth',
+      'angled perspective with visible depth',
+      'slight rotation showcasing 3D thickness',
+      'dynamic angled view with depth shadows',
+      'subtle tilt revealing dimensionality'
+    ];
+    if (Math.random() > 0.35) {
+      const angleHint = anglePhrases[Math.floor(Math.random() * anglePhrases.length)];
+      prompt += ` ${angleHint}.`;
+    }
+
     // Add custom keyword as SECONDARY elements (logo remains primary subject)
     if (customKeyword && customKeyword.trim()) {
       const secondary = customKeyword.trim();
