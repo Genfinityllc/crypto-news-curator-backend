@@ -720,6 +720,7 @@ const COMPANIES_LIST = [
   // Newly added companies/institutions (from PNG folder)
   { symbol: 'ABERDEEN', name: 'Aberdeen', type: 'company' },
   { symbol: 'ARROW', name: 'Arrow', type: 'company' },
+  { symbol: 'ARCHAX', name: 'Archax', type: 'company' },
   { symbol: 'AVERYDENNISON', name: 'Avery Dennison', type: 'company' },
   { symbol: 'BLOCKCHAINFORENERGY', name: 'Blockchain for Energy', type: 'company' },
   { symbol: 'BOEING', name: 'Boeing', type: 'company' },
