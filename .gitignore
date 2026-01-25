@@ -89,6 +89,8 @@ frontend-*.png
 !assets/*.jpg
 !assets/*.jpeg
 !uploads/png-logos/*.png
+!public/logos/*.png
+!style-examples/*.png
 
 
 # Sensitive files
@@ -103,3 +105,4 @@ COVER_GENERATION*.md
 FACT_CHECKING*.md
 STYLE_GUIDE.md
 
+.vercel

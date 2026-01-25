@@ -5,7 +5,9 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const path = require('path');
 const http = require('http');
-const { testSupabaseConnection } = require('./config/supabase');
+const fs = require('fs').promises;
+const multer = require('multer');
+const { testSupabaseConnection, uploadImageToStorage } = require('./config/supabase');
 const rateLimit = require('express-rate-limit');
 const { autoUpdateService } = require('./services/autoUpdateService');
 const { websocketService } = require('./services/websocketService');
@@ -166,8 +168,14 @@ app.use('/screenshots', express.static(path.join(__dirname, '..', 'screenshots')
 // Serve uploaded logos
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// Serve public logos (for cover generator)
+app.use('/logos', express.static(path.join(__dirname, '..', 'public', 'logos')));
+
 // Serve AI generated covers
 app.use('/ai-covers', express.static(path.join(__dirname, '..', 'ai-cover-generator', 'style_outputs')));
+
+// Serve style example images for the frontend style picker
+app.use('/style-examples', express.static(path.join(__dirname, '..', 'style-examples')));
 
 // Proxy images from external AI service
 app.get('/ai-service-proxy/*', async (req, res) => {
@@ -307,6 +315,15 @@ try {
   console.log('✅ Universal Style Compositor routes loaded successfully - Multiple generation types');
 } catch (error) {
   console.error('❌ Error loading Universal Style Compositor routes:', error.message);
+  console.error('❌ Full error:', error);
+}
+
+// Style Catalog - Curated style examples with Wavespeed prompts for frontend picker
+try {
+  app.use('/api/style-catalog', require('./routes/style-catalog')); // Style picker for frontend
+  console.log('✅ Style Catalog routes loaded successfully - Frontend style picker');
+} catch (error) {
+  console.error('❌ Error loading Style Catalog routes:', error.message);
   console.error('❌ Full error:', error);
 }
 // REMOVED: app.use('/api/test-data', require('./routes/test-data')); // Fake articles removed
@@ -748,7 +765,522 @@ const COMPANIES_LIST = [
   { symbol: 'UBISOFT', name: 'Ubisoft', type: 'company' },
   { symbol: 'WORLDPAY', name: 'Worldpay', type: 'company' },
   { symbol: 'ZAIN', name: 'Zain', type: 'company' },
+  { symbol: 'AXIOM', name: 'Axiom', type: 'company' },
+  { symbol: 'PLUGANDPLAY', name: 'Plug and Play', type: 'company' },
+  { symbol: 'RAZE', name: 'Raze', type: 'company' },
 ];
+
+// Dynamic lists for runtime additions (loaded from file if exists)
+let DYNAMIC_NETWORKS = [];
+let DYNAMIC_COMPANIES = [];
+
+// Load dynamic logos from config file if exists
+const DYNAMIC_LOGOS_FILE = path.join(__dirname, '../uploads/dynamic-logos.json');
+async function loadDynamicLogos() {
+  try {
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(__dirname, '../uploads');
+    const pngLogosDir = path.join(__dirname, '../uploads/png-logos');
+    try {
+      await fs.mkdir(uploadsDir, { recursive: true });
+      await fs.mkdir(pngLogosDir, { recursive: true });
+    } catch (e) {
+      // Directories might already exist
+    }
+
+    const data = await fs.readFile(DYNAMIC_LOGOS_FILE, 'utf8');
+    const parsed = JSON.parse(data);
+    DYNAMIC_NETWORKS = parsed.networks || [];
+    DYNAMIC_COMPANIES = parsed.companies || [];
+    console.log(`📦 Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies`);
+  } catch (error) {
+    // File doesn't exist yet, that's fine
+    DYNAMIC_NETWORKS = [];
+    DYNAMIC_COMPANIES = [];
+  }
+}
+// Load async but don't block startup
+loadDynamicLogos().catch(e => console.log('Dynamic logos load skipped:', e.message));
+
+async function saveDynamicLogos() {
+  try {
+    await fs.writeFile(DYNAMIC_LOGOS_FILE, JSON.stringify({
+      networks: DYNAMIC_NETWORKS,
+      companies: DYNAMIC_COMPANIES
+    }, null, 2));
+    logger.info(`💾 Saved dynamic logos config`);
+  } catch (error) {
+    logger.error(`❌ Failed to save dynamic logos: ${error.message}`);
+  }
+}
+
+// Multer configuration for logo uploads
+const logoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../uploads/png-logos'));
+  },
+  filename: function (req, file, cb) {
+    // Use the symbol from request body, fallback to original filename
+    const symbol = req.body.symbol || file.originalname.replace(/\.[^/.]+$/, '');
+    cb(null, `${symbol}.png`);
+  }
+});
+
+const logoUpload = multer({
+  storage: logoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: function (req, file, cb) {
+    // Accept PNG and JPG
+    if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG and JPG files are allowed'));
+    }
+  }
+});
+
+// POST /api/cover-generator/upload-logo - Upload a new logo (Valor admin only)
+app.post('/api/cover-generator/upload-logo', logoUpload.single('logo'), async (req, res) => {
+  try {
+    const { symbol, name, type } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    if (!symbol || !name || !type) {
+      // Delete the uploaded file if validation fails
+      await fs.unlink(req.file.path);
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: symbol, name, and type are required'
+      });
+    }
+
+    if (type !== 'network' && type !== 'company') {
+      await fs.unlink(req.file.path);
+      return res.status(400).json({
+        success: false,
+        error: 'Type must be either "network" or "company"'
+      });
+    }
+
+    const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+
+    // Read the uploaded file and upload to Supabase Storage for persistence
+    let supabaseUrl = null;
+    try {
+      const fileBuffer = await fs.readFile(req.file.path);
+      const supabaseFilename = `${normalizedSymbol}.png`;
+      supabaseUrl = await uploadImageToStorage(fileBuffer, supabaseFilename, 'logos');
+      if (supabaseUrl) {
+        logger.info(`☁️ Logo uploaded to Supabase Storage: ${supabaseUrl}`);
+      }
+    } catch (uploadErr) {
+      logger.warn(`⚠️ Could not upload logo to Supabase Storage: ${uploadErr.message}`);
+    }
+
+    const logoEntry = {
+      symbol: normalizedSymbol,
+      name,
+      type,
+      supabaseUrl: supabaseUrl || null  // Store Supabase URL for persistence
+    };
+
+    // Add to dynamic list (or update if exists)
+    if (type === 'network') {
+      const existingIndex = DYNAMIC_NETWORKS.findIndex(n => n.symbol === normalizedSymbol);
+      const builtinExists = NETWORKS_LIST.find(n => n.symbol === normalizedSymbol);
+
+      if (existingIndex !== -1) {
+        // Update existing entry
+        DYNAMIC_NETWORKS[existingIndex] = logoEntry;
+      } else if (!builtinExists) {
+        DYNAMIC_NETWORKS.push(logoEntry);
+      } else {
+        // Built-in exists, add to dynamic to override with supabaseUrl
+        DYNAMIC_NETWORKS.push(logoEntry);
+      }
+    } else {
+      const existingIndex = DYNAMIC_COMPANIES.findIndex(c => c.symbol === normalizedSymbol);
+      const builtinExists = COMPANIES_LIST.find(c => c.symbol === normalizedSymbol);
+
+      if (existingIndex !== -1) {
+        // Update existing entry
+        DYNAMIC_COMPANIES[existingIndex] = logoEntry;
+      } else if (!builtinExists) {
+        DYNAMIC_COMPANIES.push(logoEntry);
+      } else {
+        // Built-in exists, add to dynamic to override with supabaseUrl
+        DYNAMIC_COMPANIES.push(logoEntry);
+      }
+    }
+
+    // Save dynamic logos to file
+    await saveDynamicLogos();
+
+    // Clear the networks cache so the new logo appears
+    networksCache = null;
+    networksCacheTime = 0;
+
+    logger.info(`✅ Logo uploaded: ${normalizedSymbol} (${name}) as ${type}`);
+    logger.info(`📁 File saved to: ${req.file.path}`);
+    if (supabaseUrl) {
+      logger.info(`☁️ Supabase URL: ${supabaseUrl}`);
+    }
+
+    res.json({
+      success: true,
+      message: `Logo "${name}" (${normalizedSymbol}) uploaded successfully as ${type}`,
+      data: {
+        symbol: normalizedSymbol,
+        name,
+        type,
+        filename: req.file.filename,
+        localPath: `/uploads/png-logos/${req.file.filename}`,
+        supabaseUrl: supabaseUrl
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Logo upload failed: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload logo',
+      message: error.message
+    });
+  }
+});
+
+// PUT /api/cover-generator/update-logo - Update a dynamic logo entry (admin only)
+app.put('/api/cover-generator/update-logo', async (req, res) => {
+  try {
+    const { oldSymbol, newSymbol, newName, adminKey } = req.body;
+
+    // Basic admin check
+    if (adminKey !== 'valor-master-2024') {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (!oldSymbol || !newName) {
+      return res.status(400).json({ success: false, error: 'oldSymbol and newName are required' });
+    }
+
+    const normalizedOldSymbol = oldSymbol.toUpperCase().replace(/\s+/g, '');
+    const normalizedNewSymbol = (newSymbol || newName).toUpperCase().replace(/\s+/g, '');
+
+    // Find and update in dynamic lists
+    let found = false;
+
+    // Check dynamic networks
+    const networkIndex = DYNAMIC_NETWORKS.findIndex(n => n.symbol === normalizedOldSymbol);
+    if (networkIndex !== -1) {
+      DYNAMIC_NETWORKS[networkIndex] = {
+        ...DYNAMIC_NETWORKS[networkIndex],
+        symbol: normalizedNewSymbol,
+        name: newName
+      };
+      found = true;
+    }
+
+    // Check dynamic companies
+    const companyIndex = DYNAMIC_COMPANIES.findIndex(c => c.symbol === normalizedOldSymbol);
+    if (companyIndex !== -1) {
+      DYNAMIC_COMPANIES[companyIndex] = {
+        ...DYNAMIC_COMPANIES[companyIndex],
+        symbol: normalizedNewSymbol,
+        name: newName
+      };
+      found = true;
+    }
+
+    if (!found) {
+      return res.status(404).json({ success: false, error: `Logo with symbol ${normalizedOldSymbol} not found in dynamic logos` });
+    }
+
+    // Save and clear cache
+    await saveDynamicLogos();
+    networksCache = null;
+    networksCacheTime = 0;
+
+    logger.info(`✅ Logo updated: ${normalizedOldSymbol} -> ${normalizedNewSymbol} (${newName})`);
+
+    res.json({
+      success: true,
+      message: `Logo updated from ${normalizedOldSymbol} to ${normalizedNewSymbol} (${newName})`
+    });
+  } catch (error) {
+    logger.error(`❌ Logo update failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/cover-generator/delete-logo - Delete a dynamic logo entry (admin only)
+app.delete('/api/cover-generator/delete-logo', async (req, res) => {
+  try {
+    const { symbol, adminKey } = req.body;
+
+    // Basic admin check
+    if (adminKey !== 'valor-master-2024') {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (!symbol) {
+      return res.status(400).json({ success: false, error: 'symbol is required' });
+    }
+
+    const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+    let found = false;
+
+    // Remove from dynamic networks
+    const networkIndex = DYNAMIC_NETWORKS.findIndex(n => n.symbol === normalizedSymbol);
+    if (networkIndex !== -1) {
+      DYNAMIC_NETWORKS.splice(networkIndex, 1);
+      found = true;
+    }
+
+    // Remove from dynamic companies
+    const companyIndex = DYNAMIC_COMPANIES.findIndex(c => c.symbol === normalizedSymbol);
+    if (companyIndex !== -1) {
+      DYNAMIC_COMPANIES.splice(companyIndex, 1);
+      found = true;
+    }
+
+    if (!found) {
+      return res.status(404).json({ success: false, error: `Logo with symbol ${normalizedSymbol} not found in dynamic logos` });
+    }
+
+    // Save and clear cache
+    await saveDynamicLogos();
+    networksCache = null;
+    networksCacheTime = 0;
+
+    logger.info(`✅ Logo deleted: ${normalizedSymbol}`);
+
+    res.json({
+      success: true,
+      message: `Logo ${normalizedSymbol} deleted`
+    });
+  } catch (error) {
+    logger.error(`❌ Logo delete failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/cover-generator/logo-info/:symbol - Get logo info with source
+app.get('/api/cover-generator/logo-info/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+
+    // Check for alias (e.g., TAO -> BITTENSOR)
+    const aliasedSymbol = LOGO_SYMBOL_ALIASES[normalizedSymbol];
+    const symbolsToTry = [normalizedSymbol];
+    if (aliasedSymbol) symbolsToTry.push(aliasedSymbol);
+
+    // 1. Check local uploads directory first (try both symbols)
+    for (const sym of symbolsToTry) {
+      const localPath = path.join(__dirname, '../uploads/png-logos', `${sym}.png`);
+      try {
+        await fs.access(localPath);
+        return res.json({
+          success: true,
+          symbol: normalizedSymbol,
+          source: 'uploaded',
+          sourceLabel: 'Your Upload',
+          previewUrl: `${process.env.BASE_URL || 'https://crypto-news-curator-backend-production.up.railway.app'}/api/cover-generator/logo-preview/${normalizedSymbol}`
+        });
+      } catch (e) {
+        // Not found locally, continue
+      }
+    }
+
+    // 2. Check Supabase Storage (try both symbols)
+    const { getSupabaseClient } = require('./config/supabase');
+    const client = getSupabaseClient();
+    if (client) {
+      for (const sym of symbolsToTry) {
+        const filename = `${sym}.png`;
+        const { data: urlData } = client.storage
+          .from('logos')
+          .getPublicUrl(filename);
+
+        if (urlData?.publicUrl) {
+          try {
+            const axios = require('axios');
+            const response = await axios.head(urlData.publicUrl, { timeout: 5000 });
+            if (response.status === 200) {
+              return res.json({
+                success: true,
+                symbol: normalizedSymbol,
+                source: 'supabase',
+                sourceLabel: 'Your Upload (Cloud)',
+                previewUrl: `${process.env.BASE_URL || 'https://crypto-news-curator-backend-production.up.railway.app'}/api/cover-generator/logo-preview/${normalizedSymbol}`
+              });
+            }
+          } catch (e) {
+            // Not in Supabase with this symbol, try next
+          }
+        }
+      }
+    }
+
+    // 3. Try CDN
+    return res.json({
+      success: true,
+      symbol: normalizedSymbol,
+      source: 'cdn',
+      sourceLabel: 'Default Logo',
+      previewUrl: `${process.env.BASE_URL || 'https://crypto-news-curator-backend-production.up.railway.app'}/api/cover-generator/logo-preview/${normalizedSymbol}`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Symbol aliases - map ticker symbols to logo filenames (case-insensitive, will try multiple)
+const LOGO_SYMBOL_ALIASES = {
+  // Ticker to full name mappings
+  'TAO': 'BITTENSOR',
+  'ADA': 'CARDANO',
+  'RUNE': 'THORCHAIN',
+  'TIA': 'CELESTIA',
+  'CRO': 'CRONOS',
+  'DOT': 'POLKADOT',
+  'LINK': 'CHAINLINK',
+  'XLM': 'STELLAR',
+  'ATOM': 'COSMOS',
+  'ALGO': 'ALGORAND',
+  'FIL': 'FILECOIN',
+  'DOGE': 'DOGECOIN',
+  'LTC': 'LITECOIN',
+  'SHIB': 'SHIBAINU',
+  'TON': 'TONCOIN',
+  'TRX': 'TRON',
+  'UNI': 'UNISWAP',
+  'ARB': 'ARBITRUM',
+  'AVAX': 'AVALANCHE',
+  'MATIC': 'POLYGON',
+  'INJ': 'INJECTIVE',
+  'APT': 'APTOS',
+  'XMR': 'MONERO',
+  'ZEC': 'ZCASH',
+  'QNT': 'QUANT',
+  'HBAR': 'HEDERA',
+  'DAG': 'CONSTELLATION',
+  // Company name variations
+  'MCLARENRACING': 'MCLAREN',
+  'MAGICEDEN': 'MAGICEDEN',
+  'PLUGANDPLAY': 'PLUGANDPLAY',
+  '21SHARES': '21SHARES'
+};
+
+// GET /api/cover-generator/logo-preview/:symbol - Get logo preview image
+app.get('/api/cover-generator/logo-preview/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    let normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+
+    // Check for alias (e.g., TAO -> BITTENSOR)
+    const aliasedSymbol = LOGO_SYMBOL_ALIASES[normalizedSymbol];
+
+    // Set CORS headers for cross-origin image loading
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET');
+
+    // Symbols to try: original first, then alias
+    const symbolsToTry = [normalizedSymbol];
+    if (aliasedSymbol) symbolsToTry.push(aliasedSymbol);
+
+    // 1. Check local uploads directory first (try both symbols)
+    for (const sym of symbolsToTry) {
+      const localPath = path.join(__dirname, '../uploads/png-logos', `${sym}.png`);
+      try {
+        await fs.access(localPath);
+        const logoBuffer = await fs.readFile(localPath);
+        res.set('Content-Type', 'image/png');
+        res.set('Cache-Control', 'public, max-age=3600'); // 1 hour cache
+        res.set('X-Logo-Source', 'uploaded');
+        return res.send(logoBuffer);
+      } catch (e) {
+        // Not found locally, continue
+      }
+    }
+
+    // 2. Check Supabase Storage (try both symbols)
+    const { getSupabaseClient } = require('./config/supabase');
+    const client = getSupabaseClient();
+    if (client) {
+      for (const sym of symbolsToTry) {
+        const filename = `${sym}.png`;
+        const { data: urlData } = client.storage
+          .from('logos')
+          .getPublicUrl(filename);
+
+        if (urlData?.publicUrl) {
+          try {
+            const axios = require('axios');
+            const response = await axios.get(urlData.publicUrl, {
+              responseType: 'arraybuffer',
+              timeout: 10000,
+              validateStatus: (status) => status === 200
+            });
+            if (response.data && response.data.length > 500) {
+              res.set('Content-Type', 'image/png');
+              res.set('Cache-Control', 'public, max-age=3600');
+              res.set('X-Logo-Source', 'supabase');
+              return res.send(Buffer.from(response.data));
+            }
+          } catch (e) {
+            // Not in Supabase with this symbol, try next
+          }
+        }
+      }
+    }
+
+    // 3. Try CDN (cryptologos.cc)
+    const slugMapping = {
+      'BTC': 'bitcoin-btc', 'ETH': 'ethereum-eth', 'XRP': 'xrp-xrp',
+      'BNB': 'bnb-bnb', 'SOL': 'solana-sol', 'ADA': 'cardano-ada',
+      'DOGE': 'dogecoin-doge', 'DOT': 'polkadot-new-dot', 'MATIC': 'polygon-matic',
+      'LINK': 'chainlink-link', 'AVAX': 'avalanche-avax', 'UNI': 'uniswap-uni',
+      'ATOM': 'cosmos-atom', 'LTC': 'litecoin-ltc', 'NEAR': 'near-protocol-near',
+      'ALGO': 'algorand-algo', 'XLM': 'stellar-xlm', 'HBAR': 'hedera-hbar',
+      'FIL': 'filecoin-fil', 'ARB': 'arbitrum-arb', 'OP': 'optimism-ethereum-op',
+      'SUI': 'sui-sui', 'APT': 'aptos-apt', 'INJ': 'injective-inj',
+      'SEI': 'sei-sei', 'TIA': 'celestia-tia', 'PEPE': 'pepe-pepe',
+      'SHIB': 'shiba-inu-shib', 'TON': 'toncoin-ton', 'TRX': 'tron-trx',
+      'AAVE': 'aave-aave', 'IMX': 'immutable-x-imx', 'RUNE': 'thorchain-rune'
+    };
+    const slug = slugMapping[normalizedSymbol] || `${normalizedSymbol.toLowerCase()}-${normalizedSymbol.toLowerCase()}`;
+    const cdnUrl = `https://cryptologos.cc/logos/${slug}-logo.png`;
+
+    try {
+      const axios = require('axios');
+      const response = await axios.get(cdnUrl, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        headers: { 'User-Agent': 'Genfinity/1.0' }
+      });
+      if (response.status === 200 && response.data.length > 1000) {
+        res.set('Content-Type', 'image/png');
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.set('X-Logo-Source', 'cdn');
+        return res.send(Buffer.from(response.data));
+      }
+    } catch (e) {
+      // CDN failed
+    }
+
+    // No logo found - return 404
+    res.status(404).json({ error: 'Logo not found', symbol: normalizedSymbol });
+  } catch (error) {
+    logger.error(`Logo preview error for ${req.params.symbol}:`, error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Get list of available networks with logos - FAST cached version
 app.get('/api/cover-generator/networks', async (req, res) => {
@@ -778,15 +1310,27 @@ app.get('/api/cover-generator/networks', async (req, res) => {
       logger.info('Using default networks list (PNG directory not accessible)');
     }
     
-    // Build final list with availability status
-    const networks = NETWORKS_LIST.map(n => ({
+    // Build final list with availability status (including dynamic logos)
+    // Deduplicate by symbol - dynamic entries override builtin entries
+    const networkMap = new Map();
+    NETWORKS_LIST.forEach(n => networkMap.set(n.symbol, n));
+    DYNAMIC_NETWORKS.forEach(n => networkMap.set(n.symbol, n)); // Dynamic overrides builtin
+    const allNetworks = Array.from(networkMap.values());
+
+    const companyMap = new Map();
+    COMPANIES_LIST.forEach(c => companyMap.set(c.symbol, c));
+    DYNAMIC_COMPANIES.forEach(c => companyMap.set(c.symbol, c)); // Dynamic overrides builtin
+    const allCompanies = Array.from(companyMap.values());
+
+    // Check for logos - either local files, Supabase URL in entry, or assume true if no local files available
+    const networks = allNetworks.map(n => ({
       ...n,
-      hasLogo: availablePngs.size === 0 || availablePngs.has(n.symbol) || availablePngs.has(n.symbol.replace(/\s+/g, ''))
+      hasLogo: n.supabaseUrl || availablePngs.size === 0 || availablePngs.has(n.symbol) || availablePngs.has(n.symbol.replace(/\s+/g, ''))
     })).sort((a, b) => a.name.localeCompare(b.name));
-    
-    const companies = COMPANIES_LIST.map(c => ({
+
+    const companies = allCompanies.map(c => ({
       ...c,
-      hasLogo: availablePngs.size === 0 || availablePngs.has(c.symbol) || availablePngs.has(c.symbol.replace(/\s+/g, ''))
+      hasLogo: c.supabaseUrl || availablePngs.size === 0 || availablePngs.has(c.symbol) || availablePngs.has(c.symbol.replace(/\s+/g, ''))
     })).sort((a, b) => a.name.localeCompare(b.name));
     
     // Cache the result
@@ -813,14 +1357,14 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, title, style, customKeyword } = req.body;
-  
+  const { network, additionalNetworks, title, style, customKeyword } = req.body;
+
   if (!network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
   }
-  
+
   const startTime = Date.now();
-  
+
   // Optional: extract user context from auth header for per-user prompt preferences
   let userId = null;
   let userEmail = null;
@@ -838,20 +1382,31 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       logger.warn('Could not decode token for generate:', e.message);
     }
   }
-  
+
+  // Combine primary and additional networks
+  const allNetworks = [network.toUpperCase()];
+  if (additionalNetworks && Array.isArray(additionalNetworks)) {
+    additionalNetworks.forEach(n => {
+      if (n && typeof n === 'string') {
+        allNetworks.push(n.toUpperCase());
+      }
+    });
+  }
+
   try {
     const ControlNetService = require('./services/controlNetService');
     const controlNetService = new ControlNetService();
-    
-    const articleTitle = title || `${network} Cryptocurrency News`;
-    
-    logger.info(`🎨 Cover Generator: Creating ${network} cover... ${customKeyword ? `(keyword: ${customKeyword})` : ''}`);
-    
+
+    const networkLabel = allNetworks.join(' + ');
+    const articleTitle = title || `${networkLabel} Cryptocurrency News`;
+
+    logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''}`);
+
     const result = await controlNetService.generateWithAdvancedControlNet(
       articleTitle,
       network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: allNetworks.slice(1) }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);
@@ -864,7 +1419,12 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         method: result.metadata?.method || 'nano_banana_pro_3d',
         duration: `${duration}s`,
         promptUsed: result.metadata?.promptUsed || null,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // Include logo loading info
+        requestedLogos: result.metadata?.requestedLogos,
+        loadedLogos: result.metadata?.loadedLogos,
+        missingLogos: result.metadata?.missingLogos,
+        warnings: result.warnings
       });
     } else {
       throw new Error(result.error || 'Generation failed');
@@ -2589,3 +3149,4 @@ process.on('SIGINT', () => {
 module.exports = app;
 
 // Trigger redeploy Thu Jan  8 11:11:51 PST 2026
+// Build: 1768972900
