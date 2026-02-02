@@ -992,18 +992,29 @@ class ControlNetService {
       try {
         prompt = await this.getAIOptimizedPrompt(logoSymbol, title, customKeyword, {
           userId: article?.userId || null,
-          userEmail: article?.userEmail || null
+          userEmail: article?.userEmail || null,
+          logoTextMode: article?.logoTextMode || 'full'
         });
         logger.info(`🎨 Using CURATED prompt from good examples`);
       } catch (err) {
         // Fallback to standard prompt generation
         prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword, {
           userId: article?.userId || null,
-          userEmail: article?.userEmail || null
+          userEmail: article?.userEmail || null,
+          logoTextMode: article?.logoTextMode || 'full'
         });
         logger.info(`📝 Using standard prompt generation`);
       }
     }
+    const logoTextMode = article?.logoTextMode || 'full';
+    if (logoTextMode === 'full') {
+      prompt += ` Preserve the full logo including any text, wordmarks, or typography; do not crop or omit text.`;
+      prompt += ` No missing or cropped logo text.`;
+    } else if (logoTextMode === 'mark') {
+      prompt += ` Use the symbol-only logo mark; omit wordmarks or logo text.`;
+      prompt += ` No letters or wordmark text.`;
+    }
+
     logger.info(`📝 Prompt: ${prompt.substring(0, 200)}...`);
     
     // EXACT Wavespeed API format from official docs
@@ -1866,7 +1877,6 @@ class ControlNetService {
     // CRITICAL: Specify this is 3D CGI render with DEEP DEPTH
     prompt += `, deep 3D CGI render with strong parallax depth, Octane render quality, Cinema 4D, Blender render`;
     prompt += `, sharp reflective edges with environment mapping, maintain exact logo proportions, 8k resolution`;
-    prompt += `, preserve full logo including any text/wordmark, no cropped or missing text`;
 
     // CRITICAL NEGATIVE PROMPTS - Things to ALWAYS avoid:
     // 1. No boxes/frames/pedestals - logos must float freely
@@ -1880,7 +1890,6 @@ class ControlNetService {
     prompt += `, no server rack, no server room, no data center`;
     prompt += `, no cityscape, no buildings, no skyline`;
     prompt += `, no sparkles, no glitter, no nebula spiral`;
-    prompt += `, no missing text, no cropped text, no incomplete logo text`;
     if ((prefs.bgStyleBad || []).includes('avoid_glow_ring')) {
       prompt += `, no glowing ring, no halo, no circular glow around logo`;
     }
@@ -4829,7 +4838,8 @@ class ControlNetService {
         null, // Will use curated styles instead of specific feedback
         genCount,
         customKeyword,
-        promptRefinement.preferences || null
+        promptRefinement.preferences || null,
+        { logoTextMode: userContext?.logoTextMode || 'full' }
       );
       
       logger.info(`🤖 AI Optimized prompt generated for ${logoSymbol}`);

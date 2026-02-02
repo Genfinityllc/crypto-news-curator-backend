@@ -1357,7 +1357,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, logoTextMode } = req.body;
 
   if (!network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
@@ -1413,13 +1413,15 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       }
     }
 
-    logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''}`);
+    const resolvedLogoTextMode = ['full', 'mark'].includes(logoTextMode) ? logoTextMode : 'full';
+
+    logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''} (logoTextMode: ${resolvedLogoTextMode})`);
 
     const result = await controlNetService.generateWithAdvancedControlNet(
       articleTitle,
       network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: allNetworks.slice(1), stylePrompt }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);
