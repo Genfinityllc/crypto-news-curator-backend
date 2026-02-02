@@ -12,6 +12,8 @@ const fs = require('fs');
 class StyleCatalogService {
   constructor() {
     this.baseUrl = process.env.BASE_URL || 'https://crypto-news-curator-backend-production.up.railway.app';
+    // Use Supabase storage for style examples (uploaded separately)
+    this.supabaseStorageUrl = 'https://daqxnvcfmepjzcgfdrdf.supabase.co/storage/v1/object/public/style-examples';
     this.styleExamplesPath = path.join(__dirname, '../../style-examples');
 
     // Complete style catalog with exact Wavespeed prompts
@@ -223,12 +225,15 @@ class StyleCatalogService {
    * Get all styles with sample image URLs
    */
   getAllStyles() {
+    // Use API endpoint to serve images (works with local files or Supabase)
     return Object.values(this.styles).map(style => ({
       id: style.id,
       name: style.name,
       description: style.description,
       category: style.category,
-      sampleImageUrl: `${this.baseUrl}/style-examples/${style.filename}`,
+      sampleImageUrl: `${this.baseUrl}/api/style-catalog/image/${style.id}`,
+      // Supabase URL as backup when manually uploaded
+      supabaseUrl: `${this.supabaseStorageUrl}/${style.filename}`,
       filename: style.filename
     }));
   }
@@ -267,7 +272,7 @@ class StyleCatalogService {
       name: style.name,
       description: style.description,
       category: style.category,
-      sampleImageUrl: `${this.baseUrl}/style-examples/${style.filename}`,
+      sampleImageUrl: `${this.supabaseStorageUrl}/${style.filename}`,
       filename: style.filename
     };
   }

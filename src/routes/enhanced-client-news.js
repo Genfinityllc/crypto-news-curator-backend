@@ -201,7 +201,7 @@ router.get('/cached', async (req, res) => {
       limit: parseInt(limit),
       sortBy: 'publishedAt',
       // Filter for client networks
-      network: ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']
+      network: ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']
     });
 
     // If no cached articles, return empty with flag to trigger full search

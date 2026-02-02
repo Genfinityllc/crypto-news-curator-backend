@@ -111,7 +111,7 @@ router.get('/', async (req, res) => {
     
     if (network === 'clients') {
       // Special filter for client networks - prioritize your specific clients
-      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
+      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
       filteredNews = filteredNews.filter(article => 
         article.network && clientNetworks.some(client => 
           article.network === client
@@ -228,7 +228,7 @@ router.post('/cache/clear', (req, res) => {
 // Get counts for client networks (matching frontend filter logic)
 router.get('/client-counts', async (req, res) => {
   try {
-    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
+    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
     const counts = {};
     let totalClientCount = 0;
     

@@ -226,7 +226,7 @@ router.get('/test-clients', async (req, res) => {
     
     // Get all articles and filter for client networks
     const allArticles = await getArticles({ limit: 200 });
-    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP', 'Axiom'];
     
     const clientArticles = allArticles.data.filter(article => 
       article.network && clientNetworks.some(client => 

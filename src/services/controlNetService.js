@@ -9,6 +9,7 @@ const WatermarkService = require('./watermarkService');
 const FreeLoraService = require('./freeLoraService');
 const { logImageGeneration } = require('./outputMonitorService');
 const AIFeedbackAnalyzer = require('./aiFeedbackAnalyzer');
+const { getSupabaseClient } = require('../config/supabase');
 
 /**
  * ControlNet Service - Precise Logo Generation with PNG + Stable Diffusion
@@ -40,8 +41,39 @@ class ControlNetService {
     this.pngLogoDir = process.env.NODE_ENV === 'production' 
       ? path.resolve(__dirname, '../../uploads/png-logos')
       : '/Users/valorkopeny/Desktop/crypto-news-curator-backend/uploads/png-logos';
-    
+
     logger.info(`📁 PNG Logo Directory: ${this.pngLogoDir}`);
+
+    // Symbol aliases - map ticker symbols to logo filenames
+    this.logoSymbolAliases = {
+      'TAO': 'BITTENSOR',
+      'ADA': 'CARDANO',
+      'RUNE': 'THORCHAIN',
+      'TIA': 'CELESTIA',
+      'CRO': 'CRONOS',
+      'DOT': 'POLKADOT',
+      'LINK': 'CHAINLINK',
+      'XLM': 'STELLAR',
+      'ATOM': 'COSMOS',
+      'ALGO': 'ALGORAND',
+      'FIL': 'FILECOIN',
+      'DOGE': 'DOGECOIN',
+      'LTC': 'LITECOIN',
+      'SHIB': 'SHIBAINU',
+      'TON': 'TONCOIN',
+      'TRX': 'TRON',
+      'UNI': 'UNISWAP',
+      'ARB': 'ARBITRUM',
+      'AVAX': 'AVALANCHE',
+      'MATIC': 'POLYGON',
+      'INJ': 'INJECTIVE',
+      'APT': 'APTOS',
+      'XMR': 'MONERO',
+      'ZEC': 'ZCASH',
+      'QNT': 'QUANT',
+      'HBAR': 'HEDERA',
+      'DAG': 'CONSTELLATION'
+    };
     
     // REVOLUTIONARY 2024 Two-Stage Depth-Aware ControlNet Settings
     this.optimalSettings = {
@@ -142,33 +174,51 @@ class ControlNetService {
     try {
       const normalizedSymbol = symbol.toUpperCase();
       
-      // First, try to get PNG logo from server directory (ALWAYS prefer local files)
-      logger.info(`🔍 Looking for ${symbol} logo in PNG directory: ${this.pngLogoDir}`);
-      const pngLogo = await this.tryGetPngFromDirectory(symbol);
+      // Check for alias (e.g., TAO -> BITTENSOR)
+      const aliasedSymbol = this.logoSymbolAliases[normalizedSymbol];
+      const symbolsToTry = [normalizedSymbol];
+      if (aliasedSymbol) {
+        symbolsToTry.push(aliasedSymbol);
+        logger.info(`🔄 Symbol ${normalizedSymbol} has alias: ${aliasedSymbol}`);
+      }
+
+      // Try each symbol (original first, then alias)
+      for (const sym of symbolsToTry) {
+        // First, try to get PNG logo from server directory (ALWAYS prefer local files)
+        logger.info(`🔍 Looking for ${sym} logo in PNG directory: ${this.pngLogoDir}`);
+        const pngLogo = await this.tryGetPngFromDirectory(sym);
       if (pngLogo) {
-        logger.info(`✅ Found ${symbol} PNG logo from ${pngLogo.source} - USING LOCAL FILE (no CDN fallback)`);
+          logger.info(`✅ Found ${sym} PNG logo from ${pngLogo.source} - USING LOCAL FILE`);
         return pngLogo;
       }
-      logger.info(`⚠️ ${symbol} PNG not found in directory`);
       
-      // Second: Try to fetch from public CDN (ONLY if local not found)
-      logger.info(`🌐 Trying to fetch ${symbol} logo from public CDN...`);
-      const cdnLogo = await this.fetchLogoFromCDN(symbol);
+        // Second: Try Supabase Storage (uploaded logos persist here across Railway deploys)
+        logger.info(`☁️ Checking Supabase Storage for ${sym} logo...`);
+        const supabaseLogo = await this.fetchLogoFromSupabase(sym);
+        if (supabaseLogo) {
+          logger.info(`✅ Found ${sym} logo from Supabase Storage`);
+          return supabaseLogo;
+        }
+      }
+
+      // Third: Try to fetch from public CDN (only original symbol)
+      logger.info(`🌐 Trying to fetch ${normalizedSymbol} logo from public CDN...`);
+      const cdnLogo = await this.fetchLogoFromCDN(normalizedSymbol);
       if (cdnLogo) {
-        logger.info(`✅ Found ${symbol} logo from CDN`);
+        logger.info(`✅ Found ${normalizedSymbol} logo from CDN`);
         return cdnLogo;
       }
-      logger.info(`⚠️ ${symbol} not found on CDN`);
+      logger.info(`⚠️ ${normalizedSymbol} not found on CDN`);
       
       // Fallback: Generate PNG from SVG data
-      logger.info(`🔄 PNG not found, generating from SVG for ${symbol}...`);
-      const svgLogo = await this.generatePngFromSvg(symbol);
+      logger.info(`🔄 PNG not found, generating from SVG for ${normalizedSymbol}...`);
+      const svgLogo = await this.generatePngFromSvg(normalizedSymbol);
       if (svgLogo) {
-        logger.info(`✅ Generated ${symbol} logo from SVG`);
+        logger.info(`✅ Generated ${normalizedSymbol} logo from SVG`);
         return svgLogo;
       }
       
-      logger.warn(`⚠️  No PNG or SVG logo available for ${symbol}`);
+      logger.warn(`⚠️  No PNG or SVG logo available for ${normalizedSymbol}`);
       return null;
       
     } catch (error) {
@@ -240,6 +290,66 @@ class ControlNetService {
     }
     
     logger.warn(`⚠️ Could not fetch ${symbol} logo from CDN`);
+    return null;
+  }
+
+  /**
+   * Fetch logo from Supabase Storage (persists across Railway deploys)
+   * Logos uploaded via admin panel are stored in 'logos' bucket
+   */
+  async fetchLogoFromSupabase(symbol) {
+    try {
+      const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
+      const client = getSupabaseClient();
+
+      if (!client) {
+        logger.warn('Supabase client not available for logo fetch');
+        return null;
+      }
+
+      const filename = `${normalizedSymbol}.png`;
+      logger.info(`☁️ Checking Supabase Storage for logo: logos/${filename}`);
+
+      // Get public URL for the logo
+      const { data: urlData } = client.storage
+        .from('logos')
+        .getPublicUrl(filename);
+
+      if (!urlData?.publicUrl) {
+        return null;
+      }
+
+      // Try to fetch the logo
+      const response = await axios.get(urlData.publicUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        validateStatus: (status) => status === 200
+      });
+
+      if (response.data && response.data.length > 500) {
+        logger.info(`✅ Fetched ${symbol} logo from Supabase Storage (${response.data.length} bytes)`);
+
+        // Also save locally for faster future access
+        try {
+          const localPath = path.join(this.pngLogoDir, filename);
+          await fs.writeFile(localPath, response.data);
+          logger.info(`💾 Cached logo locally: ${localPath}`);
+        } catch (cacheErr) {
+          // Local caching failed, but we still have the logo
+          logger.warn(`Could not cache logo locally: ${cacheErr.message}`);
+        }
+
+        return {
+          buffer: Buffer.from(response.data),
+          source: 'supabase_storage'
+        };
+      }
+    } catch (error) {
+      // 404 or other error - logo not in Supabase
+      if (error.response?.status !== 404) {
+        logger.warn(`⚠️ Error fetching ${symbol} from Supabase: ${error.message}`);
+      }
+    }
     return null;
   }
 
@@ -434,7 +544,10 @@ class ControlNetService {
         'MOONPAY': ['MoonPay'],
         'NVIDIA': ['nvidia', 'NVIDIA', 'Nvidia'],
         'PAXOS': ['Paxos', 'PAXOS'],
-        'ROBINHOOD': ['Robinhood']
+        'ROBINHOOD': ['Robinhood'],
+        'AXIOM': ['Axiom', 'axiom'],
+        'PLUGANDPLAY': ['Plug and Play', 'plug and play', 'PlugAndPlay'],
+        'RAZE': ['Raze', 'raze']
       };
       
       // Build list of possible names to search
@@ -605,27 +718,62 @@ class ControlNetService {
   async generateWithAdvancedControlNet(title, logoSymbol, style = 'holographic', options = {}) {
       const startTime = Date.now();
       const imageId = this.generateImageId();
+      const additionalNetworks = options.additionalNetworks || [];
+      const allLogos = [logoSymbol, ...additionalNetworks];
+
     let monitorData = {
       imageId,
       articleTitle: title,
-      logoSymbol,
+      logoSymbol: allLogos.join('+'),
       style,
       prompt: options.prompt || '',
       startTime: new Date().toISOString()
     };
     
     try {
-      logger.info(`🎯 NANO-BANANA-PRO 3D LOGO GENERATION: ${logoSymbol}`);
+      logger.info(`🎯 NANO-BANANA-PRO 3D LOGO GENERATION: ${allLogos.join(' + ')} (${allLogos.length} logo(s))`);
       logger.info(`📝 Using Google's image editing model for stunning 3D glass/liquid effect`);
       logger.info(`📂 PNG Logo Directory: ${this.pngLogoDir}`);
-      
-      // Get the ACTUAL logo file (100% accurate shape)
-      const logoData = await this.getPngLogo(logoSymbol);
-      if (!logoData) {
-        logger.error(`❌ Logo not found for ${logoSymbol}. Checked directory: ${this.pngLogoDir}`);
-        throw new Error(`No PNG/SVG logo found for ${logoSymbol}`);
+
+      // Load all logos
+      const loadedLogos = [];
+      const missingLogos = [];
+      for (const symbol of allLogos) {
+        const logoData = await this.getPngLogo(symbol);
+        if (logoData) {
+          loadedLogos.push({ symbol, ...logoData });
+          logger.info(`✅ Logo loaded: ${symbol} (${logoData.source}, ${(logoData.buffer?.length / 1024).toFixed(1)}KB)`);
+        } else {
+          missingLogos.push(symbol);
+          logger.warn(`⚠️ Logo not found for ${symbol}, skipping...`);
+        }
       }
-      logger.info(`✅ Logo loaded: ${logoSymbol} (${logoData.source}, ${(logoData.buffer?.length / 1024).toFixed(1)}KB)`);
+
+      // If some logos were missing but we have at least one, continue but note the missing ones
+      if (missingLogos.length > 0 && loadedLogos.length > 0) {
+        logger.warn(`⚠️ MISSING LOGOS: ${missingLogos.join(', ')} - Generation will proceed with ${loadedLogos.length} logo(s) only`);
+      }
+
+      if (loadedLogos.length === 0) {
+        logger.error(`❌ No logos found for any of: ${allLogos.join(', ')}`);
+        throw new Error(`No PNG/SVG logo found for ${allLogos.join(', ')}. Please upload the logo first.`);
+      }
+
+      // If multiple logos, composite them together
+      let finalLogoBuffer;
+      let finalLogoSymbol;
+
+      if (loadedLogos.length === 1) {
+        finalLogoBuffer = loadedLogos[0].buffer;
+        finalLogoSymbol = loadedLogos[0].symbol;
+      } else {
+        logger.info(`🔀 Compositing ${loadedLogos.length} logos together...`);
+        finalLogoBuffer = await this.compositeMultipleLogos(loadedLogos);
+        finalLogoSymbol = loadedLogos.map(l => l.symbol).join('+');
+        logger.info(`✅ Logos composited successfully`);
+      }
+
+      const logoData = { buffer: finalLogoBuffer, source: loadedLogos.length > 1 ? 'composite' : loadedLogos[0].source };
       
       let imagePath;
       let method = 'nano_banana_pro_3d';
@@ -638,14 +786,15 @@ class ControlNetService {
       }
       
       logger.info('🌟 Using ONLY Nano-Banana-Pro (NO FALLBACKS) for 3D glass/liquid effect...');
-      
+
       const result = await this.generateWithNanoBananaPro({
         logoBuffer: logoData.buffer,
-            logoSymbol: logoSymbol,
+        logoSymbol: finalLogoSymbol,
         title: title,
         imageId: imageId,
-        article: options  // Pass options for custom keyword
-          });
+        article: { ...options, allLogos: loadedLogos.map(l => l.symbol) },  // Pass all logo symbols for prompt
+        stylePrompt: options.stylePrompt || null  // Use style catalog prompt if provided
+      });
           
       imagePath = result.imagePath;
       promptUsed = result.promptUsed;
@@ -709,8 +858,14 @@ class ControlNetService {
           logoAccuracy: '100% (actual logo shape used)',
           controlNetUsed: method.includes('controlnet'),
           promptUsed: promptUsed || null,
-          storageType: permanentImageUrl.includes('supabase') ? 'supabase' : 'local'
-        }
+          storageType: permanentImageUrl.includes('supabase') ? 'supabase' : 'local',
+          requestedLogos: allLogos,
+          loadedLogos: loadedLogos.map(l => l.symbol),
+          missingLogos: missingLogos.length > 0 ? missingLogos : undefined
+        },
+        warnings: missingLogos.length > 0
+          ? [`Logo(s) not found: ${missingLogos.join(', ')}. Only ${loadedLogos.map(l => l.symbol).join(', ')} was used.`]
+          : undefined
       };
         
     } catch (error) {
@@ -774,7 +929,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {} }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -819,24 +974,37 @@ class ControlNetService {
     // Build our dynamic prompt for 3D glass/liquid effect
     // NOW USES CURATED STYLES from analyzed good examples!
     const customKeyword = article?.customKeyword || null;
-    
-    // Use the new AI-optimized curated prompts (based on good examples analysis)
+    const allLogos = article?.allLogos || [logoSymbol];
+
     let prompt;
-    try {
-      prompt = await this.getAIOptimizedPrompt(logoSymbol, title, customKeyword, {
-        userId: article?.userId || null,
-        userEmail: article?.userEmail || null
-      });
-      logger.info(`🎨 Using CURATED prompt from good examples`);
-    } catch (err) {
-      // Fallback to standard prompt generation
-      prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword, {
-        userId: article?.userId || null,
-        userEmail: article?.userEmail || null
-      });
-      logger.info(`📝 Using standard prompt generation`);
+
+    // PRIORITY 1: Use style catalog prompt if provided (user selected a style)
+    if (stylePrompt) {
+      prompt = stylePrompt;
+      logger.info(`🎨 Using STYLE CATALOG prompt (user-selected style)`);
     }
-    logger.info(`📝 Prompt: ${prompt.substring(0, 150)}...`);
+    // Check if we have multiple logos - use special multi-logo prompts
+    else if (allLogos.length >= 2) {
+      prompt = this.getMultiLogoPrompt(allLogos, title, customKeyword);
+      logger.info(`🎨 Using MULTI-LOGO prompt for ${allLogos.length} logos: ${allLogos.join(' + ')}`);
+    } else {
+      // Single logo - use standard prompt generation
+      try {
+        prompt = await this.getAIOptimizedPrompt(logoSymbol, title, customKeyword, {
+          userId: article?.userId || null,
+          userEmail: article?.userEmail || null
+        });
+        logger.info(`🎨 Using CURATED prompt from good examples`);
+      } catch (err) {
+        // Fallback to standard prompt generation
+        prompt = await this.getNanoBananaPrompt(logoSymbol, title, customKeyword, {
+          userId: article?.userId || null,
+          userEmail: article?.userEmail || null
+        });
+        logger.info(`📝 Using standard prompt generation`);
+      }
+    }
+    logger.info(`📝 Prompt: ${prompt.substring(0, 200)}...`);
     
     // EXACT Wavespeed API format from official docs
     // Using 16:9 aspect ratio to match our 1800x900 output without stretching
@@ -923,6 +1091,179 @@ class ControlNetService {
     
     logger.info(`✅ Nano-Banana-Pro 3D glass logo saved: ${imagePath}`);
     return { imagePath, promptUsed: prompt };
+  }
+  
+  /**
+   * Special prompts for multi-logo compositions (2 or 3 logos)
+   * Creates balanced, prominent logos as the main subjects
+   * Glassmorphic backgrounds, deep 3D depth, focused color palettes
+   * Keywords create themed secondary subjects
+   */
+  getMultiLogoPrompt(allLogos, title, customKeyword = null) {
+    const logoCount = allLogos.length;
+    const logoNames = allLogos.join(' and ');
+
+    // High-quality suffix emphasizing depth and detail
+    const qualitySuffix = '8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials';
+
+    // Get themed elements based on keyword
+    const themedElements = this.getKeywordThemedElements(customKeyword);
+
+    // Glassmorphic background styles with depth (NO pedestals, NO rainbow)
+    const backgroundStyles = [
+      // Glassmorphic with scattered coins
+      `deep layered glassmorphic background with translucent frosted glass panels at multiple depths, scattered 3D glass coins floating in space, smaller faded ${logoNames} logos repeating in background layers creating depth`,
+
+      // Financial glass elements
+      `atmospheric depth with floating translucent glass currency symbols and 3D coins, layered frosted glass planes receding into distance, miniature ${logoNames} patterns scattered in deep background`,
+
+      // Tech glass layers
+      `multiple layers of frosted glass with depth blur, floating holographic data particles, smaller ghosted ${logoNames} symbols in background creating pattern depth`,
+
+      // Abstract glass depth
+      `deep glassmorphic environment with stacked translucent panels, soft bokeh glass orbs floating at various depths, faint repeated ${logoNames} watermarks in far background`,
+
+      // Premium glass showcase
+      `layered frosted glass architecture with extreme depth, floating glass coin elements, subtle ${logoNames} logo pattern fading into atmospheric background`
+    ];
+
+    // Focused color palettes (NOT rainbow - pick one cohesive scheme)
+    const colorSchemes = [
+      'cyan and deep purple color palette with subtle gold accents',
+      'electric blue and teal gradient tones with silver highlights',
+      'deep purple and magenta palette with chrome reflections',
+      'gold and amber warm tones with cool shadow contrast',
+      'emerald and teal cool palette with gold accent lighting'
+    ];
+
+    // Edge and reflection treatments
+    const edgeTreatments = [
+      'sharp glowing edge lighting with strong rim highlights',
+      'iridescent edge reflections catching dynamic light',
+      'chrome edge bevels with dramatic light catch',
+      'luminous edge glow with soft light bleed',
+      'reflective metallic edges with environment mapping'
+    ];
+
+    const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const bg = rand(backgroundStyles);
+    const colors = rand(colorSchemes);
+    const edges = rand(edgeTreatments);
+
+    // Build 2-logo prompts
+    const twoLogoPrompts = [
+      `two massive 3D ${logoNames} cryptocurrency symbols floating side by side as dominant focal points, both logos rendered with deep dimensional depth in matching glossy chrome and glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, logos are identical scale taking up most of frame, ${qualitySuffix}`,
+
+      `twin large 3D ${logoNames} logos with extreme depth and dimension floating in perfect balance, thick glass construction with liquid chrome interior, ${edges}, ${bg}, ${colors}, ${themedElements}, both symbols equally prominent with deep shadows and highlights, ${qualitySuffix}`,
+
+      `two prominent 3D ${logoNames} symbols with exaggerated depth rendered as solid glass sculptures with metallic chrome cores, ${edges}, ${bg}, scattered 3D glass coins floating around them, ${colors}, ${themedElements}, matched scale and visual weight, ${qualitySuffix}`,
+
+      `dual massive ${logoNames} 3D logos with deep relief and strong dimensionality, iridescent glass material with chrome accents, ${edges}, ${bg}, floating glass currency elements, ${colors}, ${themedElements}, perfectly balanced composition, ${qualitySuffix}`,
+
+      `two large ${logoNames} cryptocurrency symbols rendered with cinema-quality 3D depth, thick glass construction with inner glow, ${edges}, ${bg}, glass coin scatter and financial elements, ${colors}, ${themedElements}, ${qualitySuffix}`
+    ];
+
+    // Build 3-logo prompts
+    const threeLogoPrompts = [
+      `three massive 3D ${logoNames} cryptocurrency symbols arranged in balanced formation, all logos with matching deep dimensional depth in glossy chrome glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, all three equally prominent, ${qualitySuffix}`,
+
+      `trio of large 3D ${logoNames} logos floating with extreme depth and dimension, thick glass with liquid metal finish, ${edges}, ${bg}, ${colors}, ${themedElements}, matched scale creating visual harmony, ${qualitySuffix}`,
+
+      `three prominent ${logoNames} 3D symbols with exaggerated depth as glass chrome sculptures, ${edges}, ${bg}, scattered 3D glass coins between them, ${colors}, ${themedElements}, balanced triangular arrangement, ${qualitySuffix}`,
+
+      `triple ${logoNames} 3D logos with deep relief and strong parallax depth, iridescent glass with chrome core, ${edges}, ${bg}, glass financial elements floating, ${colors}, ${themedElements}, professional balanced layout, ${qualitySuffix}`,
+
+      `three large ${logoNames} symbols rendered with cinema 3D depth, thick glass construction, ${edges}, ${bg}, glass currency scatter, ${colors}, ${themedElements}, all three dominating the frame equally, ${qualitySuffix}`
+    ];
+
+    const promptArray = logoCount === 2 ? twoLogoPrompts : threeLogoPrompts;
+    const selectedPrompt = promptArray[Math.floor(Math.random() * promptArray.length)];
+
+    logger.info(`🎨 Multi-logo prompt for ${logoCount} logos: ${selectedPrompt.substring(0, 150)}...`);
+    return selectedPrompt;
+  }
+
+  /**
+   * Get themed visual elements based on keyword
+   * Keywords become secondary 3D subjects that complement the logo
+   */
+  getKeywordThemedElements(keyword) {
+    if (!keyword) return 'floating glass particle effects';
+
+    const kw = keyword.toLowerCase().trim();
+
+    // Comprehensive keyword to themed 3D elements mapping
+    const keywordThemes = {
+      // Financial/Banking - creates secondary 3D subjects
+      'bank': 'large 3D glass bank vault door as secondary subject with floating glass gold bars and stacked glass coins',
+      'banking': 'massive 3D glass classical columns as secondary element with glass money stacks and vault elements',
+      'money': 'floating 3D glass dollar signs and euro symbols as secondary subjects with scattered glass coins',
+      'finance': '3D glass stock chart rising as secondary subject with floating glass currency symbols',
+      'investment': 'large 3D glass upward arrow as secondary subject with glass portfolio documents floating',
+      'wealth': '3D glass treasure chest as secondary subject overflowing with glass coins and gems',
+      'profit': '3D glass growth chart as secondary element with rising glass bar graphs',
+      'trading': '3D glass trading terminal screens as secondary subject with floating candlestick charts',
+      'stocks': 'large 3D glass bull statue as secondary subject with floating stock ticker elements',
+      'market': '3D glass market bell as secondary element with floating glass chart elements',
+      'wall street': '3D glass charging bull as prominent secondary subject with glass skyscraper silhouettes',
+
+      // Technology
+      'tech': '3D glass circuit board patterns as secondary element with floating glass microchips',
+      'ai': '3D glass neural network nodes as secondary subject with glowing glass connection lines',
+      'blockchain': '3D glass blockchain cubes linked together as secondary element',
+      'code': 'floating 3D glass code brackets and symbols as secondary elements',
+      'digital': '3D glass binary digits floating as secondary pattern elements',
+      'network': '3D glass network mesh sphere as secondary subject with connected nodes',
+      'computer': '3D glass processor chip as secondary subject with floating data streams',
+
+      // Space/Cosmic
+      'space': '3D glass planet spheres as secondary subjects with glass asteroid field',
+      'moon': 'large 3D glass crescent moon as secondary subject with floating glass stars',
+      'rocket': '3D glass rocket ship as secondary subject with glass thrust flames',
+      'galaxy': '3D glass spiral galaxy as secondary element with scattered glass stars',
+      'cosmic': 'floating 3D glass planets and moons as secondary subjects',
+
+      // Nature/Elements
+      'ocean': '3D glass waves as secondary element with floating glass bubbles',
+      'fire': '3D glass flames as secondary subjects with ember particles',
+      'ice': '3D glass ice crystals as secondary elements with frost particles',
+      'earth': '3D glass globe as secondary subject with continental details',
+      'mountain': '3D glass mountain peaks as secondary backdrop element',
+
+      // Growth/Success
+      'growth': '3D glass upward trending arrow as large secondary subject',
+      'success': '3D glass trophy as secondary subject with floating glass stars',
+      'power': '3D glass lightning bolts as secondary elements with energy particles',
+      'fast': '3D glass speed lines and motion trails as secondary elements',
+      'surge': '3D glass energy wave as secondary subject with particle burst',
+
+      // Security
+      'secure': '3D glass shield as secondary subject with lock elements',
+      'safe': '3D glass vault door as secondary element with security patterns',
+      'protect': '3D glass protective dome as secondary element',
+
+      // Premium/Luxury
+      'premium': '3D glass diamond as secondary subject with luxury glass elements',
+      'luxury': '3D glass crown as secondary subject with floating glass gems',
+      'gold': '3D glass gold ingots as secondary subjects with scattered glass coins',
+      'diamond': 'large 3D glass diamond as secondary subject with light refractions',
+
+      // Gaming/Fun
+      'game': '3D glass game controller as secondary element with floating pixels',
+      'nft': '3D glass picture frame as secondary subject with digital art element',
+      'metaverse': '3D glass VR headset as secondary subject with virtual particles'
+    };
+
+    // Check for matching keywords
+    for (const [key, elements] of Object.entries(keywordThemes)) {
+      if (kw.includes(key)) {
+        logger.info(`🎯 Keyword "${keyword}" matched theme: ${key}`);
+        return elements;
+      }
+    }
+
+    // Default elegant elements if no match
+    return `floating 3D glass geometric shapes complementing the ${keyword} theme`;
   }
   
   /**
@@ -1051,35 +1392,62 @@ class ControlNetService {
     };
     const networkName = networkNames[logoSymbol] || logoSymbol;
     
-    // Keyword-based context from article title
+    // Get themed secondary subject from keyword
+    const themedElements = this.getKeywordThemedElements(customKeyword);
+
+    // Keyword-based context from article title - creates 3D secondary subjects
     const titleLower = (title || '').toLowerCase();
     const contextMap = {
-      'bank': 'inside a futuristic bank vault with gold bars',
-      'space': 'floating in outer space with distant stars and nebulae',
-      'usa': 'with subtle American patriotic elements',
-      'trading': 'on a high-tech trading floor with holographic screens',
-      'stock': 'in a stock exchange environment with ticker displays',
-      'market': 'surrounded by market data visualizations',
-      'economy': 'with abstract economic growth charts',
-      'mountain': 'atop a majestic crystal mountain peak',
-      'glass': 'made entirely of pristine transparent glass',
-      'fast': 'with dynamic motion blur suggesting speed',
-      'global': 'with a translucent globe in the background',
-      'rocket': 'launching upward like a rocket with thrust flames',
-      'moon': 'on the lunar surface with Earth visible',
-      'huge': 'at monumental architectural scale',
-      'falling': 'dramatically descending with trailing particles',
-      'explosion': 'with explosive energy radiating outward',
-      'code': 'surrounded by streams of glowing code',
-      'computer': 'integrated into a massive circuit board',
-      'ai': 'with neural network patterns flowing around it',
-      'liquid': 'filled with swirling luminescent liquid',
-      'wall street': 'in front of iconic Wall Street architecture',
-      'bull': 'alongside a powerful golden charging bull',
-      'bear': 'with an icy bear emerging from frost',
-      'cyber': 'in a neon-lit cyberpunk cityscape',
-      'metaverse': 'in an abstract metaverse digital realm',
-      'institutional': 'in a sleek corporate environment',
+      // Financial - 3D glass secondary subjects
+      'bank': 'with large 3D glass bank vault door as secondary subject, floating glass gold bars and stacked glass coins creating depth',
+      'banking': 'with massive 3D glass classical columns as secondary element, glass money stacks and currency floating',
+      'trading': 'with 3D glass trading screens as secondary subject, floating glass candlestick chart elements',
+      'stock': 'with large 3D glass bull statue as secondary subject, glass stock ticker ribbons floating',
+      'market': 'with 3D glass market bell as secondary element, floating glass chart arrows',
+      'economy': 'with 3D glass upward arrow as secondary subject, glass growth indicators floating',
+      'investment': 'with 3D glass portfolio as secondary element, floating glass asset symbols',
+      'wall street': 'with 3D glass charging bull as prominent secondary subject, glass building silhouettes',
+      'money': 'with floating 3D glass dollar signs as secondary subjects, scattered glass coins',
+      'wealth': 'with 3D glass treasure chest as secondary subject, glass gems and coins floating',
+      'profit': 'with 3D glass growth chart as secondary element, rising glass bars',
+
+      // Space/Cosmic - 3D glass elements
+      'space': 'with 3D glass planets as secondary subjects, floating glass asteroid field creating depth',
+      'moon': 'with large 3D glass crescent moon as secondary subject, glass star particles',
+      'rocket': 'with 3D glass rocket as secondary subject, glass thrust flames and particles',
+      'galaxy': 'with 3D glass spiral as secondary element, scattered glass stars',
+      'cosmic': 'with floating 3D glass celestial bodies as secondary subjects',
+
+      // Technology - 3D glass elements
+      'ai': 'with 3D glass neural network sphere as secondary subject, glowing glass nodes',
+      'blockchain': 'with 3D glass blockchain cubes linked as secondary element',
+      'code': 'with floating 3D glass code brackets as secondary elements',
+      'computer': 'with 3D glass processor chip as secondary subject, data streams',
+      'tech': 'with 3D glass circuit patterns as secondary element, floating microchips',
+      'network': 'with 3D glass mesh sphere as secondary subject, connected nodes',
+      'cyber': 'with 3D glass data streams as secondary elements, neon particles',
+      'metaverse': 'with 3D glass VR elements as secondary subjects, virtual particles',
+      'digital': 'with floating 3D glass binary digits as secondary elements',
+
+      // Nature/Elements - 3D glass
+      'ocean': 'with 3D glass waves as secondary element, floating glass bubbles',
+      'fire': 'with 3D glass flames as secondary subjects, ember particles',
+      'ice': 'with 3D glass ice crystals as secondary elements, frost particles',
+      'mountain': 'with 3D glass peaks as secondary backdrop, crystal formations',
+      'global': 'with 3D glass globe as secondary subject, continental details',
+
+      // Action/Growth - 3D glass
+      'fast': 'with 3D glass speed lines as secondary elements, motion blur',
+      'surge': 'with 3D glass energy wave as secondary subject, particle burst',
+      'explosion': 'with 3D glass energy burst as secondary element, radiating shards',
+      'growth': 'with 3D glass upward arrow as large secondary subject',
+      'falling': 'with 3D glass trailing particles as secondary elements',
+
+      // Security/Premium - 3D glass
+      'secure': 'with 3D glass shield as secondary subject, lock elements',
+      'institutional': 'with 3D glass corporate elements as secondary subjects',
+      'premium': 'with 3D glass diamond as secondary subject, luxury elements',
+      'gold': 'with 3D glass gold ingots as secondary subjects, scattered coins',
       'enterprise': 'within a massive enterprise data center',
       'growth': 'with upward-pointing growth indicators',
       'surge': 'surrounded by surging energy waves',
@@ -1112,188 +1480,284 @@ class ControlNetService {
       if (titleLower.includes(kw)) { context = phrase; break; }
     }
     
-    // CURATED materials based on user's GOOD example generations
-    // Focus: 3D CGI renders with glass, liquid, chrome - NOT photography
-    // NO boxes, frames, or containers - logos float freely
-    // EXPANDED for maximum variety
+    // CURATED materials - MASSIVE VARIETY, less chrome, more textures
+    // Slightly angled for 3D depth visibility
+    // Mix of ultra 3D and flat graphic elements
     const materials = [
-      // Glass/Crystal options (user loves these)
-      'as iridescent holographic glass with rainbow refractions',
-      'as crystal glass filled with glowing amber-gold liquid',
-      'as gradient glass transitioning from cyan to magenta',
-      'as frosted crystal with internal blue glow',
-      'as transparent glass orb containing the logo',
-      'as prismatic crystal with light dispersion',
-      'as smoky quartz crystal with golden inclusions',
-      
-      // Liquid-filled options (user loves)
-      'as glass vessel filled with swirling cyan liquid',
-      'as crystal container with glowing magenta plasma',
-      'as glass chamber with golden honey liquid inside',
-      
-      // Chrome/Metal options
-      'as polished chrome with neon edge lighting',
-      'as liquid chrome metal mid-splash with droplets',
-      'as brushed titanium with subtle reflections',
-      'as platinum with mirror-polish finish',
-      'as rose gold with soft pink reflections',
-      
-      // Gold options
-      'as solid 24k gold with smooth finish',
-      'as molten gold liquid metal crown',
-      'as golden circuit board with embedded LED traces',
-      'as ancient gold artifact with patina',
-      
-      // Copper/Bronze options
-      'as oxidized copper with turquoise patina',
-      'as polished bronze with warm reflections',
-      'as weathered copper with green oxidation',
-      
-      // Crystal/Gem options
-      'as faceted diamond crystal with light refraction',
-      'as raw amethyst crystal cluster',
-      'as polished sapphire blue gemstone',
-      'as emerald green precious stone',
-      'as ruby red crystal with internal glow',
-      
-      // Ice options
-      'as frozen ice sculpture with frost details',
-      'as glacial ice with blue transparency',
-      
-      // Special effects
-      'as holographic light sculpture',
-      'as plasma energy construct',
-      'as neon light tubes formed into shape'
+      // Glass/Crystal (primary)
+      'as thick glass with deep internal glow, slightly angled to show 3D depth',
+      'as frosted glass with gradient teal to amber interior, angled perspective',
+      'as translucent crystal with electric blue core, rotated to show dimension',
+      'as smoked glass with gold flecks inside, tilted for depth',
+      'as clear glass filled with swirling purple liquid, angled view',
+      'as gradient glass fading from coral to deep blue, slight rotation',
+      'as obsidian glass with cyan edge glow, angled to reveal thickness',
+
+      // Polished marble (use sparingly - will be selected less often)
+      'as polished white marble with gold veining, slightly tilted',
+      'as black marble with rose gold accents, angled for depth',
+      'as gray marble with purple undertones, rotated perspective',
+
+      // Matte/Solid finishes (no chrome)
+      'as matte black material with glowing teal edges, angled view',
+      'as deep navy solid with gold rim lighting, tilted perspective',
+      'as charcoal matte finish with magenta edge glow, rotated',
+      'as slate gray with electric blue highlights, angled',
+      'as midnight blue solid with amber accents, slight tilt',
+
+      // Gold/Metallic (warm, not chrome)
+      'as burnished gold with deep shadows, angled to show depth',
+      'as antique bronze with patina, tilted perspective',
+      'as rose gold with soft pink glow, rotated view',
+      'as aged brass with teal oxidation, angled',
+      'as copper with turquoise patina spots, slight rotation',
+
+      // Crystal/Gem
+      'as deep amethyst crystal, angled to catch light',
+      'as sapphire blue gemstone with internal fire, tilted',
+      'as emerald with gold inclusions, rotated for depth',
+      'as ruby with deep crimson glow, angled perspective',
+      'as onyx with purple veining, slight tilt',
+
+      // Hybrid 3D + flat graphic elements
+      'as 3D solid with flat graphic pattern overlay, angled',
+      'as dimensional form with 2D grid texture, tilted view',
+      'as thick 3D shape with flat color blocking, rotated',
+      'as sculptural 3D with minimalist graphic accents, angled',
+
+      // Glowing/Energy
+      'as solid form with pulsing energy core, angled view',
+      'as matte surface with internal light source, tilted',
+      'as dark material with glowing circuit traces, rotated',
+      'as black glass with neon interior veins, angled'
     ];
     
-    // CURATED scenes - based on user's GOOD examples
-    // NO server racks, NO boxes, NO cityscapes - artistic 3D environments only
-    // EXPANDED for maximum variety
-    const scenes = [
-      // Temple/Ancient themes (user loves)
-      'floating inside ancient stone temple ruins with moss-covered pillars',
-      'positioned in ancient Roman temple ruins with statues',
-      'resting on ancient Greek marble columns with golden light',
-      'in mystical Egyptian temple with hieroglyphic walls',
-      
-      // Underwater themes (user loves)
-      'submerged underwater with rising bubbles and caustic light',
-      'floating in deep ocean with light rays from surface',
-      'in crystal clear tropical lagoon with coral reef below',
-      'suspended in bioluminescent deep sea environment',
-      
-      // Space themes (user loves)
-      'floating against deep space starfield with distant nebula',
-      'orbiting a colorful gas giant planet',
-      'positioned near a glowing supernova explosion',
-      'floating in asteroid field with distant sun',
-      
-      // Nature/Organic themes
-      'resting on giant lily pad in serene pond',
-      'emerging from volcanic lava flow with fire particles',
-      'frozen in crystalline ice formation',
-      'floating above misty mountain peak at sunrise',
-      'suspended in bamboo forest with light filtering through',
-      
-      // Coin scatter themes (user loves)
-      'standing on dark reflective surface with scattered glowing coins',
-      'surrounded by scattered cryptocurrency coins on mirror floor',
-      'atop pile of golden crypto coins',
-      
-      // Abstract/Minimal themes
-      'floating in pure geometric abstract space',
-      'hovering in infinite gradient void',
-      'suspended in liquid chrome environment',
-      'positioned on floating geometric platforms',
-      
-      // Premium presentation
-      'floating freely in atmospheric cinematic space',
-      'emerging from liquid metal splash',
-      'positioned on marble podium with dramatic lighting',
-      'suspended in holographic data visualization'
+    // CURATED scenes - MASSIVE VARIETY with user preferences
+    // NO pedestals, NO podiums - floating freely
+    // 80% dark backgrounds, 20% lighter, 10% symmetrical
+    // Includes: stacked coins, 2D grids, glowing nodes, orbs, morphing squares
+
+    // DARK SCENES (primary - selected 80% of time)
+    const darkScenes = [
+      // Stacked coins themes (user loves)
+      'floating above massive stacked 3D coins creating a towering pile beneath, dark void background with subtle glow',
+      'hovering over cascading stack of large glass coins, deep black background with teal edge lighting',
+      'suspended above pyramid of stacked cryptocurrency coins, dark atmospheric depth with amber rim glow',
+      'floating with towering stacked coin columns around it, deep charcoal background with magenta accents',
+
+      // 2D grid themes (user loves)
+      'floating in dark space with clean 2D square grid extending into distance, neon cyan grid lines on black',
+      'hovering above flat 2D grid plane with perspective depth, deep navy background with gold grid lines',
+      'suspended in dark void with geometric 2D grid floor below, purple grid on black with soft glow',
+      'floating over minimalist 2D square grid pattern, dark background with electric blue lines',
+
+      // Glowing nodes themes (user loves)
+      'floating among network of glowing nodes connected by light streams, deep dark background',
+      'surrounded by scattered glowing orb nodes at various depths, dark void with teal node glow',
+      'hovering in constellation of bright nodes and connection lines, black background with warm node lights',
+      'suspended in neural network of glowing nodes, deep purple-black background with cyan connections',
+
+      // Orbs themes (user loves)
+      'floating among scattered glass orbs of various sizes, dark atmospheric space with soft reflections',
+      'surrounded by floating luminescent orbs, deep black background with orbs catching light',
+      'hovering with glowing orbs orbiting around, dark void background with colorful orb accents',
+      'suspended among crystalline orbs floating at different depths, charcoal background with orb reflections',
+
+      // Morphing squares themes (user loves - color pop patterns)
+      'floating over dark background with morphing squares connecting at corners, teal and coral color pops',
+      'hovering in dark space with geometric squares merging at edges, purple and gold morphing pattern',
+      'suspended above dark void with interconnected morphing square shapes, electric blue accents',
+      'floating with morphing square pattern below, dark background with magenta and cyan squares connecting',
+      'hovering over abstract morphing squares creating 2D pattern interest, dark with amber highlights',
+
+      // Glassmorphic dark themes
+      'floating in deep dark glassmorphic void with layered frosted panels, scattered glass coins',
+      'suspended in black atmospheric space with translucent glass layers receding, glass elements floating',
+      'hovering in premium dark glassmorphic environment with extreme depth, glass financial elements',
+
+      // Mixed 3D + flat graphic (user loves the combination)
+      'floating in dark space with flat graphic grid elements behind 3D orbs and coins',
+      'hovering over dark background mixing ultra 3D coins with flat 2D square patterns',
+      'suspended in deep black with 3D glass elements and flat geometric graphic accents',
+
+      // Dark abstract depth
+      'floating in infinite dark gradient void with scattered glass elements at depth',
+      'hovering in deep charcoal space with glowing edge elements, coins scattered below',
+      'suspended in dark atmospheric depth with layered visual interest'
     ];
+
+    // LIGHT SCENES (20% chance)
+    const lightScenes = [
+      'floating in soft gradient light environment with frosted glass panels, scattered glass coins',
+      'hovering in bright glassmorphic space with clean white translucent layers',
+      'suspended in luminous atmosphere with soft glowing orbs and light grid elements',
+      'floating in bright clean environment with 2D grid floor and scattered orbs',
+      'hovering in pale gradient space with glowing nodes and light coin scatter'
+    ];
+
+    // SYMMETRICAL SCENES (10% chance - rare)
+    const symmetricalScenes = [
+      'floating at center of perfectly symmetrical glassmorphic architecture, mirrored frosted panels on both sides',
+      'hovering in symmetrical composition with balanced stacked coin columns on each side',
+      'suspended in centered symmetric design with matching orbs and nodes balanced left and right',
+      'floating in perfect bilateral symmetry with mirrored 2D grid and matching glass elements',
+      'hovering at the exact center of symmetrically arranged morphing squares and orbs'
+    ];
+
+    // Select scene based on probability: 80% dark, 10% symmetrical, 10% light (rounds to 20% light)
+    const sceneRoll = Math.random();
+    let scenes;
+    let sceneType;
+    if (sceneRoll < 0.10) {
+      scenes = symmetricalScenes;
+      sceneType = 'SYMMETRICAL';
+    } else if (sceneRoll < 0.20) {
+      scenes = lightScenes;
+      sceneType = 'LIGHT';
+    } else {
+      scenes = darkScenes;
+      sceneType = 'DARK';
+    }
+    logger.info(`🎭 Scene type: ${sceneType} (roll: ${(sceneRoll * 100).toFixed(0)}%)`);
     
-    // CURATED lighting - DIVERSE dramatic cinematic options
+    // CURATED lighting - DYNAMIC edge lighting and reflections
+    // NO rainbow - DIVERSE focused color temperatures
     const lighting = [
+      // Strong edge lighting (user loves)
+      'sharp glowing edge lighting with strong rim highlights on all surfaces',
+      'dynamic edge reflections catching light beautifully',
+      'luminous edge glow with soft light bleed around objects',
+      'dramatic edge bevels catching directional light',
+      'bold edge highlights with environment reflections',
+
       // Dramatic/Cinematic
-      'volumetric god rays streaming from above',
-      'golden backlight with radiating rays',
-      'dramatic cinematic golden hour lighting',
-      'single dramatic spotlight from above',
-      'rim lighting with dark background',
-      
-      // Underwater/Caustic
-      'caustic underwater light patterns',
-      'dappled sunlight through water surface',
-      
-      // Neon/Cyberpunk
-      'cyan and magenta neon rim lighting',
-      'purple and blue cyberpunk glow',
-      'rainbow holographic light refractions',
-      'electric blue accent lighting',
-      
-      // Warm/Golden
-      'warm amber accent lighting with cool shadows',
-      'golden sunset backlighting',
-      'warm firelight glow from below',
-      'copper and bronze warm tones',
-      
-      // Cool/Ice
-      'cool blue ice lighting',
-      'arctic white diffused lighting',
-      'moonlight silver illumination',
-      
+      'volumetric god rays with sharp edge highlights',
+      'cinematic backlight creating strong edge definition',
+      'dramatic rim lighting emphasizing 3D depth',
+      'single powerful key light with strong edge catch',
+
+      // Cyan/Teal accents
+      'cyan neon rim lighting with dark ambient fill',
+      'teal edge glow with deep shadow contrast',
+      'electric blue accent lighting with edge catch',
+      'aqua rim lighting on dark surfaces',
+
+      // Magenta/Pink accents
+      'magenta neon edge lighting with deep shadows',
+      'hot pink rim glow with charcoal ambient',
+      'rose accent lighting with strong edge definition',
+      'coral pink edge highlights on dark',
+
+      // Gold/Amber accents (warm)
+      'warm amber edge lighting with cool shadow contrast',
+      'golden backlight with strong rim definition',
+      'burnt orange rim glow with dark fill',
+      'copper edge lighting with dramatic shadows',
+      'warm gold accent light catching edges',
+
+      // Purple/Violet accents
+      'deep purple rim lighting with black ambient',
+      'violet edge glow with strong definition',
+      'plum accent lighting on dark surfaces',
+
+      // Green/Emerald accents
+      'emerald green edge lighting with dark contrast',
+      'teal to green gradient rim glow',
+      'jade accent lighting with strong edges',
+
+      // Cool blue/silver
+      'cool blue edge lighting with silver highlights',
+      'arctic white with steel blue edge accents',
+      'silver moonlight with sharp edge definition',
+      'ice blue rim lighting on dark surfaces',
+
+      // Contrasting dual-tone lighting
+      'teal and coral split edge lighting',
+      'cyan left with amber right rim glow',
+      'magenta and gold contrasting edge lights',
+      'blue and orange dramatic rim lighting',
+      'purple and gold opposing edge accents',
+
       // Professional/Studio
-      'professional cinematic lighting with soft shadows',
-      'soft ambient glow from below creating reflections',
-      'clean key light with subtle fill',
-      
-      // Abstract/Artistic
-      'gradient lighting from warm to cool',
-      'subtle bokeh with depth blur',
-      'prismatic rainbow light dispersion',
-      'aurora borealis color waves'
+      'professional cinematic lighting with strong edge catch',
+      'soft ambient glow with reflective surface lighting',
+      'clean key light emphasizing depth and edges',
+
+      // Abstract depth lighting
+      'gradient lighting from warm edge to cool fill',
+      'atmospheric depth lighting with selective highlights',
+      'volumetric light with surface refractions'
     ];
     
-    // CURATED backgrounds - DIVERSE artistic 3D environments
-    // NO server racks, NO cityscapes, NO buildings
-    // VARIETY: dark, light, colorful, gradient themes
+    // CURATED backgrounds - MASSIVE VARIETY of gradients and elements
+    // NO pedestals, NO rainbow - DIVERSE focused color palettes
+    // Includes: varied gradients, stacked coins, grids, nodes, orbs, morphing squares
     const backgrounds = [
-      // Dark themes (user likes these)
-      'dark atmospheric temple interior with blue cyan ambient glow',
-      'deep dark water fading to black with warm light penetrating',
-      'infinite dark void with mirror floor reflection',
-      'pure black void with subtle depth',
-      
-      // Space themes (colorful)
-      'deep space with vibrant purple and blue nebula clouds',
-      'cosmic starfield with warm orange and pink aurora',
-      'galactic background with swirling cyan and magenta gases',
-      
-      // Gradient themes (light to dark variety)
-      'smooth gradient from warm gold to deep purple',
-      'abstract gradient from teal to coral sunset',
-      'soft gradient from rose pink to deep blue',
-      'gradient from electric blue to deep violet',
-      
-      // Light/Bright themes
-      'ethereal white fog with soft diffused lighting',
-      'warm golden hour atmosphere with soft rays',
-      'pristine white minimal environment with subtle shadows',
-      'clean ice blue frozen landscape abstract',
-      
-      // Colorful/Artistic themes
-      'underwater caustics with sunbeams in turquoise water',
-      'ancient temple ruins with golden afternoon light',
-      'crystalline ice cave with blue and cyan reflections',
-      'mystical forest clearing with green and gold light',
-      'volcanic landscape with orange magma glow',
-      'arctic aurora with green and purple bands',
-      
-      // Premium presentation themes
-      'polished obsidian floor with infinite reflection',
-      'marble pedestal in dramatic spotlight',
-      'reflective chrome surface with ambient glow'
+      // DARK solid backgrounds with color accents (user loves bold on dark)
+      'pure black void background with scattered teal glow points, stacked coins below',
+      'deep charcoal background with magenta accent lights, floating orbs',
+      'dark navy background with gold edge highlights, 2D grid fading into distance',
+      'jet black background with electric blue node network, scattered coins',
+      'midnight blue void with coral color pop accents, morphing squares pattern',
+
+      // DIVERSE gradient backgrounds (not just purple/green!)
+      // Warm gradients
+      'deep gradient from black to burnt orange at edges, scattered glowing orbs',
+      'dark to amber warm gradient background, stacked gold coins creating depth',
+      'charcoal to copper gradient with rose gold accents, floating elements',
+      'black to deep red subtle gradient, scattered nodes with warm glow',
+      'dark brown to gold gradient background, premium coin elements',
+
+      // Cool gradients
+      'deep navy to teal gradient background, 2D cyan grid lines',
+      'black to arctic blue gradient, floating ice-like orbs',
+      'charcoal to steel blue gradient, glowing node network',
+      'dark to cerulean gradient background, scattered glass elements',
+      'midnight to aqua gradient, morphing square pattern with blue accents',
+
+      // Dual-tone contrasting gradients
+      'black background with teal and coral opposing accents, stacked coins',
+      'dark void with magenta left and gold right color zones, floating orbs',
+      'deep charcoal with electric blue and amber split lighting, grid elements',
+      'jet black with purple and orange contrasting glows, scattered nodes',
+      'dark background with cyan and rose pink accent areas, morphing squares',
+
+      // Earth tone gradients
+      'deep forest green to black gradient, scattered emerald orbs',
+      'charcoal to deep burgundy gradient, gold coin stacks',
+      'black to deep plum gradient background, floating amethyst elements',
+      'dark slate to olive gradient, brass-toned nodes',
+
+      // Premium dark backgrounds with subtle interest
+      `deep black background with faint ${logoSymbol} watermarks receding into distance, creating depth`,
+      `jet black void with subtle gradient rings, smaller ${logoSymbol} logos at far depth`,
+      'pure dark background with atmospheric fog layers, floating glass elements',
+      'premium black with subtle texture grain, scattered orbs and coins',
+
+      // Grid and geometric backgrounds
+      '2D square grid receding into dark void, cyan lines on black',
+      'geometric grid floor fading into charcoal atmosphere, gold accent lines',
+      'perspective grid background in deep navy, teal grid intersections glowing',
+      'minimalist dark grid with selective node highlights, scattered coins above',
+
+      // Node network backgrounds
+      'constellation of glowing nodes on black background, warm amber node colors',
+      'neural network pattern on dark void, teal and purple node connections',
+      'scattered bright nodes at various depths, deep charcoal background',
+      'network mesh background with strategic bright nodes, dark atmosphere',
+
+      // Orb scatter backgrounds
+      'floating luminescent orbs at varying depths on black background',
+      'scattered glass orbs catching edge light, deep dark void',
+      'large and small orbs creating depth layers, charcoal atmosphere',
+      'crystalline orb field with selective glow, premium dark setting',
+
+      // Morphing squares backgrounds (color pops on dark)
+      'dark background with morphing teal squares connecting at corners',
+      'black void with gold morphing square pattern creating interest',
+      'charcoal background with magenta and cyan morphing squares',
+      'deep dark with electric blue morphing geometric pattern',
+      'jet black with coral and amber morphing square accents'
     ];
     
     // TRUE randomization using Math.random() - completely unique each call
@@ -1359,18 +1823,22 @@ class ControlNetService {
     logger.info(`   🖼️ Background: ${selectedBackground.substring(0, 50)}...`);
     logger.info(`   📊 Available: ${availableMaterials.length} materials, ${scenes.length} scenes, ${lighting.length} lights, ${backgrounds.length} backgrounds`);
     
-    // Start prompt with size hint if user feedback indicates size issues
+    // Start prompt with size hint and DEPTH emphasis
     // sizeHint, styleHint, bgHint come from user feedback preferences
-    let prompt = `A ${sizeHint}${networkName} logo ${styleHint}${selectedMaterial}, ${selectedScene}, ${selectedLighting}, ${bgHint}${selectedBackground}`;
-    
+    let prompt = `A large ${sizeHint}${networkName} logo with deep 3D dimensional depth ${styleHint}${selectedMaterial}, ${selectedScene}, ${selectedLighting}, ${bgHint}${selectedBackground}`;
+
+    // Add context from title keywords as secondary 3D subjects
     if (context) prompt += `, ${context}`;
     
-    // Add custom keyword/phrase from user input
+    // Add custom keyword themed elements - these become PROMINENT secondary subjects
     if (customKeyword && customKeyword.trim()) {
       const phrase = customKeyword.trim().toLowerCase();
-      logger.info(`   Custom phrase from user: "${phrase}"`);
-      
-      // First check if any word in the phrase maps to a context
+      logger.info(`   Custom keyword from user: "${phrase}"`);
+
+      // Use the comprehensive themed elements system
+      prompt += `, ${themedElements}`;
+
+      // Also check contextMap for additional scene elements
       let foundContext = null;
       for (const [kw, contextPhrase] of Object.entries(contextMap)) {
         if (phrase.includes(kw)) {
@@ -1378,19 +1846,9 @@ class ControlNetService {
           break;
         }
       }
-      
-      if (foundContext) {
-        // Use the mapped context phrase as secondary elements
-        prompt += `, with subtle secondary ${foundContext} elements in the background`;
-      } else if (phrase.length > 30) {
-        // Long phrase - use it directly as a scene description
-        prompt += `, with subtle secondary ${phrase} elements that do not overpower the logo`;
-      } else if (phrase.includes(' ')) {
-        // Multi-word phrase - incorporate naturally
-        prompt += `, with subtle secondary ${phrase} elements in the scene`;
-      } else {
-        // Single keyword - use aesthetic
-        prompt += `, with subtle ${phrase} accents`;
+
+      if (foundContext && !prompt.includes(foundContext)) {
+        prompt += `, ${foundContext}`;
       }
     }
     
@@ -1405,22 +1863,24 @@ class ControlNetService {
       }
     }
     
-    // CRITICAL: Specify this is 3D CGI render, NOT photography
-    prompt += `, 3D CGI render, Octane render quality, Cinema 4D, Blender render`;
-    prompt += `, maintain exact logo proportions without stretching, 8k resolution`;
-    
+    // CRITICAL: Specify this is 3D CGI render with DEEP DEPTH
+    prompt += `, deep 3D CGI render with strong parallax depth, Octane render quality, Cinema 4D, Blender render`;
+    prompt += `, sharp reflective edges with environment mapping, maintain exact logo proportions, 8k resolution`;
+    prompt += `, preserve full logo including any text/wordmark, no cropped or missing text`;
+
     // CRITICAL NEGATIVE PROMPTS - Things to ALWAYS avoid:
-    // 1. No boxes/frames - logos must float freely
+    // 1. No boxes/frames/pedestals - logos must float freely
     // 2. No photography - must be 3D CGI
-    // 3. No server equipment - no data centers
-    // 4. No cityscapes - no buildings
-    // 5. No unwanted effects - no sparkles, nebula spirals
-    prompt += `. Negative: no box, no frame, no border, no container, logo floating freely`;
+    // 3. No flat looks - must have depth
+    // 4. No rainbow - focused color palettes only
+    prompt += `. Negative: no box, no frame, no border, no container, no pedestal, no podium, no platform, logo floating freely`;
     prompt += `, no photography, no photorealistic photo, no camera photo, no stock photo`;
-    prompt += `, no server rack, no server room, no data center, no computer equipment`;
-    prompt += `, no cityscape, no buildings, no skyline, no skyscrapers`;
-    prompt += `, no sparkles, no glitter, no nebula spiral, no spiraling effects`;
-    prompt += `, no dominant red, no dominant yellow, no heavy warm tones`;
+    prompt += `, no flat, no 2D, no illustration style, must have 3D depth`;
+    prompt += `, no rainbow colors, no too many colors, focused color palette only`;
+    prompt += `, no server rack, no server room, no data center`;
+    prompt += `, no cityscape, no buildings, no skyline`;
+    prompt += `, no sparkles, no glitter, no nebula spiral`;
+    prompt += `, no missing text, no cropped text, no incomplete logo text`;
     if ((prefs.bgStyleBad || []).includes('avoid_glow_ring')) {
       prompt += `, no glowing ring, no halo, no circular glow around logo`;
     }
@@ -1442,6 +1902,95 @@ class ControlNetService {
    * This ensures the AI generates in 16:9 aspect ratio instead of 1:1
    * The logo is centered on a transparent canvas
    */
+  /**
+   * Composite multiple logos side by side on a transparent canvas
+   * Used when user selects multiple networks/companies
+   */
+  async compositeMultipleLogos(loadedLogos) {
+    try {
+      const logoCount = loadedLogos.length;
+      logger.info(`🔀 Compositing ${logoCount} logos together - EQUAL SIZE and PROMINENT...`);
+
+      // Canvas size - we'll create a 16:9 canvas
+      const canvasWidth = 1920;
+      const canvasHeight = 1080;
+
+      // FIXED: Force all logos to same HEIGHT for equal visual prominence
+      // This ensures a square symbol and a wide wordmark get equal visual weight
+      const targetHeight = Math.floor(canvasHeight * (logoCount === 2 ? 0.7 : 0.6));
+      const maxWidthPerLogo = Math.floor(canvasWidth / logoCount * 0.8);
+
+      // Resize all logos to SAME HEIGHT for equal prominence
+      const resizedLogos = await Promise.all(loadedLogos.map(async (logo) => {
+        // First get metadata to understand aspect ratio
+        const meta = await sharp(logo.buffer).metadata();
+        const aspectRatio = meta.width / meta.height;
+
+        // Calculate dimensions - prioritize height for equal visual weight
+        let newHeight = targetHeight;
+        let newWidth = Math.round(targetHeight * aspectRatio);
+
+        // If too wide, scale down to fit
+        if (newWidth > maxWidthPerLogo) {
+          newWidth = maxWidthPerLogo;
+          newHeight = Math.round(maxWidthPerLogo / aspectRatio);
+        }
+
+        const resized = await sharp(logo.buffer)
+          .resize({
+            width: newWidth,
+            height: newHeight,
+            fit: 'fill'  // Fill exact dimensions
+          })
+          .png()
+          .toBuffer();
+
+        const newMeta = await sharp(resized).metadata();
+        logger.info(`📐 Logo ${logo.symbol}: ${meta.width}x${meta.height} → ${newMeta.width}x${newMeta.height}`);
+        return { buffer: resized, width: newMeta.width, height: newMeta.height, symbol: logo.symbol };
+      }));
+
+      // Calculate positions - evenly distribute horizontally, center vertically
+      const totalWidth = resizedLogos.reduce((sum, logo) => sum + logo.width, 0);
+      const spacing = Math.floor((canvasWidth - totalWidth) / (logoCount + 1));
+
+      let currentX = spacing;
+      const compositeInputs = resizedLogos.map((logo) => {
+        const x = currentX;
+        const y = Math.floor((canvasHeight - logo.height) / 2);
+        currentX += logo.width + spacing;
+
+        logger.info(`📍 Positioning ${logo.symbol} at (${x}, ${y})`);
+        return {
+          input: logo.buffer,
+          left: x,
+          top: y
+        };
+      });
+
+      // Create transparent canvas and composite all logos
+      const canvas = await sharp({
+        create: {
+          width: canvasWidth,
+          height: canvasHeight,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      })
+        .composite(compositeInputs)
+        .png()
+        .toBuffer();
+
+      logger.info(`✅ Composited ${logoCount} logos onto ${canvasWidth}x${canvasHeight} canvas with EQUAL heights`);
+      return canvas;
+
+    } catch (error) {
+      logger.error(`❌ Failed to composite logos: ${error.message}`);
+      // Fallback: just return the first logo
+      return loadedLogos[0].buffer;
+    }
+  }
+
   async preprocessLogoFor16x9(logoBuffer) {
     try {
       // Target dimensions: 1920x1080 (16:9 ratio, 2K equivalent)

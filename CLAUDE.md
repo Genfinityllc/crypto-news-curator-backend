@@ -8,7 +8,7 @@
 
 ### Backend Deployment
 ```bash
-export PATH='/Users/valorkopeny/.local/bin:$PATH' && /Users/valorkopeny/.local/bin/railway up
+/opt/homebrew/bin/railway up
 ```
 
 ### Frontend Deployment  

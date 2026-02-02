@@ -120,6 +120,23 @@ const CLIENT_NETWORK_BASE_METADATA = {
     isClient: true,
     priority: 5,
     parentNetwork: 'Hedera'
+  },
+  'Axiom': {
+    name: 'Axiom',
+    displayName: 'Axiom',
+    symbol: 'AXIOM',
+    logo: '/uploads/logos/axiom_logo.png',
+    logoSquare: '/uploads/logos/axiom_logo.png',
+    color: '#000000',
+    secondaryColor: '#ffffff',
+    description: 'Advanced trading and DeFi platform',
+    category: 'Trading Platform',
+    website: 'https://axiom.trade',
+    founded: '2024',
+    consensus: 'Multi-Chain',
+    features: ['Trading', 'DeFi', 'Multi-Chain', 'Advanced Tools'],
+    isClient: true,
+    priority: 6
   }
 };
 

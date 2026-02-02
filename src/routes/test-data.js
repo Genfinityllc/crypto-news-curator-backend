@@ -11,7 +11,7 @@ router.post('/insert-test-articles', async (req, res) => {
     // First, clear old test articles from database
     const client = getSupabaseClient();
     if (client) {
-      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP'];
+      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'SWAP', 'Axiom'];
       for (const network of clientNetworks) {
         const { error } = await client
           .from('articles')

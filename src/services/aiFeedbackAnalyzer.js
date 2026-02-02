@@ -481,6 +481,9 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       prompt += `${style.mood}. `;
     }
     
+    // Ensure full logo including any text/logotype is preserved
+    prompt += ` Preserve the full logo including any text, wordmarks, or typography; do not crop or omit text.`;
+
     // Add logo angle variation for depth (tilted perspectives)
     const anglePhrases = [
       'tilted three-quarter view to emphasize depth',
@@ -523,6 +526,8 @@ Please analyze this feedback and return a JSON object with specific adjustments 
       'no sparkles', 'no glitter particles', 'no nebula spiral', 'no spiraling effects',
       // Avoid strong warm colors
       'no dominant red', 'no dominant yellow', 'no heavy warm tones',
+      // Preserve logo text
+      'no missing text', 'no cropped text', 'no incomplete logo text',
       'no more than three main colors',
       // Quality
       'no blur', 'no distortion', 'no watermark', 'no text overlay'

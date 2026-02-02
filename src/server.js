@@ -1357,7 +1357,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId } = req.body;
 
   if (!network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
@@ -1400,13 +1400,26 @@ app.post('/api/cover-generator/generate', async (req, res) => {
     const networkLabel = allNetworks.join(' + ');
     const articleTitle = title || `${networkLabel} Cryptocurrency News`;
 
-    logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''}`);
+    // Get style prompt from catalog if styleId is provided
+    let stylePrompt = null;
+    if (styleId) {
+      try {
+        const StyleCatalogService = require('./services/styleCatalogService');
+        const styleCatalog = new StyleCatalogService();
+        stylePrompt = styleCatalog.getStylePrompt(styleId, network.toUpperCase());
+        logger.info(`🎨 Using style: ${styleId}`);
+      } catch (e) {
+        logger.warn(`Could not load style ${styleId}:`, e.message);
+      }
+    }
+
+    logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''}`);
 
     const result = await controlNetService.generateWithAdvancedControlNet(
       articleTitle,
       network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: allNetworks.slice(1) }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: allNetworks.slice(1), stylePrompt }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);

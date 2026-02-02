@@ -19,7 +19,7 @@ class IntelligentArticleManager {
       'hashpack': 100
     };
     
-    this.CLIENT_NETWORKS = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
+    this.CLIENT_NETWORKS = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
   }
 
   getSupabase() {

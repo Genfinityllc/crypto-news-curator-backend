@@ -1,0 +1,66 @@
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+const OUTPUT_DIR = path.join(__dirname, '../style-examples');
+const LOGO_SYMBOL = 'HBAR';
+const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+
+async function main() {
+  console.log('🎨 Regenerating #03 with balanced neon and dynamic 3D elements...\n');
+
+  const oldPath = path.join(OUTPUT_DIR, '03_subtle_neon_3d_elements.png');
+  if (fs.existsSync(oldPath)) {
+    fs.unlinkSync(oldPath);
+    console.log('🗑️ Deleted old file');
+  }
+
+  const logoResponse = await axios.get(
+    `https://crypto-news-curator-backend-production.up.railway.app/api/cover-generator/logo-preview/${LOGO_SYMBOL}`,
+    { responseType: 'arraybuffer', timeout: 15000 }
+  );
+  const base64Logo = Buffer.from(logoResponse.data).toString('base64');
+  const logoUrl = `data:image/png;base64,${base64Logo}`;
+
+  const prompt = `deep black environment with dramatic cinematic lighting, cyan neon glow on the left side and magenta neon glow on the right side creating split lighting, photorealistic 3D environment, single prominent cryptocurrency logo symbol as the hero subject rendered in bright polished mirror chrome with strong white highlights clearly visible and well-lit, a few sleek neon light tubes in the background creating geometric accent lines but not overwhelming, glossy black mirror floor with logo reflection, many floating 3D glass cubes prisms and rectangular blocks of varying sizes scattered dynamically around the logo at different depths and angles, the glass shapes catch and refract the cyan and magenta neon light beautifully, some glass elements larger in foreground some smaller in background creating depth, the 3D elements add visual complexity and movement, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`;
+
+  const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', {
+    enable_base64_output: false,
+    enable_sync_mode: false,
+    images: [logoUrl],
+    output_format: "png",
+    prompt: prompt,
+    resolution: "2k",
+    aspect_ratio: "16:9"
+  }, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${WAVESPEED_API_KEY}`
+    },
+    timeout: 120000
+  });
+
+  const requestId = response.data.data?.id || response.data.id;
+  console.log(`📋 Job ID: ${requestId}`);
+
+  let result = null;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const poll = await axios.get(`https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`, {
+      headers: { 'Authorization': `Bearer ${WAVESPEED_API_KEY}` },
+      timeout: 15000
+    });
+    if (poll.data.data?.status === 'completed') { result = poll.data.data; break; }
+    if (poll.data.data?.status === 'failed') throw new Error(`Job failed: ${poll.data.data.error || 'Unknown'}`);
+    if (attempt % 5 === 0) console.log(`⏳ Waiting... (${attempt * 2}s)`);
+  }
+
+  if (!result?.outputs?.[0]) throw new Error('Timeout');
+
+  const img = await axios.get(result.outputs[0], { responseType: 'arraybuffer', timeout: 30000 });
+  fs.writeFileSync(path.join(OUTPUT_DIR, '03_neon_glass_dynamic.png'), Buffer.from(img.data));
+  console.log('✅ Saved: 03_neon_glass_dynamic.png');
+}
+
+main().catch(e => console.log(`❌ Failed: ${e.message}`));

@@ -189,7 +189,7 @@ async function getArticles(options = {}) {
       .select('*', { count: 'exact' });
 
     // CRITICAL: Time-based filtering - 2 weeks for client networks, 4 days for general news
-    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
+    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
     const isClientNetwork = options.network && clientNetworks.includes(options.network);
     const isClientQuery = options.clientNetworks || isClientNetwork;
     

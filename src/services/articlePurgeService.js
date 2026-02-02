@@ -138,7 +138,7 @@ class ArticlePurgeService {
         } else if (category === 'client') {
           // Client networks
           whereClause.network = {
-            in: ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']
+            in: ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']
           };
         } else if (category !== 'all') {
           // Specific network
@@ -158,7 +158,7 @@ class ArticlePurgeService {
         if (category === 'breaking') {
           query = query.eq('is_breaking', true);
         } else if (category === 'client') {
-          query = query.in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']);
+          query = query.in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']);
         } else if (category !== 'all') {
           const networkMap = {
             'hedera': 'Hedera',
@@ -186,7 +186,7 @@ class ArticlePurgeService {
           if (category === 'breaking') {
             deleteQuery = deleteQuery.eq('is_breaking', true);
           } else if (category === 'client') {
-            deleteQuery = deleteQuery.in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']);
+            deleteQuery = deleteQuery.in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']);
           } else if (category !== 'all') {
             const networkMap = {
               'hedera': 'Hedera',
@@ -239,11 +239,11 @@ class ArticlePurgeService {
       const { count: clientCount } = await supabase
         .from('articles')  
         .select('id', { count: 'exact' })
-        .in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack']);
+        .in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']);
       counts.client = clientCount;
 
       // Individual client networks
-      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack'];
+      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
       for (const network of clientNetworks) {
         const { count } = await supabase
           .from('articles')

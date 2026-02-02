@@ -460,28 +460,42 @@ class RunPodLoraService {
     logger.info(`📝 Article content: "${content}"`);
     logger.info(`🎯 Detected network: "${detectedNetwork}" from article, using: "${network}"`);
     
-    // ULTRA-VARIED COMPOSITIONS - 20+ unique styles for maximum diversity
+    // ULTRA-VARIED COMPOSITIONS - Based on proven high-quality example styles
     const compositionVariations = [
-      'floating holographic symbol in space, no platform',
-      'glowing energy symbol radiating light, ethereal',
-      'geometric wireframe symbol, architectural lines',
-      'liquid metal symbol formation, flowing design',
-      'neon light outline symbol, glowing edges',
-      'crystalline transparent symbol, glass structure',
-      'particle effect symbol, swirling elements',
-      'fire/flame symbol design, burning energy',
-      'ice crystal symbol formation, frozen structure',
-      'smoke/vapor symbol, misty appearance',
-      'electric lightning symbol, energy bolts',
-      'galaxy nebula symbol, cosmic background',
-      'abstract art symbol, artistic interpretation',
-      'minimalist line symbol, simple design',
-      'origami folded symbol, paper craft style',
-      'graffiti street art symbol, urban style',
-      'nature organic symbol, plant-like growth',
-      'mechanical gear symbol, steampunk style',
-      'water droplet symbol, liquid form',
-      'shadow silhouette symbol, dark outline'
+      // 3D Glass/Crystal Style (from "good 3d glass texture" example)
+      '3D glass crystal logo with iridescent purple and teal refraction, pure black background, high-quality glass material, internal light caustics, smooth crystalline surface',
+      '3D transparent crystal logo floating on black background, iridescent green and purple glass texture, volumetric light refraction, premium render quality',
+
+      // Holographic 3D Coins Style (from "stylized logo on 3d coins" example)
+      'multiple floating holographic 3D coins with logo embossed, iridescent rainbow chrome rim lighting, deep blue to purple gradient background, metallic reflections',
+      '3D metallic coin with logo featuring horizontal striped texture effect, holographic iridescent surface, neon cyan and magenta rim glow, dark background',
+      'floating 3D coins with embossed logo, chrome metallic finish with rainbow iridescence, soft blue-purple ambient lighting',
+
+      // Tech Platform Scene Style (from "Example of a style" - Hedera on platform)
+      'silver metallic coin with embossed logo on futuristic tech platform, circuit board texture base, neon magenta and cyan edge lighting, floating 3D cubes in background, golden light rays from above, particle effects',
+      'logo on 3D metallic pedestal with glowing neon edge lights, circuit board environment, teal and purple ambient glow, floating geometric shapes, volumetric lighting',
+
+      // Network Node Background Style (from "background with a logo style" example)
+      '3D chrome glass logo floating above reflective surface, purple violet network nodes and connections in background, subtle gradient, professional tech aesthetic',
+      'metallic 3D logo with purple glowing network visualization behind, floating data nodes, reflective floor, dark gradient background with subtle purple tint',
+
+      // Clean Dark Scene Style (from "single acceptable scene" example)
+      'sleek 3D glass and metal frames on pure black background, edge lighting with subtle warm tint, reflective surfaces, minimalist premium aesthetic',
+      'clean dark environment with 3D metallic logo, subtle rim lighting, glass-like reflections, professional product shot style',
+
+      // 3D Elements with Logo Style (from "3d elements with a logo" example)
+      'logo with kinetic horizontal stripe pattern effect creating 3D depth, vibrant orange to pink gradient, floating metallic 3D elements on dark background',
+      '3D floating metallic objects surrounding logo, dark background, dramatic lighting, logo rendered with lined texture pattern',
+
+      // Flat Graphic with Depth Style (from "flat graphic environment" example)
+      '3D metallic coin with detailed embossed logo, flat colored geometric circles in background, shallow depth of field, clean composition',
+      'silver coin with crisp logo detail floating with blurred colorful geometric shapes behind, professional depth blur effect',
+
+      // Premium Crypto Visualization
+      '3D holographic logo projection floating in dark space, subtle particle effects, premium volumetric lighting, glass-like material',
+      'chrome metallic 3D logo with soft purple and teal ambient lighting, floating above dark reflective surface, cinematic composition',
+      'crystalline 3D logo with internal glow, surrounded by floating light particles, deep black background, high-end render quality',
+      'futuristic 3D logo design with neon edge highlights, holographic material surface, dark tech environment'
     ];
     
     // Randomly select composition variation (but deterministic based on title hash)
@@ -491,26 +505,26 @@ class RunPodLoraService {
     
     logger.info(`🎨 Selected composition: "${selectedComposition}"`);
     
-    // COMPREHENSIVE NETWORK PROMPTS - Using training data style with anti-Bitcoin measures
+    // COMPREHENSIVE NETWORK PROMPTS - Enhanced with proven high-quality visual styles
     const networkPrompts = {
-      'aave': `pure aave ghost symbol only, ${selectedComposition}, white ethereal ghost figure, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'bitcoin': `pure bitcoin symbol ₿ only, ${selectedComposition}, golden orange design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY`,
-      'ripple': `pure ripple logo symbol only, ${selectedComposition}, teal blue branding, flowing design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'aave': `3D glass crystal Aave ghost symbol with iridescent purple and teal refraction, ${selectedComposition}, white ethereal ghost figure floating on pure black background, premium volumetric lighting, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'bitcoin': `3D metallic Bitcoin coin with embossed ₿ symbol, ${selectedComposition}, golden orange chrome finish with holographic iridescence, premium render quality, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY`,
+      'ripple': `3D chrome glass Ripple logo floating above reflective surface, ${selectedComposition}, teal blue metallic finish, purple network nodes in background, premium volumetric lighting, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
       'xrp': `Pure flat geometric XRP X-symbol in exact triangular path design, sharp angular lines, clean vector graphics style, solid dark gray color fill, minimal 2D composition, no 3D effects, no metallic finish, no depth, pure logo symbol only, mathematical precision, no bitcoin, no text`,
       'xrp_alt1': `Flat geometric XRP X-shaped logo with precise angular paths, minimal vector design, clean sharp edges, solid color fill, 2D flat illustration style, pure symbol focus, no shading, no gradients, exact SVG reproduction, no bitcoin, no text`,
       'xrp_alt2': `Ultra-precise flat XRP logo featuring two triangular geometric paths forming perfect X symbol, completely flat 2D vector style, sharp mathematical angles, solid monochrome fill, minimal design approach, pure geometric accuracy, no bitcoin, no text`,
-      'bnb': `Ultra-realistic BNB coin with distinctive diamond logo design, vibrant golden yellow energy waves, cyberpunk exchange environment, complex 3D trading interface background, metallic reflections, volumetric lighting, atmospheric particles, deep shadows, crisp environmental detailing, high-contrast yellow edges, futuristic trading setting, glowing exchange screens, floating trading data, complex composition, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'ethereum': `pure ethereum diamond symbol only, ${selectedComposition}, geometric diamond shape, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'dogecoin': `pure dogecoin symbol only, ${selectedComposition}, shiba inu design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'solana': `pure solana symbol only, ${selectedComposition}, purple gradient design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'hedera': `pure hedera symbol only, ${selectedComposition}, hashgraph design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'hbar': `Ultra-realistic HBAR coin with distinctive hexagonal pattern, vibrant teal and purple energy waves, cyberpunk hashgraph network visualization, complex 3D molecular structures background, metallic reflections, volumetric lighting, atmospheric particles, deep shadows, crisp environmental detailing, high-contrast neon edges, futuristic distributed ledger setting, flowing data streams, glowing network nodes, complex composition, no bitcoin, no text`,
-      'bybit': `pure bybit symbol only, ${selectedComposition}, exchange logo, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'hyperliquid': `pure hyperliquid symbol only, ${selectedComposition}, protocol logo, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`, 
-      'pump.fun': `pure pump.fun symbol only, ${selectedComposition}, vibrant design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'pi': `pure pi symbol π only, ${selectedComposition}, mathematical pi character, golden design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO BITCOIN SYMBOLS EVER, ZERO ₿ EVER, ONLY π SYMBOL, NEVER show bitcoin`,
-      'generic': `pure cryptocurrency symbol only, ${selectedComposition}, minimalist design, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
-      'generic_anti_bitcoin': `pure abstract cryptocurrency symbol only, ${selectedComposition}, neutral colors (blue, green, purple, teal), modern minimalist design, geometric shapes, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, MAXIMUM ANTI-BITCOIN MEASURES: ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, ZERO golden colors, FORBIDDEN bitcoin elements, BANNED bitcoin imagery, PROHIBITED orange cryptocurrency`
+      'bnb': `3D holographic BNB coin with diamond logo embossed, iridescent golden yellow chrome surface, ${selectedComposition}, neon edge lighting, floating on dark background with subtle particle effects, premium metallic reflections, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'ethereum': `3D glass crystal Ethereum diamond symbol with iridescent blue and purple refraction, ${selectedComposition}, geometric faceted design, volumetric light caustics, pure black background, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'dogecoin': `3D metallic Dogecoin with embossed Shiba Inu design, ${selectedComposition}, holographic gold and bronze surface, premium coin render, neon rim lighting, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'solana': `3D chrome glass Solana logo with iridescent purple gradient, ${selectedComposition}, floating above reflective dark surface, neon magenta and cyan edge lighting, premium volumetric effects, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'hedera': `3D chrome metallic Hedera H-bar symbol on futuristic tech platform, ${selectedComposition}, circuit board texture base, purple network nodes and connections in background, neon teal edge lighting, golden light rays, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'hbar': `3D chrome glass HBAR coin floating above reflective surface, purple violet network nodes visualization, ${selectedComposition}, iridescent teal and purple metallic finish, premium volumetric lighting, glowing network connections, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, no bitcoin, no text`,
+      'bybit': `3D holographic Bybit logo with chrome metallic finish, ${selectedComposition}, neon cyan edge lighting, dark tech environment, premium render quality, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'hyperliquid': `3D glass crystal Hyperliquid symbol with iridescent purple refraction, ${selectedComposition}, floating on pure black background, premium volumetric lighting, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'pump.fun': `3D holographic pump.fun logo with vibrant iridescent colors, ${selectedComposition}, neon pink and cyan gradients, floating particles, premium render, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'pi': `3D glass crystal Pi symbol π with iridescent purple and gold refraction, ${selectedComposition}, pure black background, premium volumetric lighting, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO BITCOIN SYMBOLS EVER, ZERO ₿ EVER, ONLY π SYMBOL, NEVER show bitcoin`,
+      'generic': `3D chrome metallic cryptocurrency logo with iridescent surface, ${selectedComposition}, floating on dark background with purple and teal ambient lighting, premium volumetric effects, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, NEVER show bitcoin`,
+      'generic_anti_bitcoin': `3D glass crystal cryptocurrency symbol with iridescent blue green purple teal refraction, ${selectedComposition}, pure black background, premium volumetric lighting, ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY, MAXIMUM ANTI-BITCOIN MEASURES: ZERO bitcoin symbols, ZERO orange colors, ZERO BTC, ZERO ₿, ZERO golden colors, FORBIDDEN bitcoin elements, BANNED bitcoin imagery, PROHIBITED orange cryptocurrency`
     };
     
     // NEW: Prioritize SVG-guided prompting for 100% accuracy
@@ -573,9 +587,9 @@ class RunPodLoraService {
       prompt = mathematicalDescription + prompt + constraintReinforcement + ` FINAL CONSTRAINT: The XRP logo is two flat triangular shapes forming an X - never circles or rings.`;
     }
     
-    // Minimal quality terms with MAXIMUM text blocking
-    prompt += ', 3D render, high quality';
-    
+    // Enhanced quality terms matching example image styles
+    prompt += ', 3D render, 8K ultra high quality, cinematic lighting, professional product photography style, octane render quality, volumetric lighting, ray tracing reflections';
+
     // NUCLEAR text blocking for ALL networks
     prompt += ', pure visual symbol only, no typography whatsoever, no readable text anywhere, no letters, no words, no alphabet characters, no linguistic elements';
     

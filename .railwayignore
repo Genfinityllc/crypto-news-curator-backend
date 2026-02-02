@@ -16,8 +16,11 @@ ai-cover-generator/external/
 
 # Temporary files
 temp/
-uploads/
+uploads/logos/
+uploads/temp/
 *.tmp
+
+# Keep png-logos for cover generation (don't ignore uploads/png-logos)
 
 # Environment files
 .env
