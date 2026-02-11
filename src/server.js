@@ -1357,7 +1357,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, logoTextMode } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight } = req.body;
 
   if (!network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
@@ -1406,8 +1406,19 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       try {
         const StyleCatalogService = require('./services/styleCatalogService');
         const styleCatalog = new StyleCatalogService();
-        stylePrompt = styleCatalog.getStylePrompt(styleId, network.toUpperCase());
-        logger.info(`🎨 Using style: ${styleId}`);
+        // Build color overrides from 3 separate color fields, with legacy fallback
+        const colorOverrides = (bgColor || elementColor || accentLightColor)
+          ? { bgColor: bgColor || null, elementColor: elementColor || null, accentLightColor: accentLightColor || null }
+          : accentColor
+            ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor }
+            : null;
+        const logoOverrides = (logoMaterial || logoBaseColor || logoAccentLight)
+          ? { logoMaterial: logoMaterial || null, logoBaseColor: logoBaseColor || null, logoAccentLight: logoAccentLight || null }
+          : null;
+        stylePrompt = styleCatalog.getStylePrompt(styleId, network.toUpperCase(), colorOverrides, customSubject || null, logoOverrides);
+        const colorLog = colorOverrides ? `bg=${bgColor || 'default'} elem=${elementColor || accentColor || 'default'} accent=${accentLightColor || accentColor || 'default'}` : 'default colors';
+        const logoLog = logoOverrides ? ` | logo: mat=${logoMaterial || 'default'} color=${logoBaseColor || 'default'} glow=${logoAccentLight || 'default'}` : '';
+        logger.info(`🎨 Using style: ${styleId} [${colorLog}${logoLog}]${customSubject ? ` subject="${customSubject}"` : ''}`);
       } catch (e) {
         logger.warn(`Could not load style ${styleId}:`, e.message);
       }
