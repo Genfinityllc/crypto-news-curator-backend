@@ -768,6 +768,7 @@ const COMPANIES_LIST = [
   { symbol: 'AXIOM', name: 'Axiom', type: 'company' },
   { symbol: 'PLUGANDPLAY', name: 'Plug and Play', type: 'company' },
   { symbol: 'RAZE', name: 'Raze', type: 'company' },
+  { symbol: 'RIPPLE', name: 'Ripple', type: 'company' },
 ];
 
 // Dynamic lists for runtime additions (loaded from file if exists)
