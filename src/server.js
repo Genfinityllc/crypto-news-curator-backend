@@ -769,6 +769,7 @@ const COMPANIES_LIST = [
   { symbol: 'PLUGANDPLAY', name: 'Plug and Play', type: 'company' },
   { symbol: 'RAZE', name: 'Raze', type: 'company' },
   { symbol: 'RIPPLE', name: 'Ripple', type: 'company' },
+  { symbol: 'COINBASE', name: 'Coinbase', type: 'company' },
 ];
 
 // Dynamic lists for runtime additions (loaded from file if exists)
@@ -1358,7 +1359,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, lightingColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight } = req.body;
 
   if (!network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
@@ -1408,10 +1409,10 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         const StyleCatalogService = require('./services/styleCatalogService');
         const styleCatalog = new StyleCatalogService();
         // Build color overrides from 3 separate color fields, with legacy fallback
-        const colorOverrides = (bgColor || elementColor || accentLightColor)
-          ? { bgColor: bgColor || null, elementColor: elementColor || null, accentLightColor: accentLightColor || null }
+        const colorOverrides = (bgColor || elementColor || accentLightColor || lightingColor)
+          ? { bgColor: bgColor || null, elementColor: elementColor || null, accentLightColor: accentLightColor || null, lightingColor: lightingColor || null }
           : accentColor
-            ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor }
+            ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor, lightingColor: null }
             : null;
         const logoOverrides = (logoMaterial || logoBaseColor || logoAccentLight)
           ? { logoMaterial: logoMaterial || null, logoBaseColor: logoBaseColor || null, logoAccentLight: logoAccentLight || null }

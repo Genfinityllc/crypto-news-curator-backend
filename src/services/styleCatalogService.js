@@ -383,7 +383,7 @@ class StyleCatalogService {
 
     // Apply color overrides if provided
     if (colorOverrides) {
-      const { bgColor, elementColor, accentLightColor } = colorOverrides;
+      const { bgColor, elementColor, accentLightColor, lightingColor } = colorOverrides;
 
       // PASS 1: Background color
       if (bgColor) {
@@ -403,11 +403,17 @@ class StyleCatalogService {
         logger.info(`🎨 Accent light color: ${accentLightColor}`);
       }
 
+      // PASS 4: Lighting color (scene glow, reflections, rim light)
+      if (lightingColor) {
+        logger.info(`🎨 Lighting color: ${lightingColor}`);
+      }
+
       // Append targeted color directives per channel
       const directives = [];
       if (bgColor) directives.push(`The background/void color is ${bgColor}`);
       if (elementColor) directives.push(`The primary color for all 3D elements, geometric shapes, flat color sections, coins, and objects is ${elementColor} - make these elements prominently ${elementColor}`);
       if (accentLightColor) directives.push(`The accent lighting color for rim lights, ambient glow, inner glow, neon effects, and edge lighting is ${accentLightColor}`);
+      if (lightingColor) directives.push(`The scene lighting, volumetric glow, light reflections on surfaces, specular highlights, and rim light color is ${lightingColor} - cast ${lightingColor} tinted light across the entire scene`);
       if (directives.length > 0) {
         prompt += `. IMPORTANT: ${directives.join('. ')}.`;
       }
