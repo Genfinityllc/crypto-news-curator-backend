@@ -778,41 +778,88 @@ const COMPANIES_LIST = [
 let DYNAMIC_NETWORKS = [];
 let DYNAMIC_COMPANIES = [];
 
-// Load dynamic logos from config file if exists
+// Load dynamic logos from Supabase (persists across Railway deploys)
 const DYNAMIC_LOGOS_FILE = path.join(__dirname, '../uploads/dynamic-logos.json');
+const DYNAMIC_LOGOS_SUPABASE_BUCKET = 'logos';
+const DYNAMIC_LOGOS_SUPABASE_FILE = 'dynamic-logos.json';
+
 async function loadDynamicLogos() {
   try {
-    // Ensure uploads directory exists
     const uploadsDir = path.join(__dirname, '../uploads');
     const pngLogosDir = path.join(__dirname, '../uploads/png-logos');
     try {
       await fs.mkdir(uploadsDir, { recursive: true });
       await fs.mkdir(pngLogosDir, { recursive: true });
-    } catch (e) {
-      // Directories might already exist
+    } catch (e) {}
+
+    // Try Supabase first (persistent across deploys)
+    try {
+      const { getSupabaseClient } = require('./config/supabase');
+      const client = getSupabaseClient();
+      if (client) {
+        const { data, error } = await client.storage
+          .from(DYNAMIC_LOGOS_SUPABASE_BUCKET)
+          .download(DYNAMIC_LOGOS_SUPABASE_FILE);
+        if (data && !error) {
+          const text = await data.text();
+          const parsed = JSON.parse(text);
+          DYNAMIC_NETWORKS = parsed.networks || [];
+          DYNAMIC_COMPANIES = parsed.companies || [];
+          console.log(`☁️ Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from Supabase`);
+          await fs.writeFile(DYNAMIC_LOGOS_FILE, text);
+          return;
+        }
+      }
+    } catch (supaErr) {
+      console.log(`⚠️ Supabase dynamic logos load failed: ${supaErr.message}`);
     }
 
+    // Fallback to local file
     const data = await fs.readFile(DYNAMIC_LOGOS_FILE, 'utf8');
     const parsed = JSON.parse(data);
     DYNAMIC_NETWORKS = parsed.networks || [];
     DYNAMIC_COMPANIES = parsed.companies || [];
-    console.log(`📦 Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies`);
+    console.log(`📦 Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from local file`);
   } catch (error) {
-    // File doesn't exist yet, that's fine
     DYNAMIC_NETWORKS = [];
     DYNAMIC_COMPANIES = [];
   }
 }
-// Load async but don't block startup
 loadDynamicLogos().catch(e => console.log('Dynamic logos load skipped:', e.message));
 
 async function saveDynamicLogos() {
   try {
-    await fs.writeFile(DYNAMIC_LOGOS_FILE, JSON.stringify({
+    const jsonData = JSON.stringify({
       networks: DYNAMIC_NETWORKS,
       companies: DYNAMIC_COMPANIES
-    }, null, 2));
-    logger.info(`💾 Saved dynamic logos config`);
+    }, null, 2);
+
+    // Save locally
+    await fs.writeFile(DYNAMIC_LOGOS_FILE, jsonData);
+
+    // Save to Supabase for persistence across deploys
+    try {
+      const { getSupabaseClient } = require('./config/supabase');
+      const client = getSupabaseClient();
+      if (client) {
+        const buffer = Buffer.from(jsonData, 'utf8');
+        const { error } = await client.storage
+          .from(DYNAMIC_LOGOS_SUPABASE_BUCKET)
+          .upload(DYNAMIC_LOGOS_SUPABASE_FILE, buffer, {
+            contentType: 'application/json',
+            upsert: true
+          });
+        if (error) {
+          logger.warn(`⚠️ Supabase dynamic logos save failed: ${error.message}`);
+        } else {
+          logger.info(`☁️ Saved dynamic logos to Supabase`);
+        }
+      }
+    } catch (supaErr) {
+      logger.warn(`⚠️ Supabase dynamic logos save failed: ${supaErr.message}`);
+    }
+
+    logger.info(`💾 Saved dynamic logos config (${DYNAMIC_NETWORKS.length} networks, ${DYNAMIC_COMPANIES.length} companies)`);
   } catch (error) {
     logger.error(`❌ Failed to save dynamic logos: ${error.message}`);
   }
