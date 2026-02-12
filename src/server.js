@@ -770,6 +770,7 @@ const COMPANIES_LIST = [
   { symbol: 'RAZE', name: 'Raze', type: 'company' },
   { symbol: 'RIPPLE', name: 'Ripple', type: 'company' },
   { symbol: 'COINBASE', name: 'Coinbase', type: 'company' },
+  { symbol: 'COINBASE_FULL', name: 'Coinbase (FULL)', type: 'company' },
 ];
 
 // Dynamic lists for runtime additions (loaded from file if exists)
