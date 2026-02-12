@@ -772,6 +772,7 @@ const COMPANIES_LIST = [
   { symbol: 'COINBASE', name: 'Coinbase', type: 'company' },
   { symbol: 'COINBASE_FULL', name: 'Coinbase (FULL)', type: 'company' },
   { symbol: 'HEDERA_FULL', name: 'Hedera (FULL)', type: 'company' },
+  { symbol: 'LOOPSCALE_FULL', name: 'Loopscale (FULL)', type: 'company' },
 ];
 
 // Dynamic lists for runtime additions (loaded from file if exists)
