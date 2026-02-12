@@ -413,6 +413,8 @@ class ControlNetService {
         'CONSTELLATION': 'DAG.png',  // Use DAG.png, not CONSTELLATION.png
         'HEDERA': 'HEDERA.png',
         'HBAR': 'HEDERA.png',  // Use HEDERA.png, not HBAR.png
+        'HEDERA_FULL': 'HEDERA_FULL.png',
+        'HBAR_FULL': 'HEDERA_FULL.png',
         'KRAKEN': 'Kraken.png',  // Use Kraken.png, not Kraken-1.png
         'UPHOLD': 'Uphold.png',  // Use Uphold.png, not Uphold-1.png
         'WLFI': 'WLFI.png',
@@ -743,6 +745,12 @@ class ControlNetService {
         let logoData = null;
         if (logoTextMode === 'full') {
           logoData = await this.getPngLogo(`${symbol}_FULL`);
+          if (!logoData) {
+            const aliased = this.logoSymbolAliases[symbol.toUpperCase()];
+            if (aliased) {
+              logoData = await this.getPngLogo(`${aliased}_FULL`);
+            }
+          }
           if (logoData) {
             logger.info(`✅ Using FULL logo variant for ${symbol}`);
           }

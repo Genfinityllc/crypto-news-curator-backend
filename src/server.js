@@ -671,6 +671,7 @@ const NETWORKS_LIST = [
   { symbol: 'XRP', name: 'XRP (Ripple)', type: 'network' },
   { symbol: 'SOL', name: 'Solana', type: 'network' },
   { symbol: 'HBAR', name: 'Hedera Hashgraph', type: 'network' },
+  { symbol: 'HEDERA_FULL', name: 'Hedera (FULL)', type: 'network' },
   { symbol: 'ADA', name: 'Cardano', type: 'network' },
   { symbol: 'AVAX', name: 'Avalanche', type: 'network' },
   { symbol: 'DOT', name: 'Polkadot', type: 'network' },
