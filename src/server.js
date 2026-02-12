@@ -671,7 +671,6 @@ const NETWORKS_LIST = [
   { symbol: 'XRP', name: 'XRP (Ripple)', type: 'network' },
   { symbol: 'SOL', name: 'Solana', type: 'network' },
   { symbol: 'HBAR', name: 'Hedera Hashgraph', type: 'network' },
-  { symbol: 'HEDERA_FULL', name: 'Hedera (FULL)', type: 'network' },
   { symbol: 'ADA', name: 'Cardano', type: 'network' },
   { symbol: 'AVAX', name: 'Avalanche', type: 'network' },
   { symbol: 'DOT', name: 'Polkadot', type: 'network' },
@@ -772,6 +771,7 @@ const COMPANIES_LIST = [
   { symbol: 'RIPPLE', name: 'Ripple', type: 'company' },
   { symbol: 'COINBASE', name: 'Coinbase', type: 'company' },
   { symbol: 'COINBASE_FULL', name: 'Coinbase (FULL)', type: 'company' },
+  { symbol: 'HEDERA_FULL', name: 'Hedera (FULL)', type: 'company' },
 ];
 
 // Dynamic lists for runtime additions (loaded from file if exists)
