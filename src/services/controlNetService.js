@@ -735,11 +735,21 @@ class ControlNetService {
       logger.info(`📝 Using Google's image editing model for stunning 3D glass/liquid effect`);
       logger.info(`📂 PNG Logo Directory: ${this.pngLogoDir}`);
 
-      // Load all logos
+      // Load all logos (prefer _FULL variant when logoTextMode is 'full')
+      const logoTextMode = options.logoTextMode || 'full';
       const loadedLogos = [];
       const missingLogos = [];
       for (const symbol of allLogos) {
-        const logoData = await this.getPngLogo(symbol);
+        let logoData = null;
+        if (logoTextMode === 'full') {
+          logoData = await this.getPngLogo(`${symbol}_FULL`);
+          if (logoData) {
+            logger.info(`✅ Using FULL logo variant for ${symbol}`);
+          }
+        }
+        if (!logoData) {
+          logoData = await this.getPngLogo(symbol);
+        }
         if (logoData) {
           loadedLogos.push({ symbol, ...logoData });
           logger.info(`✅ Logo loaded: ${symbol} (${logoData.source}, ${(logoData.buffer?.length / 1024).toFixed(1)}KB)`);
