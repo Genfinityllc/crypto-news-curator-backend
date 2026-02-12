@@ -415,6 +415,7 @@ class ControlNetService {
         'HBAR': 'HEDERA.png',  // Use HEDERA.png, not HBAR.png
         'HEDERA_FULL': 'HEDERA_FULL.png',
         'HBAR_FULL': 'HEDERA_FULL.png',
+        'COINBASE_FULL': 'COINBASE_FULL.png',
         'KRAKEN': 'Kraken.png',  // Use Kraken.png, not Kraken-1.png
         'UPHOLD': 'Uphold.png',  // Use Uphold.png, not Uphold-1.png
         'WLFI': 'WLFI.png',
@@ -587,27 +588,32 @@ class ControlNetService {
       }
       
       // Last resort: case-insensitive partial match on the directory
-      for (const file of allPngFiles) {
-        const baseName = file.replace(/\.png$/i, '').toUpperCase().replace(/\s+/g, '');
-        if (baseName === normalizedSymbol || baseName.includes(normalizedSymbol) || normalizedSymbol.includes(baseName)) {
-          const logoPath = path.join(this.pngLogoDir, file);
-          try {
-            await fs.access(logoPath);
-            const logoBuffer = await fs.readFile(logoPath);
-            const stats = await fs.stat(logoPath);
-            
-            logger.info(`🎯 Found PNG logo (partial match) for ${symbol}: ${file} (${(stats.size / 1024).toFixed(1)}KB)`);
-            
-            return {
-              buffer: logoBuffer,
-              path: logoPath,
-              filename: file,
-              symbol: normalizedSymbol,
-              size: stats.size,
-              source: 'png_file'
-            };
-          } catch (error) {
-            // Continue
+      // IMPORTANT: _FULL variants require EXACT match only — never partial match
+      const isFullVariant = normalizedSymbol.endsWith('_FULL');
+      if (!isFullVariant) {
+        for (const file of allPngFiles) {
+          const baseName = file.replace(/\.png$/i, '').toUpperCase().replace(/\s+/g, '');
+          if (baseName.endsWith('_FULL')) continue;
+          if (baseName === normalizedSymbol || baseName.includes(normalizedSymbol) || normalizedSymbol.includes(baseName)) {
+            const logoPath = path.join(this.pngLogoDir, file);
+            try {
+              await fs.access(logoPath);
+              const logoBuffer = await fs.readFile(logoPath);
+              const stats = await fs.stat(logoPath);
+              
+              logger.info(`🎯 Found PNG logo (partial match) for ${symbol}: ${file} (${(stats.size / 1024).toFixed(1)}KB)`);
+              
+              return {
+                buffer: logoBuffer,
+                path: logoPath,
+                filename: file,
+                symbol: normalizedSymbol,
+                size: stats.size,
+                source: 'png_file'
+              };
+            } catch (error) {
+              // Continue
+            }
           }
         }
       }
