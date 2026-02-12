@@ -765,6 +765,19 @@ class ControlNetService {
           logoData = await this.getPngLogo(symbol);
         }
         if (logoData) {
+          try {
+            const sharp = require('sharp');
+            const meta = await sharp(logoData.buffer).metadata();
+            if (meta.hasAlpha) {
+              logoData.buffer = await sharp(logoData.buffer)
+                .flatten({ background: { r: 0, g: 0, b: 0 } })
+                .png()
+                .toBuffer();
+              logger.info(`🔧 Flattened transparent logo ${symbol} onto black background`);
+            }
+          } catch (flattenErr) {
+            logger.warn(`⚠️ Could not check/flatten logo ${symbol}: ${flattenErr.message}`);
+          }
           loadedLogos.push({ symbol, ...logoData });
           logger.info(`✅ Logo loaded: ${symbol} (${logoData.source}, ${(logoData.buffer?.length / 1024).toFixed(1)}KB)`);
         } else {
