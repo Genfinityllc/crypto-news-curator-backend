@@ -1127,7 +1127,7 @@ class ControlNetService {
     const logoNames = allLogos.join(' and ');
 
     // High-quality suffix emphasizing depth and detail
-    const qualitySuffix = '8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials, logos are free-floating with absolutely no rectangular frames or bounding boxes or card shapes around them';
+    const qualitySuffix = '8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials, logos are free-floating with absolutely no rectangular frames or bounding boxes or card shapes around them, CRITICAL: all logos must be the exact same size and scale as each other - perfectly matched dimensions with equal visual weight, no logo larger or smaller than another';
 
     // Get themed elements based on keyword
     const themedElements = this.getKeywordThemedElements(customKeyword);
@@ -1175,28 +1175,28 @@ class ControlNetService {
 
     // Build 2-logo prompts
     const twoLogoPrompts = [
-      `two massive 3D ${logoNames} cryptocurrency symbols floating side by side as dominant focal points, both logos rendered with deep dimensional depth in matching glossy chrome and glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, logos are identical scale taking up most of frame, ${qualitySuffix}`,
+      `two massive 3D ${logoNames} cryptocurrency symbols floating side by side as dominant focal points, both logos rendered at exactly the same size and scale with deep dimensional depth in matching glossy chrome and glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, logos are identical scale and identical dimensions taking up most of frame, ${qualitySuffix}`,
 
-      `twin large 3D ${logoNames} logos with extreme depth and dimension floating in perfect balance, thick glass construction with liquid chrome interior, ${edges}, ${bg}, ${colors}, ${themedElements}, both symbols equally prominent with deep shadows and highlights, ${qualitySuffix}`,
+      `twin large 3D ${logoNames} logos at perfectly matched equal size with extreme depth and dimension floating in perfect balance, thick glass construction with liquid chrome interior, ${edges}, ${bg}, ${colors}, ${themedElements}, both symbols equally prominent at identical scale with deep shadows and highlights, ${qualitySuffix}`,
 
-      `two prominent 3D ${logoNames} symbols with exaggerated depth rendered as solid glass sculptures with metallic chrome cores, ${edges}, ${bg}, scattered 3D glass coins floating around them, ${colors}, ${themedElements}, matched scale and visual weight, ${qualitySuffix}`,
+      `two prominent 3D ${logoNames} symbols at the same uniform size with exaggerated depth rendered as solid glass sculptures with metallic chrome cores, ${edges}, ${bg}, scattered 3D glass coins floating around them, ${colors}, ${themedElements}, matched scale and equal visual weight, ${qualitySuffix}`,
 
-      `dual massive ${logoNames} 3D logos with deep relief and strong dimensionality, iridescent glass material with chrome accents, ${edges}, ${bg}, floating glass currency elements, ${colors}, ${themedElements}, perfectly balanced composition, ${qualitySuffix}`,
+      `dual massive ${logoNames} 3D logos at identical size and scale with deep relief and strong dimensionality, iridescent glass material with chrome accents, ${edges}, ${bg}, floating glass currency elements, ${colors}, ${themedElements}, perfectly balanced composition with equal-sized logos, ${qualitySuffix}`,
 
-      `two large ${logoNames} cryptocurrency symbols rendered with cinema-quality 3D depth, thick glass construction with inner glow, ${edges}, ${bg}, glass coin scatter and financial elements, ${colors}, ${themedElements}, ${qualitySuffix}`
+      `two large ${logoNames} cryptocurrency symbols at the exact same scale rendered with cinema-quality 3D depth, thick glass construction with inner glow, ${edges}, ${bg}, glass coin scatter and financial elements, ${colors}, ${themedElements}, both logos identical in size, ${qualitySuffix}`
     ];
 
     // Build 3-logo prompts
     const threeLogoPrompts = [
-      `three massive 3D ${logoNames} cryptocurrency symbols arranged in balanced formation, all logos with matching deep dimensional depth in glossy chrome glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, all three equally prominent, ${qualitySuffix}`,
+      `three massive 3D ${logoNames} cryptocurrency symbols all at the exact same size arranged in balanced formation, all logos with matching deep dimensional depth and identical scale in glossy chrome glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, all three equally prominent and equal in size, ${qualitySuffix}`,
 
-      `trio of large 3D ${logoNames} logos floating with extreme depth and dimension, thick glass with liquid metal finish, ${edges}, ${bg}, ${colors}, ${themedElements}, matched scale creating visual harmony, ${qualitySuffix}`,
+      `trio of large 3D ${logoNames} logos all at identical uniform size floating with extreme depth and dimension, thick glass with liquid metal finish, ${edges}, ${bg}, ${colors}, ${themedElements}, matched scale and equal dimensions creating visual harmony, ${qualitySuffix}`,
 
-      `three prominent ${logoNames} 3D symbols with exaggerated depth as glass chrome sculptures, ${edges}, ${bg}, scattered 3D glass coins between them, ${colors}, ${themedElements}, balanced triangular arrangement, ${qualitySuffix}`,
+      `three prominent ${logoNames} 3D symbols all rendered at the same uniform scale with exaggerated depth as glass chrome sculptures, ${edges}, ${bg}, scattered 3D glass coins between them, ${colors}, ${themedElements}, balanced triangular arrangement with equal-sized logos, ${qualitySuffix}`,
 
-      `triple ${logoNames} 3D logos with deep relief and strong parallax depth, iridescent glass with chrome core, ${edges}, ${bg}, glass financial elements floating, ${colors}, ${themedElements}, professional balanced layout, ${qualitySuffix}`,
+      `triple ${logoNames} 3D logos all at perfectly matched identical size with deep relief and strong parallax depth, iridescent glass with chrome core, ${edges}, ${bg}, glass financial elements floating, ${colors}, ${themedElements}, professional balanced layout with equal scale, ${qualitySuffix}`,
 
-      `three large ${logoNames} symbols rendered with cinema 3D depth, thick glass construction, ${edges}, ${bg}, glass currency scatter, ${colors}, ${themedElements}, all three dominating the frame equally, ${qualitySuffix}`
+      `three large ${logoNames} symbols all at the exact same dimensions rendered with cinema 3D depth, thick glass construction, ${edges}, ${bg}, glass currency scatter, ${colors}, ${themedElements}, all three identical in size dominating the frame equally, ${qualitySuffix}`
     ];
 
     const promptArray = logoCount === 2 ? twoLogoPrompts : threeLogoPrompts;
