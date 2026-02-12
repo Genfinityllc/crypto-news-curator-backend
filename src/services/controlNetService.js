@@ -1016,6 +1016,8 @@ class ControlNetService {
         logger.info(`📝 Using standard prompt generation`);
       }
     }
+    prompt += ` The logos must float freely in the scene with NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels behind or around the logos. Logos are free-floating 3D objects, never enclosed or contained.`;
+
     const logoTextMode = article?.logoTextMode || 'full';
     if (logoTextMode === 'full') {
       prompt += ` Preserve the full logo including any text, wordmarks, or typography; do not crop or omit text.`;
@@ -1125,7 +1127,7 @@ class ControlNetService {
     const logoNames = allLogos.join(' and ');
 
     // High-quality suffix emphasizing depth and detail
-    const qualitySuffix = '8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials';
+    const qualitySuffix = '8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials, logos are free-floating with absolutely no rectangular frames or bounding boxes or card shapes around them';
 
     // Get themed elements based on keyword
     const themedElements = this.getKeywordThemedElements(customKeyword);

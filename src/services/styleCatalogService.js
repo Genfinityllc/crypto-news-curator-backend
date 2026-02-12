@@ -441,6 +441,7 @@ class StyleCatalogService {
 
     // Always append anti-spotlight directive
     prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, volumetric fog, and edge lighting';
+    prompt += ', CRITICAL: logos must float freely in the scene - absolutely NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens behind or around any logo - logos are free-floating 3D objects never enclosed or contained in any frame or box shape';
 
     return prompt;
   }
