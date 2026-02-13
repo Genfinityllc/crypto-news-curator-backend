@@ -785,6 +785,8 @@ const DYNAMIC_LOGOS_FILE = path.join(__dirname, '../uploads/dynamic-logos.json')
 const DYNAMIC_LOGOS_SUPABASE_BUCKET = 'logos';
 const DYNAMIC_LOGOS_SUPABASE_FILE = 'dynamic-logos.json';
 
+let dynamicLogosLoaded = false;
+
 async function loadDynamicLogos() {
   try {
     const uploadsDir = path.join(__dirname, '../uploads');
@@ -807,8 +809,11 @@ async function loadDynamicLogos() {
           const parsed = JSON.parse(text);
           DYNAMIC_NETWORKS = parsed.networks || [];
           DYNAMIC_COMPANIES = parsed.companies || [];
+          dynamicLogosLoaded = true;
+          networksCache = null;
+          networksCacheTime = 0;
           console.log(`☁️ Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from Supabase`);
-          await fs.writeFile(DYNAMIC_LOGOS_FILE, text);
+          await fs.writeFile(DYNAMIC_LOGOS_FILE, text).catch(() => {});
           return;
         }
       }
@@ -817,17 +822,41 @@ async function loadDynamicLogos() {
     }
 
     // Fallback to local file
-    const data = await fs.readFile(DYNAMIC_LOGOS_FILE, 'utf8');
-    const parsed = JSON.parse(data);
-    DYNAMIC_NETWORKS = parsed.networks || [];
-    DYNAMIC_COMPANIES = parsed.companies || [];
-    console.log(`📦 Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from local file`);
+    try {
+      const data = await fs.readFile(DYNAMIC_LOGOS_FILE, 'utf8');
+      const parsed = JSON.parse(data);
+      DYNAMIC_NETWORKS = parsed.networks || [];
+      DYNAMIC_COMPANIES = parsed.companies || [];
+      dynamicLogosLoaded = true;
+      networksCache = null;
+      networksCacheTime = 0;
+      console.log(`📦 Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from local file`);
+    } catch (e) {
+      DYNAMIC_NETWORKS = [];
+      DYNAMIC_COMPANIES = [];
+    }
   } catch (error) {
     DYNAMIC_NETWORKS = [];
     DYNAMIC_COMPANIES = [];
   }
 }
-loadDynamicLogos().catch(e => console.log('Dynamic logos load skipped:', e.message));
+
+// Load at startup with retries
+(async () => {
+  await loadDynamicLogos().catch(e => console.log('Dynamic logos load attempt 1 failed:', e.message));
+  if (!dynamicLogosLoaded) {
+    setTimeout(async () => {
+      console.log('🔄 Retrying dynamic logos load (attempt 2)...');
+      await loadDynamicLogos().catch(e => console.log('Dynamic logos load attempt 2 failed:', e.message));
+      if (!dynamicLogosLoaded) {
+        setTimeout(async () => {
+          console.log('🔄 Retrying dynamic logos load (attempt 3)...');
+          await loadDynamicLogos().catch(e => console.log('Dynamic logos load attempt 3 failed:', e.message));
+        }, 10000);
+      }
+    }, 5000);
+  }
+})();
 
 async function saveDynamicLogos() {
   try {
