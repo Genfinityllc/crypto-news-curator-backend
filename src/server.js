@@ -922,17 +922,27 @@ app.post('/api/cover-generator/upload-logo', logoUpload.single('logo'), async (r
 
     const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
 
-    // Read the uploaded file and upload to Supabase Storage for persistence
+    // Read the uploaded file, flatten if transparent, save locally and to Supabase
     let supabaseUrl = null;
     try {
-      const fileBuffer = await fs.readFile(req.file.path);
+      const sharp = require('sharp');
+      let fileBuffer = await fs.readFile(req.file.path);
+      const meta = await sharp(fileBuffer).metadata();
+      if (meta.hasAlpha) {
+        fileBuffer = await sharp(fileBuffer)
+          .flatten({ background: { r: 0, g: 0, b: 0 } })
+          .png()
+          .toBuffer();
+        await fs.writeFile(req.file.path, fileBuffer);
+        logger.info(`🔧 Flattened transparent logo onto black background before saving`);
+      }
       const supabaseFilename = `${normalizedSymbol}.png`;
       supabaseUrl = await uploadImageToStorage(fileBuffer, supabaseFilename, 'logos');
       if (supabaseUrl) {
         logger.info(`☁️ Logo uploaded to Supabase Storage: ${supabaseUrl}`);
       }
     } catch (uploadErr) {
-      logger.warn(`⚠️ Could not upload logo to Supabase Storage: ${uploadErr.message}`);
+      logger.warn(`⚠️ Could not process/upload logo to Supabase Storage: ${uploadErr.message}`);
     }
 
     const logoEntry = {
