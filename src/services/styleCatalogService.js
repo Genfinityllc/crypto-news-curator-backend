@@ -25,17 +25,33 @@ class StyleCatalogService {
         description: 'Crystal glass logo with rainbow refractions on deep blue gradient',
         filename: '01_iridescent_prism_logo_deep_blue_gradient.png',
         category: 'glass',
-        prompt: (logoSymbol) => `infinite deep blue void with subtle atmospheric depth, soft volumetric fog, gentle light rays piercing darkness, soft cinematic blue with cool undertones and professional depth, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in iridescent crystal glass with rainbow refractions, clean rim lighting, subtle spectral reflections on edges, luxury 3D CGI product render, floating abstract glass prisms and geometric shards as background accents, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., diamonds, crystals, stars...', defaultSubject: 'glass prisms and geometric shards' },
+        defaultColors: { bgColor: '#0a1628', elementColor: '#4a90d9', accentLightColor: '#7b68ee', lightingColor: '#1a3a5c' },
+        prompt: (logoSymbol) => `infinite deep blue void with subtle atmospheric depth, soft volumetric fog, gentle light rays piercing darkness, soft cinematic blue with cool undertones and professional depth, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in iridescent crystal glass with rainbow refractions, clean rim lighting, subtle spectral reflections on edges, luxury 3D CGI product render, floating abstract {{3D_ELEMENTS}} as background accents, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '02_glass_banks_lime': {
         id: '02_glass_banks_lime',
         name: 'Glass Banks',
-        description: 'Frosted glass logo with crystal bank buildings and lime accent pattern',
+        description: 'Frosted glass logo with crystal bank buildings and optional accent pattern',
         filename: '02_glass_banks_lime_pattern.png',
         category: 'architectural',
         customSubject: { enabled: true, placeholder: 'e.g., rockets, skyscrapers, pyramids...', defaultSubject: 'bank buildings' },
-        prompt: (logoSymbol) => `pure black void background, soft cinematic rim lighting with purple accent highlights, photorealistic 3D environment, the provided cryptocurrency logo symbol rendered in medium size frosted glass material with purple inner glow centered in the composition floating freely with NO box NO frame NO rectangular panel NO glass card NO border around it - the logo shape itself is frosted glass not placed inside any container, translucent 3D crystal glass bank buildings reaching into the frame from the edges - classical bank architecture with columns and facades rendered entirely in clear crystal glass material matching the hands style from before, the glass banks are see-through with realistic light refractions and purple tinted reflections, 2-3 small glass bank buildings positioned around the edges of frame, BEHIND all 3D elements as a background layer: lime green (#dbff03) flat-shaded 3D rounded rectangle mosaic pattern in the bottom-left corner and bottom-right corner, the shapes have a subtle 3D thickness like extruded flat tiles with soft beveled edges and a slight shadow giving depth while remaining flat-faced, like an iOS app icon grid - rounded rectangles of VARYING sizes arranged loosely with thin dark gaps between them, some shapes are small squares some are wider rectangles some are taller rectangles creating an irregular mosaic, occasionally two neighboring shapes merge into one larger combined shape with no gap between them, the pattern sits BEHIND and UNDERNEATH the 3D glass elements, roughly 15-20 percent of frame in the corners extending off-edge, shallow depth of field, the logo crafted from premium frosted glass material with volumetric lighting, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text, no hands`
+        defaultColors: { bgColor: '#000000', elementColor: '#9b59b6', accentLightColor: '#dbff03', lightingColor: '#6a0dad' },
+        patternOptions: {
+          enabled: true,
+          defaultPattern: 'mosaic',
+          defaultColor: '#dbff03',
+          patterns: {
+            none: { id: 'none', name: 'No Pattern', description: 'Clean scene without accent pattern', prompt: '' },
+            mosaic: { id: 'mosaic', name: 'Mosaic Tiles', description: 'Varied rounded rectangles in an organic grid', prompt: (color) => `BEHIND all 3D elements as a background layer: ${color} flat-shaded 3D rounded rectangle mosaic pattern in the bottom-left corner and bottom-right corner, the shapes have a subtle 3D thickness like extruded flat tiles with soft beveled edges and a slight shadow giving depth while remaining flat-faced, like an iOS app icon grid - rounded rectangles of VARYING sizes arranged loosely with thin dark gaps between them, some shapes are small squares some are wider rectangles some are taller rectangles creating an irregular mosaic, occasionally two neighboring shapes merge into one larger combined shape with no gap between them, the pattern sits BEHIND and UNDERNEATH the 3D glass elements, roughly 15-20 percent of frame in the corners extending off-edge` },
+            grid: { id: 'grid', name: 'Uniform Grid', description: 'Even rounded squares in a clean grid', prompt: (color) => `BEHIND all 3D elements as a background layer: ${color} flat rounded square grid pattern in the bottom-left corner and bottom-right corner, uniform evenly-spaced rounded squares all the same size arranged in a neat grid with thin dark gaps, the squares have subtle 3D thickness with soft beveled edges, the pattern sits BEHIND and UNDERNEATH the 3D glass elements, roughly 15-20 percent of frame in the corners extending off-edge` },
+            dots: { id: 'dots', name: 'Dot Matrix', description: 'Scattered circles in a halftone pattern', prompt: (color) => `BEHIND all 3D elements as a background layer: ${color} flat-shaded 3D dot matrix pattern in the bottom-left corner and bottom-right corner, scattered circles of varying sizes arranged in a halftone gradient pattern - larger dots near the corner fading to smaller dots toward the center, the dots have subtle 3D thickness like raised buttons, the pattern sits BEHIND and UNDERNEATH the 3D glass elements, roughly 15-20 percent of frame in the corners extending off-edge` },
+            hexagons: { id: 'hexagons', name: 'Honeycomb', description: 'Hexagonal cells in a honeycomb layout', prompt: (color) => `BEHIND all 3D elements as a background layer: ${color} flat-shaded 3D hexagonal honeycomb pattern in the bottom-left corner and bottom-right corner, hexagonal cells of varying sizes arranged in an organic honeycomb layout with thin dark gaps between them, the hexagons have subtle 3D thickness with soft beveled edges, the pattern sits BEHIND and UNDERNEATH the 3D glass elements, roughly 15-20 percent of frame in the corners extending off-edge` },
+            diagonal: { id: 'diagonal', name: 'Diagonal Bars', description: 'Angled parallel bars at 45 degrees', prompt: (color) => `BEHIND all 3D elements as a background layer: ${color} flat-shaded 3D diagonal bar pattern in the bottom-left corner and bottom-right corner, parallel bars angled at 45 degrees with varying widths and thin dark gaps between them, the bars have subtle 3D thickness with soft beveled edges, the pattern sits BEHIND and UNDERNEATH the 3D glass elements, roughly 15-20 percent of frame in the corners extending off-edge` }
+          }
+        },
+        prompt: (logoSymbol) => `pure black void background, soft cinematic rim lighting with purple accent highlights, photorealistic 3D environment, the provided cryptocurrency logo symbol rendered in medium size frosted glass material with purple inner glow centered in the composition floating freely with NO box NO frame NO rectangular panel NO glass card NO border around it - the logo shape itself is frosted glass not placed inside any container, translucent 3D crystal glass {{3D_ELEMENTS}} reaching into the frame from the edges - rendered entirely in clear crystal glass material, the glass elements are see-through with realistic light refractions and purple tinted reflections, 2-3 small glass elements positioned around the edges of frame, {{PATTERN_PLACEHOLDER}}, shallow depth of field, the logo crafted from premium frosted glass material with volumetric lighting, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text, no hands`
       },
 
       '03_neon_glass_dynamic': {
@@ -44,7 +60,9 @@ class StyleCatalogService {
         description: 'Mirror chrome logo with cyan/magenta neon split lighting and floating glass cubes',
         filename: '03_neon_glass_dynamic.png',
         category: 'neon',
-        prompt: (logoSymbol) => `deep black environment with soft cinematic rim lighting, cyan neon glow on the left side and magenta neon glow on the right side creating split lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright polished mirror chrome with strong white highlights clearly visible and well-lit, a few sleek neon light tubes in the background creating geometric accent lines but not overwhelming, glossy black mirror floor with logo reflection, many floating 3D glass cubes prisms and rectangular blocks of varying sizes scattered dynamically around the logo at different depths and angles, the glass shapes catch and refract the cyan and magenta neon light beautifully, some glass elements larger in foreground some smaller in background creating depth, the 3D elements add visual complexity and movement, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., spheres, pyramids, lightning bolts...', defaultSubject: 'glass cubes prisms and rectangular blocks' },
+        defaultColors: { bgColor: '#000000', elementColor: '#00e5ff', accentLightColor: '#ff00ff', lightingColor: '#00e5ff' },
+        prompt: (logoSymbol) => `deep black environment with soft cinematic rim lighting, cyan neon glow on the left side and magenta neon glow on the right side creating split lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright polished mirror chrome with strong white highlights clearly visible and well-lit, a few sleek neon light tubes in the background creating geometric accent lines but not overwhelming, glossy black mirror floor with logo reflection, many floating 3D {{3D_ELEMENTS}} of varying sizes scattered dynamically around the logo at different depths and angles, the elements catch and refract the cyan and magenta neon light beautifully, some elements larger in foreground some smaller in background creating depth, the 3D elements add visual complexity and movement, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '04_glass_shard_orbit': {
@@ -53,7 +71,9 @@ class StyleCatalogService {
         description: 'Edge-lit glass logo with minimal glass shards orbiting on pure dark background',
         filename: '04_glass_shard_orbit_pure_dark_minimal.png',
         category: 'minimal',
-        prompt: (logoSymbol) => `ultra-clean pure black void with infinite depth, absolute minimal environment, focus entirely on subject, precise rim lighting with subtle fill, stark contrast, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in edge-lit glass with minimal glass shards orbiting as accents, soft ambient fill, clean futuristic mood, subtle glass orbs and spheres at varying depths creating dimension, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., asteroids, rings, feathers...', defaultSubject: 'glass shards and orbs' },
+        defaultColors: { bgColor: '#000000', elementColor: '#c0c0c0', accentLightColor: '#ffffff', lightingColor: '#1a1a2e' },
+        prompt: (logoSymbol) => `ultra-clean pure black void with infinite depth, absolute minimal environment, focus entirely on subject, precise rim lighting with subtle fill, stark contrast, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in edge-lit glass with minimal {{3D_ELEMENTS}} orbiting as accents, soft ambient fill, clean futuristic mood, subtle elements at varying depths creating dimension, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '05_holographic_prism': {
@@ -62,7 +82,9 @@ class StyleCatalogService {
         description: 'Crystal glass with holographic prism edges on soft purple haze',
         filename: '05_holographic_prism_edges_soft_purple_haze.png',
         category: 'holographic',
-        prompt: (logoSymbol) => `ethereal purple-violet gradient with dreamy atmosphere, soft bokeh orbs, gentle lens flare effects, soft diffused purple lighting with gentle violet undertones, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in crystal glass with holographic prism edges, prismatic rim light with soft ambient fill, rainbow refraction along edges, scattered glass coins featuring the logo at various angles and depths, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., butterflies, gems, planets...', defaultSubject: 'glass coins' },
+        defaultColors: { bgColor: '#2d1b4e', elementColor: '#9b59b6', accentLightColor: '#e0b0ff', lightingColor: '#7b2faf' },
+        prompt: (logoSymbol) => `ethereal purple-violet gradient with dreamy atmosphere, soft bokeh orbs, gentle lens flare effects, soft diffused purple lighting with gentle violet undertones, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in crystal glass with holographic prism edges, prismatic rim light with soft ambient fill, rainbow refraction along edges, scattered {{3D_ELEMENTS}} at various angles and depths, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '05b_lime_background': {
@@ -71,7 +93,9 @@ class StyleCatalogService {
         description: 'Holographic glass logo on bright lime green studio backdrop',
         filename: '05b_lime_background_glass.png',
         category: 'colorful',
-        prompt: (logoSymbol) => `bright lime green (#dbff03) gradient background similar to a soft studio backdrop, the entire background is lime green colored, soft dreamy lighting with subtle bokeh, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in crystal clear holographic glass with rainbow refractions, floating glass shapes and curved glass elements around the scene, subtle glass surfaces creating depth, the logo and all elements are transparent crystal glass catching light against the lime green backdrop, soft lens flare and bokeh effects, the logo crafted from premium holographic glass material, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text, lime green background`
+        customSubject: { enabled: true, placeholder: 'e.g., bubbles, orbs, flowers...', defaultSubject: 'glass shapes and curved glass elements' },
+        defaultColors: { bgColor: '#dbff03', elementColor: '#dbff03', accentLightColor: '#ffffff', lightingColor: '#c8eb00' },
+        prompt: (logoSymbol) => `bright lime green (#dbff03) gradient background similar to a soft studio backdrop, the entire background is lime green colored, soft dreamy lighting with subtle bokeh, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in crystal clear holographic glass with rainbow refractions, floating {{3D_ELEMENTS}} around the scene, subtle glass surfaces creating depth, the logo and all elements are transparent crystal glass catching light against the lime green backdrop, soft lens flare and bokeh effects, the logo crafted from premium holographic glass material, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text, lime green background`
       },
 
       '08_hands_frosted': {
@@ -81,7 +105,8 @@ class StyleCatalogService {
         filename: '08_hands_frosted_logo.png',
         category: 'conceptual',
         customSubject: { enabled: true, placeholder: 'e.g., wings, tentacles, claws...', defaultSubject: 'hands' },
-        prompt: (logoSymbol) => `pure black void background, soft soft cinematic rim lighting with purple and magenta ambient glow, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright frosted glass with purple inner glow like a glowing holographic material, exactly TWO elegant glass hands reaching toward and SLIGHTLY OVERLAPPING the logo from opposite sides - one hand from the left partially in front of the logo and one hand from the right partially in front of the logo, the hands are made of clear crystal glass with purple and magenta light refractions, hands positioned framing and slightly covering edges of the central logo creating depth, the glass hands have elegant sculpted form, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text, only two hands total`
+        defaultColors: { bgColor: '#000000', elementColor: '#9b59b6', accentLightColor: '#ff00ff', lightingColor: '#6a0dad' },
+        prompt: (logoSymbol) => `pure black void background, soft soft cinematic rim lighting with purple and magenta ambient glow, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright frosted glass with purple inner glow like a glowing holographic material, elegant glass {{3D_ELEMENTS}} reaching toward and SLIGHTLY OVERLAPPING the logo from opposite sides - from the left partially in front of the logo and from the right partially in front of the logo, the elements are made of clear crystal glass with purple and magenta light refractions, elements positioned framing and slightly covering edges of the central logo creating depth, the glass elements have elegant sculpted form, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '10_ceramic_white': {
@@ -90,7 +115,9 @@ class StyleCatalogService {
         description: 'Matte ceramic white logo with holographic shimmer on iridescent background',
         filename: '10_ceramic_white_holographic_shimmer.png',
         category: 'premium',
-        prompt: (logoSymbol) => `iridescent holographic void with color-shifting properties, rainbow prismatic effects, holographic texture hints, shifting spectral lighting with iridescent reflections, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in matte ceramic white with subtle gloss edges, soft cinematic key light with gentle rim, angular crystal formations emerging from the darkness, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., pillars, monoliths, icebergs...', defaultSubject: 'angular crystal formations' },
+        defaultColors: { bgColor: '#1a1a2e', elementColor: '#ffffff', accentLightColor: '#e0b0ff', lightingColor: '#c0c0c0' },
+        prompt: (logoSymbol) => `iridescent holographic void with color-shifting properties, rainbow prismatic effects, holographic texture hints, shifting spectral lighting with iridescent reflections, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in matte ceramic white with subtle gloss edges, soft cinematic key light with gentle rim, {{3D_ELEMENTS}} emerging from the darkness, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '13_digital_glitch': {
@@ -99,7 +126,9 @@ class StyleCatalogService {
         description: 'Chrome logo with RGB chromatic aberration and cyberpunk glitch effects',
         filename: '13_digital_glitch_corruption.png',
         category: 'cyberpunk',
-        prompt: (logoSymbol) => `pure black void background with subtle scan lines, cyberpunk ambient rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in polished chrome with RGB chromatic aberration color split effect on the edges showing red blue green separation, digital glitch artifacts and pixel blocks scattered around the logo, horizontal scan lines and VHS distortion effects in the background, lime green (#dbff03) digital noise particles floating, purple neon accent lighting, the logo partially dissolving into digital pixels on one edge while remaining solid chrome on the other, cyberpunk data corruption aesthetic, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, no liquid, no melting`
+        customSubject: { enabled: true, placeholder: 'e.g., skulls, circuits, holograms...', defaultSubject: 'glitch artifacts and pixel blocks' },
+        defaultColors: { bgColor: '#000000', elementColor: '#dbff03', accentLightColor: '#9b59b6', lightingColor: '#00ff41' },
+        prompt: (logoSymbol) => `pure black void background with subtle scan lines, cyberpunk ambient rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in polished chrome with RGB chromatic aberration color split effect on the edges showing red blue green separation, digital {{3D_ELEMENTS}} scattered around the logo, horizontal scan lines and VHS distortion effects in the background, lime green (#dbff03) digital noise particles floating, purple neon accent lighting, the logo partially dissolving into digital pixels on one edge while remaining solid chrome on the other, cyberpunk data corruption aesthetic, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, no liquid, no melting`
       },
 
       '15_glass_outline': {
@@ -108,7 +137,9 @@ class StyleCatalogService {
         description: 'Clear glass outline logo with inner glow on emerald depth background',
         filename: '15_glass_outline_logo_emerald_depth.png',
         category: 'glass',
-        prompt: (logoSymbol) => `deep forest green gradient with dark undertones, subtle green mist, organic depth feeling, moody dark green lighting with teal accent highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in clear glass outline with inner glow, edge glow with soft ambient fill, minimal neon aesthetic, floating hexagonal glass tiles creating depth layers, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., leaves, mushrooms, jellyfish...', defaultSubject: 'hexagonal glass tiles' },
+        defaultColors: { bgColor: '#0d3b2e', elementColor: '#2ecc71', accentLightColor: '#00cec9', lightingColor: '#1a5c3a' },
+        prompt: (logoSymbol) => `deep forest green gradient with dark undertones, subtle green mist, organic depth feeling, moody dark green lighting with teal accent highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in clear glass outline with inner glow, edge glow with soft ambient fill, minimal neon aesthetic, floating {{3D_ELEMENTS}} creating depth layers, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '16_ink_splash': {
@@ -117,7 +148,9 @@ class StyleCatalogService {
         description: 'Liquid mercury chrome logo with explosive black ink splashes on purple',
         filename: '16_ink_splash_liquid_chrome.png',
         category: 'dynamic',
-        prompt: (logoSymbol) => `bright vivid purple (#9b59b6) studio background, soft cinematic rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in LIQUID MERCURY MIRROR CHROME with perfect mirror reflections visible on every surface, the logo reflects the purple background and black ink splashes like a polished car hood or liquid metal terminator, highly reflective liquid metal finish showing distorted environment reflections, thick chunky 3D shape with strong depth and beveled edges, explosive black ink splashes and splatters bursting outward from behind the logo in dynamic radial patterns, liquid ink droplets frozen mid-air with motion blur, some ink splashes tinted with deeper purple and lime green (#dbff03) accents, dramatic contrast of black ink against bright purple background, ink streams and ribbons flowing dynamically, the chrome logo surface shows warped reflections of surrounding elements, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., paint splatters, smoke, flames...', defaultSubject: 'ink splashes and splatters' },
+        defaultColors: { bgColor: '#9b59b6', elementColor: '#000000', accentLightColor: '#dbff03', lightingColor: '#6a0dad' },
+        prompt: (logoSymbol) => `bright vivid purple (#9b59b6) studio background, soft cinematic rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in LIQUID MERCURY MIRROR CHROME with perfect mirror reflections visible on every surface, the logo reflects the purple background like a polished car hood or liquid metal terminator, highly reflective liquid metal finish showing distorted environment reflections, thick chunky 3D shape with strong depth and beveled edges, explosive {{3D_ELEMENTS}} bursting outward from behind the logo in dynamic radial patterns, elements frozen mid-air with motion blur, some elements tinted with deeper purple and lime green (#dbff03) accents, dramatic contrast against bright purple background, dynamic flowing energy, the chrome logo surface shows warped reflections of surrounding elements, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '17_glass_bevel': {
@@ -126,7 +159,9 @@ class StyleCatalogService {
         description: 'Beveled crystal glass logo with strong specular highlights on dark pattern',
         filename: '17_glass_bevel_dark_pattern.png',
         category: 'glass',
-        prompt: (logoSymbol) => `sophisticated charcoal grey gradient with subtle texture, fine grain texture overlay, subtle depth layers, refined neutral lighting with silver-grey highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in beveled crystal glass with strong specular highlights, crisp bevel reflections, soft fill light, abstract wireframe geometric shapes as subtle accents, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., gears, chains, wires...', defaultSubject: 'wireframe geometric shapes' },
+        defaultColors: { bgColor: '#2c2c2c', elementColor: '#c0c0c0', accentLightColor: '#ffffff', lightingColor: '#555555' },
+        prompt: (logoSymbol) => `sophisticated charcoal grey gradient with subtle texture, fine grain texture overlay, subtle depth layers, refined neutral lighting with silver-grey highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in beveled crystal glass with strong specular highlights, crisp bevel reflections, soft fill light, abstract {{3D_ELEMENTS}} as subtle accents, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '18_abstract_glass': {
@@ -135,7 +170,9 @@ class StyleCatalogService {
         description: 'Polished chrome logo with floating abstract glass shapes on cosmic purple',
         filename: '18_abstract_glass_shapes_cosmic_purple.png',
         category: 'cosmic',
-        prompt: (logoSymbol) => `deep cosmic purple void with nebula-like depth, subtle cosmic dust, ethereal gas cloud hints, mysterious purple lighting with magenta highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in polished chrome with floating abstract glass shapes as accents, soft cinematic key light, abstract chrome spheres reflecting the environment, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., planets, nebulae, meteors...', defaultSubject: 'abstract glass shapes and chrome spheres' },
+        defaultColors: { bgColor: '#1a0a2e', elementColor: '#9b59b6', accentLightColor: '#ff00ff', lightingColor: '#4a1a6b' },
+        prompt: (logoSymbol) => `deep cosmic purple void with nebula-like depth, subtle cosmic dust, ethereal gas cloud hints, mysterious purple lighting with magenta highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in polished chrome with floating {{3D_ELEMENTS}} as accents, soft cinematic key light, elements reflecting the environment, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '19_shattered_glass': {
@@ -144,7 +181,9 @@ class StyleCatalogService {
         description: 'Crystal glass logo emerging from exploding shattered mirror',
         filename: '19_shattered_glass_emergence.png',
         category: 'dynamic',
-        prompt: (logoSymbol) => `absolute black void background, soft cinematic rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in crystal clear glass emerging from a massive SHATTERED mirror plane, sharp glass shards and fragments exploding outward from the center, broken glass pieces floating and flying in all directions with motion blur, some glass fragments tinted with lime green (#dbff03) catching light, deep purple volumetric light rays streaming through the broken glass, dramatic depth with foreground shards blurred, the logo pristine and undamaged at the center of the chaos, premium glass materials with realistic refractions, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, no spheres, no balls`
+        customSubject: { enabled: true, placeholder: 'e.g., ice shards, rocks, debris...', defaultSubject: 'glass shards and fragments' },
+        defaultColors: { bgColor: '#000000', elementColor: '#dbff03', accentLightColor: '#9b59b6', lightingColor: '#4a0080' },
+        prompt: (logoSymbol) => `absolute black void background, soft cinematic rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in crystal clear glass emerging from a massive SHATTERED plane, sharp {{3D_ELEMENTS}} exploding outward from the center, broken pieces floating and flying in all directions with motion blur, some fragments tinted with lime green (#dbff03) catching light, deep purple volumetric light rays streaming through the elements, dramatic depth with foreground elements blurred, the logo pristine and undamaged at the center of the chaos, premium materials with realistic refractions, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, no spheres, no balls`
       },
 
       '20_navy_chrome_coins': {
@@ -153,7 +192,9 @@ class StyleCatalogService {
         description: 'Mirror chrome logo with floating lime plastic coins on deep navy',
         filename: '20_navy_chrome_lime_coins.png',
         category: 'financial',
-        prompt: (logoSymbol) => `deep navy blue void fading to rich black, soft even cinematic lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in perfect MIRROR CHROME with flawless reflective surface showing environment reflections, the logo is highly polished mirror finish metal reflecting the navy background and lime accents, thick chunky 3D shape with strong depth and beveled edges, 10-12 matte lime green (#dbff03) plastic coins floating weightlessly in the air at various heights depths and angles, coins vary dramatically in size from small distant coins to large close-up coins creating depth, each coin has the cryptocurrency logo embossed on its surface, coins are solid opaque plastic with soft matte finish showing the logo clearly, some coins very close and large with slight blur some tiny and far away, the mirror chrome logo catches and reflects light beautifully, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., gold bars, diamonds, tokens...', defaultSubject: 'plastic coins' },
+        defaultColors: { bgColor: '#0a1628', elementColor: '#dbff03', accentLightColor: '#c0c0c0', lightingColor: '#1a2744' },
+        prompt: (logoSymbol) => `deep navy blue void fading to rich black, soft even cinematic lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in perfect MIRROR CHROME with flawless reflective surface showing environment reflections, the logo is highly polished mirror finish metal reflecting the navy background and lime accents, thick chunky 3D shape with strong depth and beveled edges, 10-12 matte lime green (#dbff03) {{3D_ELEMENTS}} floating weightlessly in the air at various heights depths and angles, elements vary dramatically in size from small distant to large close-up creating depth, some elements very close and large with slight blur some tiny and far away, the mirror chrome logo catches and reflects light beautifully, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '21_magenta_graphic': {
@@ -162,7 +203,9 @@ class StyleCatalogService {
         description: 'Frosted glass logo with bold magenta graphic design elements',
         filename: '21_magenta_graphic_glass.png',
         category: 'graphic',
-        prompt: (logoSymbol) => `deep black void background, soft cinematic rim lighting with magenta and cyan accents, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright frosted glass with purple inner glow well-lit and clearly visible, bold flat bright magenta (#e91e63) geometric shapes as graphic design layers in different locations - diagonal stripes angular blocks and abstract flat patterns creating dynamic background interest like a modern poster design, floating transparent glass geometric shapes catching colored light, mix of flat 2D graphic design elements with premium 3D glass objects, modern editorial design aesthetic, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., arrows, ribbons, waves...', defaultSubject: 'geometric shapes and glass objects' },
+        defaultColors: { bgColor: '#000000', elementColor: '#e91e63', accentLightColor: '#00e5ff', lightingColor: '#e91e63' },
+        prompt: (logoSymbol) => `deep black void background, soft cinematic rim lighting with magenta and cyan accents, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright frosted glass with purple inner glow well-lit and clearly visible, bold flat bright magenta (#e91e63) {{3D_ELEMENTS}} as graphic design layers in different locations - creating dynamic background interest like a modern poster design, floating transparent glass elements catching colored light, mix of flat 2D graphic design elements with premium 3D objects, modern editorial design aesthetic, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '22_neon_minimal': {
@@ -171,7 +214,9 @@ class StyleCatalogService {
         description: 'Chrome logo with restrained neon edge accents on clean dark background',
         filename: '22_neon_minimal_coin_dark.png',
         category: 'minimal',
-        prompt: (logoSymbol) => `deep black void with sharp neon accent edges, geometric neon line accents, clean edge highlights, soft edge lighting with neon cyan and pink accents, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in smooth chrome with restrained neon edge accents, clean cinematic key light, minimal background, logo coins in glass material orbiting at different distances, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., rings, discs, tokens...', defaultSubject: 'glass coins' },
+        defaultColors: { bgColor: '#000000', elementColor: '#00e5ff', accentLightColor: '#ff69b4', lightingColor: '#00e5ff' },
+        prompt: (logoSymbol) => `deep black void with sharp neon accent edges, geometric neon line accents, clean edge highlights, soft edge lighting with neon cyan and pink accents, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in smooth chrome with restrained neon edge accents, clean cinematic key light, minimal background, {{3D_ELEMENTS}} in glass material orbiting at different distances, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '23_depth_layers': {
@@ -180,7 +225,9 @@ class StyleCatalogService {
         description: 'Polished metal logo with layered depth lighting on purple dark background',
         filename: '23_depth_layers_purple_dark.png',
         category: 'premium',
-        prompt: (logoSymbol) => `deep black void with rich violet accent gradients, subtle purple mist, dark atmospheric depth, moody ambient lighting with vivid purple rim accents, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in polished metal with layered depth lighting, atmospheric separation, soft cinematic highlights, floating lens flare elements and light artifacts, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
+        customSubject: { enabled: true, placeholder: 'e.g., smoke trails, particles, aurora...', defaultSubject: 'lens flare elements and light artifacts' },
+        defaultColors: { bgColor: '#0a0014', elementColor: '#9b59b6', accentLightColor: '#c084fc', lightingColor: '#6a0dad' },
+        prompt: (logoSymbol) => `deep black void with rich violet accent gradients, subtle purple mist, dark atmospheric depth, moody ambient lighting with vivid purple rim accents, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in polished metal with layered depth lighting, atmospheric separation, soft cinematic highlights, floating {{3D_ELEMENTS}}, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
       '24_purple_graphic': {
@@ -189,7 +236,9 @@ class StyleCatalogService {
         description: 'Mirror chrome logo with bold purple graphic design elements',
         filename: '24_purple_graphic_glass.png',
         category: 'graphic',
-        prompt: (logoSymbol) => `deep black void background, soft cinematic rim lighting with purple highlights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright polished mirror chrome with strong white highlights clearly visible, flat bright purple (#9b59b6) geometric shapes as graphic design elements layered behind and around the scene - angular blocks zigzag patterns and bold flat color sections creating visual interest like a graphic design poster, floating glass cubes and prisms scattered around catching purple light reflections, the flat purple graphic elements contrast with the 3D glass objects, clean modern design aesthetic mixing 2D graphic elements with 3D renders, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., arrows, blocks, triangles...', defaultSubject: 'geometric shapes and glass cubes' },
+        defaultColors: { bgColor: '#000000', elementColor: '#9b59b6', accentLightColor: '#c0c0c0', lightingColor: '#6a0dad' },
+        prompt: (logoSymbol) => `deep black void background, soft cinematic rim lighting with purple highlights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright polished mirror chrome with strong white highlights clearly visible, flat bright purple (#9b59b6) {{3D_ELEMENTS}} as graphic design elements layered behind and around the scene - creating visual interest like a graphic design poster, floating glass prisms scattered around catching purple light reflections, clean modern design aesthetic mixing 2D graphic elements with 3D renders, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '25_trading_floor': {
@@ -198,7 +247,9 @@ class StyleCatalogService {
         description: 'Platinum chrome logo with holographic trading data on dynamic financial background',
         filename: '25_trading_floor_dynamic.png',
         category: 'financial',
-        prompt: (logoSymbol) => `dark atmospheric trading environment with abstract holographic data displays in the background, soft cinematic rim lighting with cyan and magenta accent lights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in polished platinum chrome with iridescent multicolor reflections showing cyan blue purple and magenta hues, abstract glowing price chart lines and candlestick patterns made of light floating in background, dynamic financial energy atmosphere, scattered chrome and glass coins, the logo crafted from premium materials with volumetric lighting, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., gold coins, trophies, safes...', defaultSubject: 'chrome and glass coins' },
+        defaultColors: { bgColor: '#0a0a14', elementColor: '#00e5ff', accentLightColor: '#ff00ff', lightingColor: '#00e5ff' },
+        prompt: (logoSymbol) => `dark atmospheric trading environment with abstract holographic data displays in the background, soft cinematic rim lighting with cyan and magenta accent lights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo as the hero subject, the ${logoSymbol} symbol rendered in polished platinum chrome with iridescent multicolor reflections showing cyan blue purple and magenta hues, abstract glowing price chart lines and candlestick patterns made of light floating in background, dynamic financial energy atmosphere, scattered {{3D_ELEMENTS}}, the logo crafted from premium materials with volumetric lighting, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       },
 
       '26_paper_explosion': {
@@ -207,7 +258,9 @@ class StyleCatalogService {
         description: 'Frosted glass logo with explosive paper fragments and lime flames',
         filename: '26_paper_explosion_chaos.png',
         category: 'dynamic',
-        prompt: (logoSymbol) => `absolute black void background, soft cinematic rim lighting with purple accent rim lights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in frosted glass with purple inner glow floating at center, hundreds of small white paper fragments and torn paper pieces exploding outward from behind the logo in a radial burst pattern, papers caught mid-flight with motion blur, some paper pieces on fire with lime green (#dbff03) flames at the edges, chaotic dynamic energy, scattered glass coins flying among the papers, dramatic depth of field with foreground papers blurred, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, no text on papers`
+        customSubject: { enabled: true, placeholder: 'e.g., dollar bills, cards, confetti...', defaultSubject: 'paper fragments and torn paper pieces' },
+        defaultColors: { bgColor: '#000000', elementColor: '#ffffff', accentLightColor: '#dbff03', lightingColor: '#9b59b6' },
+        prompt: (logoSymbol) => `absolute black void background, soft cinematic rim lighting with purple accent rim lights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in frosted glass with purple inner glow floating at center, hundreds of small white {{3D_ELEMENTS}} exploding outward from behind the logo in a radial burst pattern, elements caught mid-flight with motion blur, some pieces on fire with lime green (#dbff03) flames at the edges, chaotic dynamic energy, scattered glass coins flying among the elements, dramatic depth of field with foreground elements blurred, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, no text`
       },
 
       '27_ferrofluid': {
@@ -216,7 +269,97 @@ class StyleCatalogService {
         description: 'Polished chrome logo with magnetic ferrofluid spikes rising toward it',
         filename: '27_ferrofluid_spikes_magnetic.png',
         category: 'conceptual',
-        prompt: (logoSymbol) => `deep black void background, soft cinematic rim lighting with purple highlights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in polished chrome floating above a pool of black magnetic ferrofluid liquid, sharp spiky ferrofluid formations rising up around and toward the logo like magnetic attraction, the spikes are glossy black with purple and lime green (#dbff03) light reflections, dramatic contrast between the smooth chrome logo and the organic sharp ferrofluid spikes, some spikes nearly touching the logo creating tension, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        customSubject: { enabled: true, placeholder: 'e.g., tentacles, vines, roots...', defaultSubject: 'ferrofluid spikes' },
+        defaultColors: { bgColor: '#000000', elementColor: '#000000', accentLightColor: '#dbff03', lightingColor: '#9b59b6' },
+        prompt: (logoSymbol) => `deep black void background, soft cinematic rim lighting with purple highlights, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol rendered in polished chrome floating above a pool of dark liquid, sharp spiky {{3D_ELEMENTS}} rising up around and toward the logo like magnetic attraction, the elements are glossy with purple and lime green (#dbff03) light reflections, dramatic contrast between the smooth chrome logo and the organic sharp elements, some elements nearly touching the logo creating tension, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '28_pastel_reflections': {
+        id: '28_pastel_reflections',
+        name: 'Pastel Reflections',
+        description: 'Glossy clear glass logo with iridescent pastel pink, purple, and blue reflections',
+        filename: '28_pastel_reflections.png',
+        category: 'glass',
+        customSubject: { enabled: true, placeholder: 'e.g., bubbles, orbs, ribbons...', defaultSubject: 'glass orbs and curved glass ribbons' },
+        defaultColors: { bgColor: '#000000', elementColor: '#e8b4f8', accentLightColor: '#b4d8f8', lightingColor: '#f8b4d8' },
+        prompt: (logoSymbol) => `pure black void background, soft cinematic rim lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in thick glossy clear glass with smooth rounded inflated 3D form, the glass surface catches soft pastel iridescent reflections - pink lavender baby blue and peach shifting across the curved surfaces like a soap bubble, the logo has substantial 3D depth with rounded puffy edges, light refracts beautifully through the transparent glass body revealing rainbow caustics, floating {{3D_ELEMENTS}} in matching pastel iridescent glass scattered around at varying depths, soft diffused lighting creating gentle color shifts across all surfaces, the logo casting soft colored light onto the dark background, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '29_beveled_facet': {
+        id: '29_beveled_facet',
+        name: 'Beveled Facet Crystal',
+        description: 'Deep 3D diamond-cut crystal glass with angular facets and warm internal light',
+        filename: '29_beveled_facet.png',
+        category: 'glass',
+        customSubject: { enabled: true, placeholder: 'e.g., gems, diamonds, crystals...', defaultSubject: 'faceted crystal fragments' },
+        defaultColors: { bgColor: '#000000', elementColor: '#d4a754', accentLightColor: '#ffffff', lightingColor: '#b8860b' },
+        prompt: (logoSymbol) => `pure black void background, dramatic cinematic spot lighting from above and behind, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as a massive deep 3D crystal block with sharp angular diamond-cut beveled facets across every surface, the crystal is transparent with warm amber and golden light refracting through the internal facets creating brilliant specular highlights and caustic light patterns, each faceted plane catches light differently creating a gemstone-like quality, strong white point-light specular reflections on the sharpest edges, the logo sitting on a dark reflective surface with warm golden light reflections beneath, floating {{3D_ELEMENTS}} catching the same warm amber light, deep luxurious jeweler-quality rendering, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '30_neon_smoke': {
+        id: '30_neon_smoke',
+        name: 'Neon Smoke',
+        description: 'Bright neon-outlined logo engulfed in dramatic colorful smoke plumes',
+        filename: '30_neon_smoke.png',
+        category: 'neon',
+        customSubject: { enabled: true, placeholder: 'e.g., clouds, fire, mist...', defaultSubject: 'thick billowing smoke clouds' },
+        defaultColors: { bgColor: '#0a0a2e', elementColor: '#ff00ff', accentLightColor: '#4169e1', lightingColor: '#ff00ff' },
+        prompt: (logoSymbol) => `dark moody atmospheric environment with deep navy blue to dark purple gradient background, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered in bright glowing neon tube material with vivid magenta and electric blue neon light outlining the logo shape, the neon tubes emit strong visible light, massive {{3D_ELEMENTS}} in magenta pink blue and warm cream colors erupting and billowing dramatically around and through the logo, volumetric fog and haze catching the neon light creating colorful atmospheric glow, the smoke is thick dense and photorealistic with visible turbulence and layered depth, neon light from the logo illuminates the surrounding smoke with vibrant color, the logo sits on a dark reflective floor surface, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '31_glossy_plastic_outlined': {
+        id: '31_glossy_plastic_outlined',
+        name: 'Glossy Plastic Outlined',
+        description: 'Shiny inflated 3D plastic logo with contrasting glossy outline on colored background',
+        filename: '31_glossy_plastic_outlined.png',
+        category: 'colorful',
+        customSubject: { enabled: true, placeholder: 'e.g., candy, balloons, toys...', defaultSubject: 'glossy plastic shapes and spheres' },
+        defaultColors: { bgColor: '#9b8ec4', elementColor: '#f5a623', accentLightColor: '#9b8ec4', lightingColor: '#ffffff' },
+        prompt: (logoSymbol) => `soft purple (#9b8ec4) studio gradient background with gentle lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as thick puffy inflated glossy plastic with a smooth bubbly rounded form, the logo has a warm orange-yellow glossy plastic center with a contrasting purple glossy plastic outline border that wraps around the entire shape giving it a layered candy-like appearance, strong specular highlights and reflections on the shiny plastic surfaces, soft studio lighting from above creating clean highlights and gentle shadows, the plastic has a high-gloss wet-look finish like a vinyl toy, floating {{3D_ELEMENTS}} in matching glossy plastic material scattered around, soft shadow beneath the logo on the studio floor, clean commercial product photography aesthetic, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '32_matte_plastic': {
+        id: '32_matte_plastic',
+        name: 'Matte Textured Plastic',
+        description: 'Solid matte-to-glossy 3D plastic logo on bright colored studio backdrop',
+        filename: '32_matte_plastic.png',
+        category: 'colorful',
+        customSubject: { enabled: true, placeholder: 'e.g., blocks, cubes, tokens...', defaultSubject: 'rounded plastic shapes and blocks' },
+        defaultColors: { bgColor: '#f5c518', elementColor: '#e63946', accentLightColor: '#ffffff', lightingColor: '#f5c518' },
+        prompt: (logoSymbol) => `bright warm yellow (#f5c518) studio gradient background with soft even lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as a thick chunky solid 3D plastic shape with a smooth matte-to-slightly-glossy red (#e63946) finish, the plastic has subtle surface texture like injection-molded toy plastic, rounded soft edges with substantial depth and weight, soft studio lighting creating clean diffused highlights and gentle ambient shadows, the logo sits on the studio floor surface casting a soft contact shadow, floating {{3D_ELEMENTS}} in matching solid plastic material, clean minimal toy-like commercial aesthetic, product photography style, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '33_faceted_gem_stars': {
+        id: '33_faceted_gem_stars',
+        name: 'Faceted Gem Stars',
+        description: 'Deep faceted gemstone logo with internal galaxy reflections and sparkle stars',
+        filename: '33_faceted_gem_stars.png',
+        category: 'premium',
+        customSubject: { enabled: true, placeholder: 'e.g., crystals, meteorites, jewels...', defaultSubject: 'tiny sparkling star points and crystal dust' },
+        defaultColors: { bgColor: '#000000', elementColor: '#b76e79', accentLightColor: '#00cec9', lightingColor: '#d4a754' },
+        prompt: (logoSymbol) => `pure black void background, dramatic cinematic lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as a massive deeply faceted precious gemstone with dozens of angular crystal facets across every surface, the gem is transparent with internal reflections showing galaxy-like depth - warm rose gold copper teal and subtle pink light refracting through the internal structure, each facet catches light creating brilliant prismatic fire and spectral dispersion, scattered {{3D_ELEMENTS}} floating around the logo - tiny bright four-pointed sparkle stars and glowing light points at varying distances creating a magical atmosphere, the gem has incredible internal depth like looking into a kaleidoscope, some facets show warm amber light others cool teal creating beautiful contrast, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '34_glass_color_fill': {
+        id: '34_glass_color_fill',
+        name: 'Glass Color Fill',
+        description: 'Clear glossy glass shell filled with vivid color underneath on dark background',
+        filename: '34_glass_color_fill.png',
+        category: 'glass',
+        customSubject: { enabled: true, placeholder: 'e.g., drops, spheres, discs...', defaultSubject: 'glass drops and rounded glass pieces' },
+        defaultColors: { bgColor: '#2a2a2a', elementColor: '#cc0000', accentLightColor: '#ffffff', lightingColor: '#444444' },
+        prompt: (logoSymbol) => `dark charcoal grey (#2a2a2a) background with subtle gradient, soft cinematic studio lighting, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as a thick 3D shape with a clear transparent glass outer shell layered over a vivid red (#cc0000) opaque color fill underneath, the glass surface is smooth glossy and reflective with bright specular highlights showing the studio lighting, the red color beneath the glass is rich and saturated visible through the transparent outer layer creating a candy-like depth effect, the logo has soft rounded edges with substantial thickness, multiple layered glass ridges visible at the edges adding dimension, floating {{3D_ELEMENTS}} in matching glass-over-color material, soft ambient lighting with clean reflections, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      '35_chrome_rim_glass': {
+        id: '35_chrome_rim_glass',
+        name: 'Chrome Rim Glass',
+        description: 'Thin beveled glass logo with polished chrome rim edges and strong rim lighting',
+        filename: '35_chrome_rim_glass.png',
+        category: 'premium',
+        customSubject: { enabled: true, placeholder: 'e.g., rings, arcs, blades...', defaultSubject: 'chrome and glass accent pieces' },
+        defaultColors: { bgColor: '#000000', elementColor: '#c0c0c0', accentLightColor: '#ffffff', lightingColor: '#ff69b4' },
+        prompt: (logoSymbol) => `pure black void background, dramatic rim lighting from behind creating strong edge glow, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as a sleek thin beveled 3D form with clear transparent glass center and polished chrome metal rim edges wrapping around the entire outline of the shape, the chrome edges are mirror-polished catching brilliant white and subtle pink light reflections, the glass interior is crystal clear with subtle internal refractions, the logo has elegant layered depth with multiple chrome and glass layers visible from the side angle, strong backlight creating a dramatic halo rim light effect around the chrome edges, floating {{3D_ELEMENTS}} in matching chrome and glass materials, the overall aesthetic is premium luxury tech product, minimal and refined, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
       }
     };
 
@@ -277,8 +420,18 @@ class StyleCatalogService {
       // Supabase URL as backup when manually uploaded
       supabaseUrl: `${this.supabaseStorageUrl}/${style.filename}`,
       filename: style.filename,
-      // Custom subject support (e.g., replace "banks" or "hands" with user's choice)
-      customSubject: style.customSubject || null
+      customSubject: style.customSubject || null,
+      defaultColors: style.defaultColors || null,
+      patternOptions: style.patternOptions?.enabled ? {
+        enabled: true,
+        defaultPattern: style.patternOptions.defaultPattern,
+        defaultColor: style.patternOptions.defaultColor,
+        patterns: Object.values(style.patternOptions.patterns).map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description
+        }))
+      } : null
     }));
   }
 
@@ -311,7 +464,7 @@ class StyleCatalogService {
     const style = this.styles[styleId];
     if (!style) return null;
 
-    return {
+    const result = {
       id: style.id,
       name: style.name,
       description: style.description,
@@ -319,6 +472,21 @@ class StyleCatalogService {
       sampleImageUrl: `${this.supabaseStorageUrl}/${style.filename}`,
       filename: style.filename
     };
+
+    if (style.patternOptions?.enabled) {
+      result.patternOptions = {
+        enabled: true,
+        defaultPattern: style.patternOptions.defaultPattern,
+        defaultColor: style.patternOptions.defaultColor,
+        patterns: Object.values(style.patternOptions.patterns).map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description
+        }))
+      };
+    }
+
+    return result;
   }
 
   /**
@@ -329,7 +497,7 @@ class StyleCatalogService {
    * @param {string|null} customSubject - Optional custom 3D subject to replace default objects (banks, hands, etc.)
    * @param {object|null} logoOverrides - Optional logo overrides: { logoMaterial, logoBaseColor, logoAccentLight }
    */
-  getStylePrompt(styleId, logoSymbol, colorOverrides = null, customSubject = null, logoOverrides = null) {
+  getStylePrompt(styleId, logoSymbol, colorOverrides = null, customSubject = null, logoOverrides = null, patternOverrides = null) {
     const style = this.styles[styleId];
     if (!style) {
       logger.warn(`Style not found: ${styleId}, using default`);
@@ -339,23 +507,28 @@ class StyleCatalogService {
 
     let prompt = style.prompt(logoSymbol);
 
-    // If user provided a custom subject, replace the default 3D objects in the prompt
+    if (style.patternOptions?.enabled) {
+      const patternId = patternOverrides?.patternId || style.patternOptions.defaultPattern;
+      const patternColor = patternOverrides?.patternColor || style.patternOptions.defaultColor;
+      const pattern = style.patternOptions.patterns[patternId];
+      let patternText = '';
+      if (pattern && pattern.prompt) {
+        patternText = typeof pattern.prompt === 'function' ? pattern.prompt(patternColor) : pattern.prompt;
+      }
+      prompt = prompt.replace('{{PATTERN_PLACEHOLDER}}', patternText);
+      logger.info(`🎨 Pattern: ${patternId} | Color: ${patternColor}`);
+    } else {
+      prompt = prompt.replace('{{PATTERN_PLACEHOLDER}}', '');
+    }
+
     if (customSubject && style.customSubject?.enabled) {
       const subject = customSubject.trim();
-      if (styleId === '02_glass_banks_lime') {
-        prompt = prompt.replace(
-          /translucent 3D crystal glass bank buildings reaching into the frame from the edges - classical bank architecture with columns and facades rendered entirely in clear crystal glass material matching the hands style from before, the glass banks are see-through with realistic light refractions and purple tinted reflections, 2-3 small glass bank buildings positioned around the edges of frame/,
-          `translucent 3D crystal glass ${subject} reaching into the frame from the edges - rendered entirely in clear crystal glass material, the glass ${subject} are see-through with realistic light refractions and purple tinted reflections, 2-3 glass ${subject} positioned around the edges of frame`
-        );
-        logger.info(`🎨 Custom subject "${subject}" replacing banks in style ${styleId}`);
-      } else if (styleId === '08_hands_frosted') {
-        prompt = prompt.replace(
-          /exactly TWO elegant glass hands reaching toward and SLIGHTLY OVERLAPPING the logo from opposite sides - one hand from the left partially in front of the logo and one hand from the right partially in front of the logo, the hands are made of clear crystal glass with purple and magenta light refractions, hands positioned framing and slightly covering edges of the central logo creating depth, the glass hands have elegant sculpted form/,
-          `elegant glass ${subject} reaching toward and SLIGHTLY OVERLAPPING the logo from opposite sides - ${subject} from the left partially in front of the logo and ${subject} from the right partially in front of the logo, the ${subject} are made of clear crystal glass with purple and magenta light refractions, ${subject} positioned framing and slightly covering edges of the central logo creating depth, the glass ${subject} have elegant sculpted form`
-        );
-        prompt = prompt.replace(/only two hands total/, `only two ${subject} total`);
-        logger.info(`🎨 Custom subject "${subject}" replacing hands in style ${styleId}`);
-      }
+      prompt = prompt.replace('{{3D_ELEMENTS}}', subject);
+      logger.info(`🎨 Custom subject "${subject}" in style ${styleId}`);
+    } else if (style.customSubject?.defaultSubject) {
+      prompt = prompt.replace('{{3D_ELEMENTS}}', style.customSubject.defaultSubject);
+    } else {
+      prompt = prompt.replace('{{3D_ELEMENTS}}', '');
     }
 
     // LOGO OVERRIDES: Apply logo-specific changes BEFORE scene color overrides
@@ -587,13 +760,20 @@ class StyleCatalogService {
     prompt = prompt.replace(/sophisticated charcoal grey gradient/gi, `${bgColor} gradient`);
     prompt = prompt.replace(/dark atmospheric trading environment/gi, `${bgColor} atmospheric trading environment`);
 
-    // Background color in compound phrases
     prompt = prompt.replace(/deep black void with rich violet accent gradients/gi, `deep ${bgColor} void with rich accent gradients`);
     prompt = prompt.replace(/deep black void with sharp neon accent edges/gi, `deep ${bgColor} void with sharp neon accent edges`);
     prompt = prompt.replace(/against bright purple background/gi, `against ${bgColor} background`);
     prompt = prompt.replace(/against the lime green backdrop/gi, `against the ${bgColor} backdrop`);
     prompt = prompt.replace(/reflecting the navy background/gi, `reflecting the ${bgColor} background`);
     prompt = prompt.replace(/reflecting the purple background/gi, `reflecting the ${bgColor} background`);
+
+    prompt = prompt.replace(/dark moody atmospheric environment with deep navy blue to dark purple gradient background/gi, `${bgColor} atmospheric environment`);
+    prompt = prompt.replace(/soft purple \(#[0-9a-fA-F]{6}\) studio gradient background/gi, `${bgColor} studio gradient background`);
+    prompt = prompt.replace(/bright warm yellow \(#[0-9a-fA-F]{6}\) studio gradient background/gi, `${bgColor} studio gradient background`);
+    prompt = prompt.replace(/dark charcoal grey \(#[0-9a-fA-F]{6}\) background/gi, `${bgColor} background`);
+    prompt = prompt.replace(/#9b8ec4/gi, bgColor);
+    prompt = prompt.replace(/#f5c518/gi, bgColor);
+    prompt = prompt.replace(/#2a2a2a/gi, bgColor);
 
     return prompt;
   }
@@ -631,9 +811,20 @@ class StyleCatalogService {
     prompt = prompt.replace(/\bsome ink splashes tinted with deeper purple and\b/gi, `some ink splashes tinted with deeper ${elementColor} and`);
     prompt = prompt.replace(/\band lime accents\b/gi, `and ${elementColor} accents`);
 
-    // Remaining hex codes in element contexts
     prompt = prompt.replace(/#dbff03/gi, elementColor);
     prompt = prompt.replace(/#e91e63/gi, elementColor);
+    prompt = prompt.replace(/#cc0000/gi, elementColor);
+    prompt = prompt.replace(/#e63946/gi, elementColor);
+    prompt = prompt.replace(/#f5a623/gi, elementColor);
+    prompt = prompt.replace(/#b76e79/gi, elementColor);
+
+    prompt = prompt.replace(/\bvivid red\b/gi, elementColor);
+    prompt = prompt.replace(/\bwarm orange-yellow\b/gi, elementColor);
+    prompt = prompt.replace(/\bmatte-to-slightly-glossy red\b/gi, `matte-to-slightly-glossy ${elementColor}`);
+    prompt = prompt.replace(/\bwarm rose gold copper teal\b/gi, elementColor);
+    prompt = prompt.replace(/\bwarm amber and golden light\b/gi, `${elementColor} tinted light`);
+    prompt = prompt.replace(/\bpastel iridescent reflections - pink lavender baby blue and peach\b/gi, `${elementColor} tinted iridescent reflections`);
+    prompt = prompt.replace(/\bin magenta pink blue and warm cream colors\b/gi, `in ${elementColor} tinted colors`);
 
     return prompt;
   }
@@ -686,8 +877,14 @@ class StyleCatalogService {
     prompt = prompt.replace(/\bvivid purple rim accents\b/gi, `vivid ${accentLightColor} rim accents`);
     prompt = prompt.replace(/\bpurple accent\b/gi, `${accentLightColor} accent`);
 
-    // Remaining hex codes in lighting contexts
     prompt = prompt.replace(/#9b59b6/gi, accentLightColor);
+
+    prompt = prompt.replace(/\bvivid magenta and electric blue neon light\b/gi, `vivid ${accentLightColor} neon light`);
+    prompt = prompt.replace(/\bbright glowing neon tube material with vivid magenta and electric blue\b/gi, `bright glowing neon tube material with vivid ${accentLightColor}`);
+    prompt = prompt.replace(/\bwarm amber and golden light refracting\b/gi, `${accentLightColor} light refracting`);
+    prompt = prompt.replace(/\bbrilliant white and subtle pink light reflections\b/gi, `brilliant ${accentLightColor} light reflections`);
+    prompt = prompt.replace(/\bcontrasting purple glossy plastic outline\b/gi, `contrasting ${accentLightColor} glossy plastic outline`);
+    prompt = prompt.replace(/\bsubt le pink light\b/gi, `${accentLightColor} light`);
 
     return prompt;
   }

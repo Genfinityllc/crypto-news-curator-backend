@@ -1449,9 +1449,11 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, lightingColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, lightingColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark } = req.body;
 
-  if (!network) {
+  const isBackgroundOnly = !network || network.trim() === '';
+
+  if (!isBackgroundOnly && !network) {
     return res.status(400).json({ success: false, error: 'Network symbol required' });
   }
 
@@ -1475,9 +1477,8 @@ app.post('/api/cover-generator/generate', async (req, res) => {
     }
   }
 
-  // Combine primary and additional networks
-  const allNetworks = [network.toUpperCase()];
-  if (additionalNetworks && Array.isArray(additionalNetworks)) {
+  const allNetworks = isBackgroundOnly ? [] : [network.toUpperCase()];
+  if (!isBackgroundOnly && additionalNetworks && Array.isArray(additionalNetworks)) {
     additionalNetworks.forEach(n => {
       if (n && typeof n === 'string') {
         allNetworks.push(n.toUpperCase());
@@ -1507,7 +1508,10 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         const logoOverrides = (logoMaterial || logoBaseColor || logoAccentLight)
           ? { logoMaterial: logoMaterial || null, logoBaseColor: logoBaseColor || null, logoAccentLight: logoAccentLight || null }
           : null;
-        stylePrompt = styleCatalog.getStylePrompt(styleId, network.toUpperCase(), colorOverrides, customSubject || null, logoOverrides);
+        const patternOverrides = (patternId || patternColor)
+          ? { patternId: patternId || null, patternColor: patternColor || null }
+          : null;
+        stylePrompt = styleCatalog.getStylePrompt(styleId, isBackgroundOnly ? 'BACKGROUND' : network.toUpperCase(), colorOverrides, customSubject || null, logoOverrides, patternOverrides);
         const colorLog = colorOverrides ? `bg=${bgColor || 'default'} elem=${elementColor || accentColor || 'default'} accent=${accentLightColor || accentColor || 'default'}` : 'default colors';
         const logoLog = logoOverrides ? ` | logo: mat=${logoMaterial || 'default'} color=${logoBaseColor || 'default'} glow=${logoAccentLight || 'default'}` : '';
         logger.info(`🎨 Using style: ${styleId} [${colorLog}${logoLog}]${customSubject ? ` subject="${customSubject}"` : ''}`);
@@ -1518,13 +1522,17 @@ app.post('/api/cover-generator/generate', async (req, res) => {
 
     const resolvedLogoTextMode = ['full', 'mark'].includes(logoTextMode) ? logoTextMode : 'full';
 
-    logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''} (logoTextMode: ${resolvedLogoTextMode})`);
+    if (isBackgroundOnly) {
+      logger.info(`🎨 Cover Generator: Creating BACKGROUND ONLY cover... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''}`);
+    } else {
+      logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''} (logoTextMode: ${resolvedLogoTextMode})`);
+    }
 
     const result = await controlNetService.generateWithAdvancedControlNet(
       articleTitle,
-      network.toUpperCase(),
+      isBackgroundOnly ? null : network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);

@@ -726,27 +726,33 @@ class ControlNetService {
   async generateWithAdvancedControlNet(title, logoSymbol, style = 'holographic', options = {}) {
       const startTime = Date.now();
       const imageId = this.generateImageId();
+      const backgroundOnly = options.backgroundOnly === true;
       const additionalNetworks = options.additionalNetworks || [];
-      const allLogos = [logoSymbol, ...additionalNetworks];
+      const allLogos = backgroundOnly ? [] : [logoSymbol, ...additionalNetworks].filter(Boolean);
 
     let monitorData = {
       imageId,
       articleTitle: title,
-      logoSymbol: allLogos.join('+'),
+      logoSymbol: backgroundOnly ? 'BACKGROUND' : allLogos.join('+'),
       style,
       prompt: options.prompt || '',
       startTime: new Date().toISOString()
     };
     
     try {
-      logger.info(`🎯 NANO-BANANA-PRO 3D LOGO GENERATION: ${allLogos.join(' + ')} (${allLogos.length} logo(s))`);
+      if (backgroundOnly) {
+        logger.info(`🎯 BACKGROUND-ONLY GENERATION (no logo)`);
+      } else {
+        logger.info(`🎯 NANO-BANANA-PRO 3D LOGO GENERATION: ${allLogos.join(' + ')} (${allLogos.length} logo(s))`);
+      }
       logger.info(`📝 Using Google's image editing model for stunning 3D glass/liquid effect`);
       logger.info(`📂 PNG Logo Directory: ${this.pngLogoDir}`);
 
-      // Load all logos (prefer _FULL variant when logoTextMode is 'full')
-      const logoTextMode = options.logoTextMode || 'full';
       const loadedLogos = [];
       const missingLogos = [];
+
+      if (!backgroundOnly) {
+      const logoTextMode = options.logoTextMode || 'full';
       for (const symbol of allLogos) {
         let logoData = null;
         if (logoTextMode === 'full') {
@@ -786,7 +792,6 @@ class ControlNetService {
         }
       }
 
-      // If some logos were missing but we have at least one, continue but note the missing ones
       if (missingLogos.length > 0 && loadedLogos.length > 0) {
         logger.warn(`⚠️ MISSING LOGOS: ${missingLogos.join(', ')} - Generation will proceed with ${loadedLogos.length} logo(s) only`);
       }
@@ -795,12 +800,17 @@ class ControlNetService {
         logger.error(`❌ No logos found for any of: ${allLogos.join(', ')}`);
         throw new Error(`No PNG/SVG logo found for ${allLogos.join(', ')}. Please upload the logo first.`);
       }
+      }
 
-      // If multiple logos, composite them together
       let finalLogoBuffer;
       let finalLogoSymbol;
 
-      if (loadedLogos.length === 1) {
+      if (backgroundOnly) {
+        const sharp = require('sharp');
+        finalLogoBuffer = await sharp({ create: { width: 1800, height: 900, channels: 3, background: { r: 0, g: 0, b: 0 } } }).png().toBuffer();
+        finalLogoSymbol = 'BACKGROUND';
+        logger.info('🖼️ Using plain black canvas for background-only generation');
+      } else if (loadedLogos.length === 1) {
         finalLogoBuffer = loadedLogos[0].buffer;
         finalLogoSymbol = loadedLogos[0].symbol;
       } else {
@@ -810,7 +820,7 @@ class ControlNetService {
         logger.info(`✅ Logos composited successfully`);
       }
 
-      const logoData = { buffer: finalLogoBuffer, source: loadedLogos.length > 1 ? 'composite' : loadedLogos[0].source };
+      const logoData = { buffer: finalLogoBuffer, source: backgroundOnly ? 'background' : (loadedLogos.length > 1 ? 'composite' : loadedLogos[0].source) };
       
       let imagePath;
       let method = 'nano_banana_pro_3d';
@@ -829,16 +839,20 @@ class ControlNetService {
         logoSymbol: finalLogoSymbol,
         title: title,
         imageId: imageId,
-        article: { ...options, allLogos: loadedLogos.map(l => l.symbol) },  // Pass all logo symbols for prompt
-        stylePrompt: options.stylePrompt || null  // Use style catalog prompt if provided
+        article: { ...options, allLogos: backgroundOnly ? [] : loadedLogos.map(l => l.symbol) },
+        stylePrompt: options.stylePrompt || null,
+        backgroundOnly: backgroundOnly
       });
           
       imagePath = result.imagePath;
       promptUsed = result.promptUsed;
       logger.info('✅ Nano-Banana-Pro 3D generation succeeded!');
       
-      // Apply watermark
-      await this.watermarkService.addWatermark(imagePath, imagePath, { title: logoSymbol });
+      if (options.skipWatermark !== true) {
+        await this.watermarkService.addWatermark(imagePath, imagePath, { title: backgroundOnly ? 'BACKGROUND' : logoSymbol });
+      } else {
+        logger.info('⏭️ Skipping watermark (user toggled off)');
+      }
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
       logger.info(`✅ Generation completed in ${totalTime}s using ${method}`);
@@ -966,7 +980,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -1043,15 +1057,25 @@ class ControlNetService {
         logger.info(`📝 Using standard prompt generation`);
       }
     }
-    prompt += ` The logos must float freely in the scene with NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels behind or around the logos. Logos are free-floating 3D objects, never enclosed or contained.`;
+    if (backgroundOnly) {
+      prompt = prompt.replace(/single prominent .+? cryptocurrency logo (symbol )?as the hero subject[^,]*/gi, '');
+      prompt = prompt.replace(/the .+? symbol rendered in [^,]*/gi, '');
+      prompt = prompt.replace(/the provided cryptocurrency logo symbol rendered in [^,]*/gi, '');
+      prompt = prompt.replace(/the logo[^,]*casting realistic shadows[^,]*/gi, '');
+      prompt = prompt.replace(/the logo[^,]*crafted from premium[^,]*/gi, '');
+      prompt = prompt.replace(/only ONE logo[^,]*/gi, '');
+      prompt = prompt.replace(/BACKGROUND cryptocurrency logo/gi, '');
+      prompt = prompt.replace(/\bBACKGROUND\b/g, '');
+      prompt += ', this is a background scene with NO logo, NO text, NO symbols, NO icons - pure atmospheric 3D environment only';
+      logger.info('🖼️ Background-only mode: stripped logo references from prompt');
+    } else {
+      const antiBoxPrefix = 'CRITICAL: NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens, NO containers behind or around the logos - all logos must float freely as 3D objects in the scene. ';
+      prompt = antiBoxPrefix + prompt;
 
-    const logoTextMode = article?.logoTextMode || 'full';
-    if (logoTextMode === 'full') {
-      prompt += ` Preserve the full logo including any text, wordmarks, or typography; do not crop or omit text.`;
-      prompt += ` No missing or cropped logo text.`;
-    } else if (logoTextMode === 'mark') {
-      prompt += ` Use the symbol-only logo mark; omit wordmarks or logo text.`;
-      prompt += ` No letters or wordmark text.`;
+      const logoTextMode = article?.logoTextMode || 'full';
+      if (logoTextMode === 'full') {
+        prompt += ` Preserve the full logo including any text, wordmarks, or typography; do not crop or omit text.`;
+      }
     }
 
     logger.info(`📝 Prompt: ${prompt.substring(0, 200)}...`);
@@ -1153,31 +1177,23 @@ class ControlNetService {
     const logoCount = allLogos.length;
     const logoNames = allLogos.join(' and ');
 
-    // High-quality suffix emphasizing depth and detail
-    const qualitySuffix = '8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials, logos are free-floating with absolutely no rectangular frames or bounding boxes or card shapes around them, CRITICAL: all logos must be the exact same size and scale as each other - perfectly matched dimensions with equal visual weight, no logo larger or smaller than another';
+    const logoList = allLogos.map((l, i) => `logo ${i + 1}: ${l}`).join(', ');
+    const bothMust = logoCount === 2
+      ? `MANDATORY: BOTH logos must appear in the image - one on the left side and one on the right side. You MUST render EXACTLY 2 separate distinct logos: ${logoList}. Do NOT show only one logo. Do NOT substitute or replace either logo with the other.`
+      : `MANDATORY: ALL THREE logos must appear in the image. You MUST render EXACTLY 3 separate distinct logos: ${logoList}. Do NOT omit any logo.`;
 
-    // Get themed elements based on keyword
+    const qualitySuffix = `${bothMust} Both logos the same size placed next to each other, 8K ultra detailed, deep 3D depth with strong parallax, cinematic volumetric lighting, sharp reflective edges, octane render, photorealistic materials`;
+
     const themedElements = this.getKeywordThemedElements(customKeyword);
 
-    // Glassmorphic background styles with depth (NO pedestals, NO rainbow)
     const backgroundStyles = [
-      // Glassmorphic with scattered coins
-      `deep layered glassmorphic background with translucent frosted glass panels at multiple depths, scattered 3D glass coins floating in space, smaller faded ${logoNames} logos repeating in background layers creating depth`,
-
-      // Financial glass elements
-      `atmospheric depth with floating translucent glass currency symbols and 3D coins, layered frosted glass planes receding into distance, miniature ${logoNames} patterns scattered in deep background`,
-
-      // Tech glass layers
-      `multiple layers of frosted glass with depth blur, floating holographic data particles, smaller ghosted ${logoNames} symbols in background creating pattern depth`,
-
-      // Abstract glass depth
-      `deep glassmorphic environment with stacked translucent panels, soft bokeh glass orbs floating at various depths, faint repeated ${logoNames} watermarks in far background`,
-
-      // Premium glass showcase
-      `layered frosted glass architecture with extreme depth, floating glass coin elements, subtle ${logoNames} logo pattern fading into atmospheric background`
+      `deep layered glassmorphic background with translucent frosted glass panels at multiple depths, scattered 3D glass coins floating in space`,
+      `atmospheric depth with floating translucent glass currency symbols and 3D coins, layered frosted glass planes receding into distance`,
+      `multiple layers of frosted glass with depth blur, floating holographic data particles`,
+      `deep glassmorphic environment with stacked translucent panels, soft bokeh glass orbs floating at various depths`,
+      `layered frosted glass architecture with extreme depth, floating glass coin elements`
     ];
 
-    // Focused color palettes (NOT rainbow - pick one cohesive scheme)
     const colorSchemes = [
       'cyan and deep purple color palette with subtle gold accents',
       'electric blue and teal gradient tones with silver highlights',
@@ -1186,7 +1202,6 @@ class ControlNetService {
       'emerald and teal cool palette with gold accent lighting'
     ];
 
-    // Edge and reflection treatments
     const edgeTreatments = [
       'sharp glowing edge lighting with strong rim highlights',
       'iridescent edge reflections catching dynamic light',
@@ -1200,30 +1215,28 @@ class ControlNetService {
     const colors = rand(colorSchemes);
     const edges = rand(edgeTreatments);
 
-    // Build 2-logo prompts
     const twoLogoPrompts = [
-      `two massive 3D ${logoNames} cryptocurrency symbols floating side by side as dominant focal points, both logos rendered at exactly the same size and scale with deep dimensional depth in matching glossy chrome and glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, logos are identical scale and identical dimensions taking up most of frame, ${qualitySuffix}`,
+      `EXACTLY two separate 3D logos side by side: the ${allLogos[0]} logo on the left and the ${allLogos[1]} logo on the right, both the same size, floating as dominant focal points with deep dimensional depth in matching glossy chrome and glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `twin large 3D ${logoNames} logos at perfectly matched equal size with extreme depth and dimension floating in perfect balance, thick glass construction with liquid chrome interior, ${edges}, ${bg}, ${colors}, ${themedElements}, both symbols equally prominent at identical scale with deep shadows and highlights, ${qualitySuffix}`,
+      `two distinct 3D logos placed next to each other: ${allLogos[0]} on the left half and ${allLogos[1]} on the right half, identical size and scale, thick glass construction with liquid chrome interior, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `two prominent 3D ${logoNames} symbols at the same uniform size with exaggerated depth rendered as solid glass sculptures with metallic chrome cores, ${edges}, ${bg}, scattered 3D glass coins floating around them, ${colors}, ${themedElements}, matched scale and equal visual weight, ${qualitySuffix}`,
+      `a pair of 3D logos sitting side by side: the ${allLogos[0]} symbol on the left and the ${allLogos[1]} symbol on the right, same size, rendered as solid glass sculptures with metallic chrome cores, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `dual massive ${logoNames} 3D logos at identical size and scale with deep relief and strong dimensionality, iridescent glass material with chrome accents, ${edges}, ${bg}, floating glass currency elements, ${colors}, ${themedElements}, perfectly balanced composition with equal-sized logos, ${qualitySuffix}`,
+      `two 3D logos arranged left and right: ${allLogos[0]} and ${allLogos[1]} each rendered separately at identical size with deep relief and strong dimensionality, iridescent glass material with chrome accents, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `two large ${logoNames} cryptocurrency symbols at the exact same scale rendered with cinema-quality 3D depth, thick glass construction with inner glow, ${edges}, ${bg}, glass coin scatter and financial elements, ${colors}, ${themedElements}, both logos identical in size, ${qualitySuffix}`
+      `exactly two large 3D logos next to each other: ${allLogos[0]} on the left side and ${allLogos[1]} on the right side, matched in size, cinema-quality 3D depth, thick glass construction with inner glow, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`
     ];
 
-    // Build 3-logo prompts
     const threeLogoPrompts = [
-      `three massive 3D ${logoNames} cryptocurrency symbols all at the exact same size arranged in balanced formation, all logos with matching deep dimensional depth and identical scale in glossy chrome glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, all three equally prominent and equal in size, ${qualitySuffix}`,
+      `EXACTLY three separate 3D logos arranged side by side: ${allLogos[0]} on the left, ${allLogos[1]} in the center, and ${allLogos[2]} on the right, all the same size with deep dimensional depth in glossy chrome glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `trio of large 3D ${logoNames} logos all at identical uniform size floating with extreme depth and dimension, thick glass with liquid metal finish, ${edges}, ${bg}, ${colors}, ${themedElements}, matched scale and equal dimensions creating visual harmony, ${qualitySuffix}`,
+      `three distinct 3D logos placed next to each other: ${allLogos[0]}, ${allLogos[1]}, and ${allLogos[2]} each rendered separately at identical size, thick glass with liquid metal finish, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `three prominent ${logoNames} 3D symbols all rendered at the same uniform scale with exaggerated depth as glass chrome sculptures, ${edges}, ${bg}, scattered 3D glass coins between them, ${colors}, ${themedElements}, balanced triangular arrangement with equal-sized logos, ${qualitySuffix}`,
+      `a trio of 3D logos side by side: ${allLogos[0]} on the left, ${allLogos[1]} in the middle, ${allLogos[2]} on the right, same size, rendered as glass chrome sculptures, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `triple ${logoNames} 3D logos all at perfectly matched identical size with deep relief and strong parallax depth, iridescent glass with chrome core, ${edges}, ${bg}, glass financial elements floating, ${colors}, ${themedElements}, professional balanced layout with equal scale, ${qualitySuffix}`,
+      `three 3D logos arranged left to right: ${allLogos[0]}, ${allLogos[1]}, ${allLogos[2]} each at identical size with deep relief, iridescent glass with chrome core, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`,
 
-      `three large ${logoNames} symbols all at the exact same dimensions rendered with cinema 3D depth, thick glass construction, ${edges}, ${bg}, glass currency scatter, ${colors}, ${themedElements}, all three identical in size dominating the frame equally, ${qualitySuffix}`
+      `exactly three large 3D logos next to each other: ${allLogos[0]}, ${allLogos[1]}, and ${allLogos[2]} matched in size, cinema 3D depth, thick glass construction, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`
     ];
 
     const promptArray = logoCount === 2 ? twoLogoPrompts : threeLogoPrompts;
