@@ -534,23 +534,25 @@ class StyleCatalogService {
     // LOGO OVERRIDES: Apply logo-specific changes BEFORE scene color overrides
     if (logoOverrides) {
       const { logoMaterial, logoBaseColor, logoAccentLight } = logoOverrides;
+      const isOgColor = logoMaterial === 'og_color';
 
-      // Step 1: Replace logo material
-      if (logoMaterial && logoMaterial !== 'default') {
-        prompt = this._replaceLogoMaterial(prompt, logoMaterial);
-        logger.info(`🎨 Logo material: ${logoMaterial}`);
-      }
+      if (isOgColor) {
+        logger.info(`🎨 OG Color mode: preserving original logo colors, 3D effect only`);
+      } else {
+        if (logoMaterial && logoMaterial !== 'default') {
+          prompt = this._replaceLogoMaterial(prompt, logoMaterial);
+          logger.info(`🎨 Logo material: ${logoMaterial}`);
+        }
 
-      // Step 2: Replace logo base color
-      if (logoBaseColor) {
-        prompt = this._replaceLogoBaseColor(prompt, logoBaseColor);
-        logger.info(`🎨 Logo base color: ${logoBaseColor}`);
-      }
+        if (logoBaseColor) {
+          prompt = this._replaceLogoBaseColor(prompt, logoBaseColor);
+          logger.info(`🎨 Logo base color: ${logoBaseColor}`);
+        }
 
-      // Step 3: Replace logo accent lighting (runs before scene accent to prevent double-replace)
-      if (logoAccentLight) {
-        prompt = this._replaceLogoAccentLight(prompt, logoAccentLight);
-        logger.info(`🎨 Logo accent light: ${logoAccentLight}`);
+        if (logoAccentLight) {
+          prompt = this._replaceLogoAccentLight(prompt, logoAccentLight);
+          logger.info(`🎨 Logo accent light: ${logoAccentLight}`);
+        }
       }
     }
 
@@ -595,17 +597,22 @@ class StyleCatalogService {
     // Append logo-specific directives
     const logoDirectives = [];
     if (logoOverrides) {
-      if (logoOverrides.logoMaterial && logoOverrides.logoMaterial !== 'default') {
-        const mat = this.materialDefinitions[logoOverrides.logoMaterial];
-        if (mat) logoDirectives.push(`The logo material is ${mat.label}`);
-      }
-      if (logoOverrides.logoBaseColor) {
-        logoDirectives.push(`The logo surface color is ${logoOverrides.logoBaseColor} - make the logo material prominently ${logoOverrides.logoBaseColor}`);
+      const isOgColor = logoOverrides.logoMaterial === 'og_color';
+      if (isOgColor) {
+        logoDirectives.push('CRITICAL: Preserve the EXACT original brand colors of the logo — do NOT recolor, tint, or change the logo colors in any way. Render the logo as a 3D object with depth, lighting, and shadows but keep the original colors intact');
       } else {
-        logoDirectives.push('Preserve the original brand colors of the logo as much as possible');
-      }
-      if (logoOverrides.logoAccentLight) {
-        logoDirectives.push(`The glow and lighting on the logo itself (inner glow, rim highlights, edge light) is ${logoOverrides.logoAccentLight}`);
+        if (logoOverrides.logoMaterial && logoOverrides.logoMaterial !== 'default') {
+          const mat = this.materialDefinitions[logoOverrides.logoMaterial];
+          if (mat) logoDirectives.push(`The logo material is ${mat.label}`);
+        }
+        if (logoOverrides.logoBaseColor) {
+          logoDirectives.push(`The logo surface color is ${logoOverrides.logoBaseColor} - make the logo material prominently ${logoOverrides.logoBaseColor}`);
+        } else {
+          logoDirectives.push('Preserve the original brand colors of the logo as much as possible');
+        }
+        if (logoOverrides.logoAccentLight) {
+          logoDirectives.push(`The glow and lighting on the logo itself (inner glow, rim highlights, edge light) is ${logoOverrides.logoAccentLight}`);
+        }
       }
     }
     if (logoDirectives.length > 0) {
