@@ -1449,7 +1449,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, lightingColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, lightingColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides } = req.body;
 
   const isBackgroundOnly = !network || network.trim() === '';
 
@@ -1505,9 +1505,11 @@ app.post('/api/cover-generator/generate', async (req, res) => {
           : accentColor
             ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor, lightingColor: null }
             : null;
-        const logoOverrides = (logoMaterial || logoBaseColor || logoAccentLight)
-          ? { logoMaterial: logoMaterial || null, logoBaseColor: logoBaseColor || null, logoAccentLight: logoAccentLight || null }
-          : null;
+        const logoOverrides = perLogoOverrides && Array.isArray(perLogoOverrides)
+          ? perLogoOverrides
+          : (logoMaterial || logoBaseColor || logoAccentLight)
+            ? { logoMaterial: logoMaterial || null, logoBaseColor: logoBaseColor || null, logoAccentLight: logoAccentLight || null }
+            : null;
         const patternOverrides = (patternId || patternColor)
           ? { patternId: patternId || null, patternColor: patternColor || null }
           : null;

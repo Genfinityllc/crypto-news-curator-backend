@@ -532,7 +532,9 @@ class StyleCatalogService {
     }
 
     // LOGO OVERRIDES: Apply logo-specific changes BEFORE scene color overrides
-    if (logoOverrides) {
+    // Supports both legacy single-object format and new per-logo array format
+    const isPerLogoArray = Array.isArray(logoOverrides);
+    if (logoOverrides && !isPerLogoArray) {
       const { logoMaterial, logoBaseColor, logoAccentLight } = logoOverrides;
       const isOgColor = logoMaterial === 'og_color';
 
@@ -596,7 +598,31 @@ class StyleCatalogService {
 
     // Append logo-specific directives
     const logoDirectives = [];
-    if (logoOverrides) {
+    if (isPerLogoArray && logoOverrides.length > 0) {
+      logoOverrides.forEach((lo) => {
+        const parts = [];
+        const sym = lo.symbol || 'logo';
+        const isOg = lo.logoMaterial === 'og_color';
+        if (isOg) {
+          parts.push(`preserve the EXACT original brand colors — do NOT recolor, tint, or change its colors. Render as 3D with depth and lighting but keep original colors intact`);
+        } else {
+          if (lo.logoMaterial && lo.logoMaterial !== 'default') {
+            const mat = this.materialDefinitions[lo.logoMaterial];
+            if (mat) parts.push(`material: ${mat.label}`);
+          }
+          if (lo.logoBaseColor) {
+            parts.push(`surface color: ${lo.logoBaseColor}`);
+          }
+          if (lo.logoAccentLight) {
+            parts.push(`glow/edge light: ${lo.logoAccentLight}`);
+          }
+        }
+        if (parts.length > 0) {
+          logoDirectives.push(`${sym}: ${parts.join(', ')}`);
+          logger.info(`🎨 Per-logo override for ${sym}: ${parts.join(', ')}`);
+        }
+      });
+    } else if (logoOverrides && !isPerLogoArray) {
       const isOgColor = logoOverrides.logoMaterial === 'og_color';
       if (isOgColor) {
         logoDirectives.push('CRITICAL: Preserve the EXACT original brand colors of the logo — do NOT recolor, tint, or change the logo colors in any way. Render the logo as a 3D object with depth, lighting, and shadows but keep the original colors intact');
