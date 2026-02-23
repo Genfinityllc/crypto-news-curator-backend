@@ -1032,7 +1032,13 @@ class ControlNetService {
     // PRIORITY 1: Use style catalog prompt if provided (user selected a style)
     if (stylePrompt) {
       prompt = stylePrompt;
-      logger.info(`🎨 Using STYLE CATALOG prompt (user-selected style)`);
+      if (allLogos.length >= 2) {
+        const logoList = allLogos.map((l, i) => `logo ${i + 1}: ${l}`).join(', ');
+        prompt += `. CRITICAL MULTI-LOGO: This image contains EXACTLY ${allLogos.length} logos (${logoList}). ALL logos MUST be the SAME SIZE — no single logo should be larger or more prominent than any other. Arrange all ${allLogos.length} logos as equal focal points.`;
+        logger.info(`🎨 Using STYLE CATALOG prompt + multi-logo equal-size directive for ${allLogos.length} logos`);
+      } else {
+        logger.info(`🎨 Using STYLE CATALOG prompt (user-selected style)`);
+      }
     }
     // Check if we have multiple logos - use special multi-logo prompts
     else if (allLogos.length >= 2) {
@@ -1239,7 +1245,19 @@ class ControlNetService {
       `exactly three large 3D logos next to each other: ${allLogos[0]}, ${allLogos[1]}, and ${allLogos[2]} matched in size, cinema 3D depth, thick glass construction, ${edges}, ${bg}, ${colors}, ${themedElements}, ${qualitySuffix}`
     ];
 
-    const promptArray = logoCount === 2 ? twoLogoPrompts : threeLogoPrompts;
+    const manyLogoPrompts = [
+      `EXACTLY ${logoCount} separate 3D logos arranged in a row, ALL THE SAME SIZE: ${allLogos.join(', ')} — each logo rendered at identical scale as equal focal points, thick glass construction with liquid chrome interior, ${edges}, ${bg}, ${colors}, ${themedElements}, MANDATORY: ALL ${logoCount} logos must appear at IDENTICAL size, none larger or more prominent than the others. ${logoList}. ${qualitySuffix}`,
+
+      `${logoCount} distinct 3D logos placed side by side at EQUAL size: ${allLogos.join(', ')} — no single logo should dominate, all rendered at the same scale with deep dimensional depth in matching glossy chrome and glass materials, ${edges}, ${bg}, ${colors}, ${themedElements}, CRITICAL: every logo MUST be the same size. ${logoList}. ${qualitySuffix}`,
+
+      `a group of ${logoCount} 3D logos arranged evenly: ${allLogos.join(', ')} — each one IDENTICAL in size and prominence, rendered as solid glass sculptures with metallic chrome cores, ${edges}, ${bg}, ${colors}, ${themedElements}, NO logo should be bigger than any other. ${logoList}. ${qualitySuffix}`
+    ];
+
+    let promptArray;
+    if (logoCount === 2) promptArray = twoLogoPrompts;
+    else if (logoCount === 3) promptArray = threeLogoPrompts;
+    else promptArray = manyLogoPrompts;
+
     const selectedPrompt = promptArray[Math.floor(Math.random() * promptArray.length)];
 
     logger.info(`🎨 Multi-logo prompt for ${logoCount} logos: ${selectedPrompt.substring(0, 150)}...`);
