@@ -427,7 +427,7 @@ class StyleCatalogService {
       name: style.name,
       description: style.description,
       category: style.category,
-      sampleImageUrl: `${this.baseUrl}/api/style-catalog/image/${style.id}`,
+      sampleImageUrl: `${this.baseUrl}/api/style-catalog/image/${style.id}?v=2`,
       // Supabase URL as backup when manually uploaded
       supabaseUrl: `${this.supabaseStorageUrl}/${style.filename}`,
       filename: style.filename,
