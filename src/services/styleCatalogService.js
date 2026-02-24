@@ -354,12 +354,12 @@ class StyleCatalogService {
       '35_chrome_rim_glass': {
         id: '35_chrome_rim_glass',
         name: 'Chrome Rim Glass',
-        description: 'Thin beveled glass logo with polished chrome rim edges and strong rim lighting',
+        description: 'Deeply extruded 3D glass logo with mirror chrome extrusion edges and dramatic backlighting',
         filename: '35_chrome_rim_glass.png',
         category: 'premium',
         customSubject: { enabled: true, placeholder: 'e.g., rings, arcs, blades...', defaultSubject: 'chrome and glass accent pieces' },
-        defaultColors: { bgColor: '#000000', elementColor: '#c0c0c0', accentLightColor: '#ffffff', lightingColor: '#ff69b4' },
-        prompt: (logoSymbol) => `pure black void background, dramatic rim lighting from behind creating strong edge glow, photorealistic 3D environment, single prominent ${logoSymbol} cryptocurrency logo symbol as the hero subject rendered as a sleek thin beveled 3D form with clear transparent glass center and polished chrome metal rim edges wrapping around the entire outline of the shape, the chrome edges are mirror-polished catching brilliant white and subtle pink light reflections, the glass interior is crystal clear with subtle internal refractions, the logo has elegant layered depth with multiple chrome and glass layers visible from the side angle, strong backlight creating a dramatic halo rim light effect around the chrome edges, floating {{3D_ELEMENTS}} in matching chrome and glass materials, the overall aesthetic is premium luxury tech product, minimal and refined, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+        defaultColors: { bgColor: '#000000', elementColor: '#c0c0c0', accentLightColor: '#ffffff', lightingColor: '#e8e8e8' },
+        prompt: (logoSymbol) => `pure black void background, dramatic backlight from behind creating strong edge glow, photorealistic 3D environment, the provided ${logoSymbol} cryptocurrency logo symbol rendered as a deeply extruded thick 3D form with significant depth — the front face is clear transparent glass with subtle reflections and slight environment mapping, the extruded side walls (the depth edge visible from a slight angle) are polished mirror chrome metal showing brilliant reflections, the extrusion is deep giving the logo substantial 3D thickness like a glass block with chrome sides, sharp but slightly rounded corners along the perimeter of the logo shape, dramatic white backlight creating a bright glow behind the chrome edges, neutral color palette — no pink no magenta no colored tints — only clean whites silvers and natural chrome reflections, the glass front catches subtle horizontal light streaks, floating {{3D_ELEMENTS}} in matching chrome and glass materials, premium luxury tech product aesthetic, minimal and refined, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text, no pink lighting, no magenta`
       },
 
       '36_neon_core_glass': {
