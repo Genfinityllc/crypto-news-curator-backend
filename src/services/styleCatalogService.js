@@ -523,9 +523,11 @@ class StyleCatalogService {
 
     if (customSubject && style.customSubject?.enabled) {
       const subject = customSubject.trim();
-      prompt = prompt.replace('{{3D_ELEMENTS}}', subject);
-      prompt += `. IMPORTANT 3D ELEMENTS: You MUST include multiple visible ${subject} floating around the scene as secondary 3D objects — these are separate from the main logo and must be clearly rendered at various sizes and positions in the composition.`;
-      logger.info(`🎨 Custom subject "${subject}" in style ${styleId}`);
+      const defaultElements = style.customSubject?.defaultSubject || '';
+      const combined = defaultElements ? `${defaultElements} and ${subject}` : subject;
+      prompt = prompt.replace('{{3D_ELEMENTS}}', combined);
+      prompt += `. IMPORTANT 3D ELEMENTS: In addition to the default scene elements, you MUST also include multiple visible ${subject} floating around the scene as extra secondary 3D objects — these are separate from the main logo and must be clearly rendered at various sizes and positions.`;
+      logger.info(`🎨 Custom subject "${subject}" added to default "${defaultElements}" in style ${styleId}`);
     } else if (style.customSubject?.defaultSubject) {
       prompt = prompt.replace('{{3D_ELEMENTS}}', style.customSubject.defaultSubject);
     } else {
