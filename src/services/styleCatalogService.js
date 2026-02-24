@@ -819,6 +819,9 @@ class StyleCatalogService {
     prompt = prompt.replace(/#9b8ec4/gi, bgColor);
     prompt = prompt.replace(/#f5c518/gi, bgColor);
     prompt = prompt.replace(/#2a2a2a/gi, bgColor);
+    prompt = prompt.replace(/#1a1a1a/gi, bgColor);
+    prompt = prompt.replace(/dark industrial concrete wall background/gi, `${bgColor} industrial wall background`);
+    prompt = prompt.replace(/#331111/gi, bgColor);
 
     return prompt;
   }
@@ -862,6 +865,12 @@ class StyleCatalogService {
     prompt = prompt.replace(/#e63946/gi, elementColor);
     prompt = prompt.replace(/#f5a623/gi, elementColor);
     prompt = prompt.replace(/#b76e79/gi, elementColor);
+    prompt = prompt.replace(/#ff3300/gi, elementColor);
+    prompt = prompt.replace(/#ff6600/gi, elementColor);
+    prompt = prompt.replace(/\bneon red-orange\b/gi, `neon ${elementColor}`);
+    prompt = prompt.replace(/\bred-orange\b(?!\s*(?:background|void))/gi, elementColor);
+    prompt = prompt.replace(/\bwarm red-orange glow\b/gi, `warm ${elementColor} glow`);
+    prompt = prompt.replace(/\bhot molten core\b/gi, `hot ${elementColor} molten core`);
 
     prompt = prompt.replace(/\bvivid red\b/gi, elementColor);
     prompt = prompt.replace(/\bwarm orange-yellow\b/gi, elementColor);
