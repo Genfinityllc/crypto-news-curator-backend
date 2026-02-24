@@ -604,7 +604,7 @@ class StyleCatalogService {
         const sym = lo.symbol || 'logo';
         const isOg = lo.logoMaterial === 'og_color';
         if (isOg) {
-          parts.push(`preserve the EXACT original brand colors — do NOT recolor, tint, or change its colors. Render as 3D with depth and lighting but keep original colors intact`);
+          parts.push(`preserve the EXACT original brand colors from the input image — match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT spread a gradient to parts that were originally solid colored. Render as 3D with depth and lighting but the color of every pixel must match the original input`);
         } else {
           if (lo.logoMaterial && lo.logoMaterial !== 'default') {
             const mat = this.materialDefinitions[lo.logoMaterial];
@@ -625,7 +625,7 @@ class StyleCatalogService {
     } else if (logoOverrides && !isPerLogoArray) {
       const isOgColor = logoOverrides.logoMaterial === 'og_color';
       if (isOgColor) {
-        logoDirectives.push('CRITICAL: Preserve the EXACT original brand colors of the logo — do NOT recolor, tint, or change the logo colors in any way. Render the logo as a 3D object with depth, lighting, and shadows but keep the original colors intact');
+        logoDirectives.push('CRITICAL: Preserve the EXACT original brand colors from the input image — match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT spread a gradient to parts that were originally solid colored. Render the logo as a 3D object with depth, lighting, and shadows but the color of every pixel must match the original input');
       } else {
         if (logoOverrides.logoMaterial && logoOverrides.logoMaterial !== 'default') {
           const mat = this.materialDefinitions[logoOverrides.logoMaterial];
