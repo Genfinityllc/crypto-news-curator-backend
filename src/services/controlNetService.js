@@ -780,6 +780,24 @@ class ControlNetService {
                 .png()
                 .toBuffer();
               logger.info(`🔧 Flattened transparent logo ${symbol} onto black background`);
+            } else {
+              const { data: rawPixels, info } = await sharp(logoData.buffer).raw().toBuffer({ resolveWithObject: true });
+              let darkPixels = 0;
+              const totalPixels = info.width * info.height;
+              for (let i = 0; i < rawPixels.length; i += info.channels) {
+                const brightness = rawPixels[i] * 0.299 + rawPixels[i + 1] * 0.587 + rawPixels[i + 2] * 0.114;
+                if (brightness < 30) darkPixels++;
+              }
+              const darkRatio = darkPixels / totalPixels;
+              if (darkRatio > 0.5) {
+                logoData.buffer = await sharp(logoData.buffer)
+                  .greyscale()
+                  .linear(2.5, -40)
+                  .normalise()
+                  .png()
+                  .toBuffer();
+                logger.info(`🔧 Boosted contrast for RGB logo ${symbol} (${(darkRatio * 100).toFixed(0)}% dark pixels) to improve AI recognition`);
+              }
             }
           } catch (flattenErr) {
             logger.warn(`⚠️ Could not check/flatten logo ${symbol}: ${flattenErr.message}`);
