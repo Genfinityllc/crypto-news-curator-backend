@@ -783,20 +783,25 @@ class ControlNetService {
             } else {
               const { data: rawPixels, info } = await sharp(logoData.buffer).raw().toBuffer({ resolveWithObject: true });
               let darkPixels = 0;
+              let brightPixels = 0;
               const totalPixels = info.width * info.height;
               for (let i = 0; i < rawPixels.length; i += info.channels) {
                 const brightness = rawPixels[i] * 0.299 + rawPixels[i + 1] * 0.587 + rawPixels[i + 2] * 0.114;
                 if (brightness < 30) darkPixels++;
+                if (brightness > 200) brightPixels++;
               }
               const darkRatio = darkPixels / totalPixels;
-              if (darkRatio > 0.5) {
+              const brightRatio = brightPixels / totalPixels;
+              if (darkRatio > 0.5 && brightRatio < 0.05) {
                 logoData.buffer = await sharp(logoData.buffer)
                   .greyscale()
                   .linear(2.5, -40)
                   .normalise()
                   .png()
                   .toBuffer();
-                logger.info(`🔧 Boosted contrast for RGB logo ${symbol} (${(darkRatio * 100).toFixed(0)}% dark pixels) to improve AI recognition`);
+                logger.info(`🔧 Boosted contrast for RGB logo ${symbol} (${(darkRatio * 100).toFixed(0)}% dark, ${(brightRatio * 100).toFixed(1)}% bright) to improve AI recognition`);
+              } else {
+                logger.info(`✅ RGB logo ${symbol} has good contrast (${(darkRatio * 100).toFixed(0)}% dark, ${(brightRatio * 100).toFixed(1)}% bright) — no boost needed`);
               }
             }
           } catch (flattenErr) {
@@ -1099,6 +1104,8 @@ class ControlNetService {
       const logoTextMode = article?.logoTextMode || 'full';
       if (logoTextMode === 'full') {
         prompt += ` Preserve the full logo including any text, wordmarks, or typography; do not crop or omit text.`;
+      } else if (logoTextMode === 'mark') {
+        prompt += ` CRITICAL LOGO RULE: REMOVE ALL WORDMARK TEXT. Show ONLY the compact logo mark, icon, or symbol — absolutely NO company name text, NO wordmark typography, NO spelled-out brand name. If the original logo shows "BitGo" or "Coinbase" or any word next to an icon, COMPLETELY REMOVE that word and show ONLY the icon/symbol. If the logo mark itself IS a single letter or monogram (like a stylized "B" inside a shield, or an "E"), that letter IS the mark and must be preserved — but any full company name text beside it must be removed.`;
       }
     }
 
@@ -1140,7 +1147,7 @@ class ControlNetService {
     
     // Poll for result using exact format from docs
     let result = null;
-    for (let attempt = 0; attempt < 60; attempt++) {
+    for (let attempt = 0; attempt < 90; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second intervals
       
       const pollResponse = await axios.get(
@@ -1167,7 +1174,7 @@ class ControlNetService {
     }
     
     if (!result) {
-      throw new Error('Nano-Banana-Pro job timed out after 120 seconds');
+      throw new Error('Nano-Banana-Pro job timed out after 180 seconds');
     }
     
     const outputs = result.outputs || [];

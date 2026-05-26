@@ -7,9 +7,14 @@
 ## Deployment Commands
 
 ### Backend Deployment
+**Account**: support@genfinity.io (genfinityllc)  
+**Project**: intelligent-contentment (ID: 8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2)  
+**Service**: crypto-news-curator-backend (ID: d20f230c-6855-4641-a026-57f81e649875)  
 ```bash
-/opt/homebrew/bin/railway up
+/Users/valorkopeny/.local/bin/railway up
 ```
+Before deploying, verify linked service: `railway status` should show `Service: crypto-news-curator-backend`  
+If not linked: `railway link --project intelligent-contentment --service crypto-news-curator-backend --environment production`
 
 ### Frontend Deployment  
 ```bash

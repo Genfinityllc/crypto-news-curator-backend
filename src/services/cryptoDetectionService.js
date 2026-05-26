@@ -61,6 +61,9 @@ const CRYPTO_PATTERNS = [
   
   // ==================== TIER 2: MEDIUM PRIORITY (Full names) ====================
   // Institutions/Companies (check before networks to avoid conflicts)
+  { crypto: 'BRALE', displayName: 'Brale', tier: 2, patterns: ['brale'] },
+  { crypto: 'WESTERNUNION', displayName: 'Western Union', tier: 2, patterns: ['western union'] },
+  { crypto: 'FRANKLINTEMPLETON', displayName: 'Franklin Templeton', tier: 2, patterns: ['franklin templeton'] },
   { crypto: 'BLACKROCK', displayName: 'BlackRock', tier: 2, patterns: ['blackrock'] },
   { crypto: 'GRAYSCALE', displayName: 'Grayscale', tier: 2, patterns: ['grayscale'] },
   { crypto: '21SHARES', displayName: '21Shares', tier: 2, patterns: ['21shares'] },

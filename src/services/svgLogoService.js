@@ -129,7 +129,11 @@ class SVGLogoService {
         'uniswap': 'UNI',
         'uni': 'UNI',
         'xdc network': 'XDC',
-        'xdc': 'XDC'
+        'xdc': 'XDC',
+        
+        'brale': 'BRALE',
+        'western union': 'WESTERNUNION',
+        'franklin templeton': 'FRANKLINTEMPLETON'
       };
       
       let detectedSymbol = null;

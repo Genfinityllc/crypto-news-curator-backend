@@ -524,6 +524,64 @@ async function updateArticleCoverImage(articleId, coverImageUrl) {
   }
 }
 
+async function cleanupOldCoverImages(maxAgeDays = 7) {
+  try {
+    const client = getSupabaseClient();
+    if (!client) {
+      logger.warn('Supabase not available for cleanup');
+      return { deleted: 0, error: null };
+    }
+
+    const bucket = 'cover-images';
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+
+    let totalDeleted = 0;
+    let offset = 0;
+    const batchSize = 100;
+
+    while (true) {
+      const { data: files, error } = await client.storage
+        .from(bucket)
+        .list('', { limit: batchSize, offset, sortBy: { column: 'created_at', order: 'asc' } });
+
+      if (error) {
+        logger.error(`Storage cleanup list error: ${error.message}`);
+        return { deleted: totalDeleted, error: error.message };
+      }
+
+      if (!files || files.length === 0) break;
+
+      const toDelete = files
+        .filter(f => f.created_at && new Date(f.created_at) < cutoffDate)
+        .map(f => f.name);
+
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await client.storage
+          .from(bucket)
+          .remove(toDelete);
+
+        if (deleteError) {
+          logger.error(`Storage cleanup delete error: ${deleteError.message}`);
+        } else {
+          totalDeleted += toDelete.length;
+          logger.info(`Deleted ${toDelete.length} old cover images (batch at offset ${offset})`);
+        }
+      }
+
+      if (files.length < batchSize) break;
+      if (toDelete.length < files.length) break;
+      offset += batchSize;
+    }
+
+    logger.info(`Storage cleanup complete: deleted ${totalDeleted} cover images older than ${maxAgeDays} days`);
+    return { deleted: totalDeleted, error: null };
+  } catch (error) {
+    logger.error(`Storage cleanup failed: ${error.message}`);
+    return { deleted: 0, error: error.message };
+  }
+}
+
 // Export the admin client for direct access
 const supabaseAdmin = getSupabaseClient();
 
@@ -540,5 +598,6 @@ module.exports = {
   updateArticleEngagement,
   updateArticleCoverImage,
   uploadImageToStorage,  // For permanent image hosting
+  cleanupOldCoverImages,
   transformArticleForSupabase
 };

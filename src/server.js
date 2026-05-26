@@ -7,7 +7,7 @@ const path = require('path');
 const http = require('http');
 const fs = require('fs').promises;
 const multer = require('multer');
-const { testSupabaseConnection, uploadImageToStorage } = require('./config/supabase');
+const { testSupabaseConnection, uploadImageToStorage, cleanupOldCoverImages } = require('./config/supabase');
 const rateLimit = require('express-rate-limit');
 const { autoUpdateService } = require('./services/autoUpdateService');
 const { websocketService } = require('./services/websocketService');
@@ -774,6 +774,9 @@ const COMPANIES_LIST = [
   { symbol: 'HEDERA_FULL', name: 'Hedera (FULL)', type: 'company' },
   { symbol: 'LOOPSCALE_FULL', name: 'Loopscale (FULL)', type: 'company' },
   { symbol: 'DRIFT_FULL', name: 'Drift (FULL)', type: 'company' },
+  { symbol: 'BRALE', name: 'Brale', type: 'company' },
+  { symbol: 'WESTERNUNION', name: 'Western Union', type: 'company' },
+  { symbol: 'FRANKLINTEMPLETON', name: 'Franklin Templeton', type: 'company' },
 ];
 
 // Dynamic lists for runtime additions (loaded from file if exists)
@@ -786,6 +789,36 @@ const DYNAMIC_LOGOS_SUPABASE_BUCKET = 'logos';
 const DYNAMIC_LOGOS_SUPABASE_FILE = 'dynamic-logos.json';
 
 let dynamicLogosLoaded = false;
+
+async function restoreDynamicLogoPngs(allEntries, supabaseClient, pngLogosDir) {
+  const axios = require('axios');
+  for (const entry of allEntries) {
+    if (!entry.symbol) continue;
+    const localPath = path.join(pngLogosDir, `${entry.symbol}.png`);
+    try {
+      await fs.access(localPath);
+      continue;
+    } catch (e) {}
+    try {
+      const { data: urlData } = supabaseClient.storage
+        .from('logos')
+        .getPublicUrl(`${entry.symbol}.png`);
+      if (urlData?.publicUrl) {
+        const response = await axios.get(urlData.publicUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          validateStatus: (status) => status === 200
+        });
+        if (response.data && response.data.length > 500) {
+          await fs.writeFile(localPath, response.data);
+          console.log(`📥 Restored ${entry.symbol}.png from Supabase Storage`);
+        }
+      }
+    } catch (err) {
+      console.log(`⚠️ Could not restore ${entry.symbol}.png: ${err.message}`);
+    }
+  }
+}
 
 async function loadDynamicLogos() {
   try {
@@ -814,6 +847,7 @@ async function loadDynamicLogos() {
           networksCacheTime = 0;
           console.log(`☁️ Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from Supabase`);
           await fs.writeFile(DYNAMIC_LOGOS_FILE, text).catch(() => {});
+          await restoreDynamicLogoPngs([...DYNAMIC_NETWORKS, ...DYNAMIC_COMPANIES], client, pngLogosDir);
           return;
         }
       }
@@ -896,23 +930,11 @@ async function saveDynamicLogos() {
   }
 }
 
-// Multer configuration for logo uploads
-const logoStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../uploads/png-logos'));
-  },
-  filename: function (req, file, cb) {
-    // Use the symbol from request body, fallback to original filename
-    const symbol = req.body.symbol || file.originalname.replace(/\.[^/.]+$/, '');
-    cb(null, `${symbol}.png`);
-  }
-});
-
+// Multer configuration for logo uploads (memory storage to avoid filename race condition)
 const logoUpload = multer({
-  storage: logoStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: function (req, file, cb) {
-    // Accept PNG and JPG
     if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg') {
       cb(null, true);
     } else {
@@ -952,22 +974,25 @@ app.post('/api/cover-generator/upload-logo', logoUpload.single('logo'), async (r
 
     const normalizedSymbol = symbol.toUpperCase().replace(/\s+/g, '');
 
-    // Read the uploaded file, flatten if transparent, save locally and to Supabase
+    // Process the uploaded file buffer, flatten if transparent, save locally and to Supabase
     let supabaseUrl = null;
+    const localFilename = `${normalizedSymbol}.png`;
+    const localPath = path.join(__dirname, '../uploads/png-logos', localFilename);
     try {
       const sharp = require('sharp');
-      let fileBuffer = await fs.readFile(req.file.path);
+      let fileBuffer = req.file.buffer;
       const meta = await sharp(fileBuffer).metadata();
       if (meta.hasAlpha) {
         fileBuffer = await sharp(fileBuffer)
           .flatten({ background: { r: 0, g: 0, b: 0 } })
           .png()
           .toBuffer();
-        await fs.writeFile(req.file.path, fileBuffer);
         logger.info(`🔧 Flattened transparent logo onto black background before saving`);
       }
-      const supabaseFilename = `${normalizedSymbol}.png`;
-      supabaseUrl = await uploadImageToStorage(fileBuffer, supabaseFilename, 'logos');
+      await fs.mkdir(path.join(__dirname, '../uploads/png-logos'), { recursive: true });
+      await fs.writeFile(localPath, fileBuffer);
+      logger.info(`📁 Saved logo locally: ${localPath}`);
+      supabaseUrl = await uploadImageToStorage(fileBuffer, localFilename, 'logos');
       if (supabaseUrl) {
         logger.info(`☁️ Logo uploaded to Supabase Storage: ${supabaseUrl}`);
       }
@@ -1019,7 +1044,7 @@ app.post('/api/cover-generator/upload-logo', logoUpload.single('logo'), async (r
     networksCacheTime = 0;
 
     logger.info(`✅ Logo uploaded: ${normalizedSymbol} (${name}) as ${type}`);
-    logger.info(`📁 File saved to: ${req.file.path}`);
+    logger.info(`📁 File saved to: ${localPath}`);
     if (supabaseUrl) {
       logger.info(`☁️ Supabase URL: ${supabaseUrl}`);
     }
@@ -1031,8 +1056,8 @@ app.post('/api/cover-generator/upload-logo', logoUpload.single('logo'), async (r
         symbol: normalizedSymbol,
         name,
         type,
-        filename: req.file.filename,
-        localPath: `/uploads/png-logos/${req.file.filename}`,
+        filename: localFilename,
+        localPath: `/uploads/png-logos/${localFilename}`,
         supabaseUrl: supabaseUrl
       }
     });
@@ -1157,6 +1182,25 @@ app.delete('/api/cover-generator/delete-logo', async (req, res) => {
     });
   } catch (error) {
     logger.error(`❌ Logo delete failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/cover-generator/cleanup-storage - Manually trigger cover image cleanup (admin only)
+app.post('/api/cover-generator/cleanup-storage', async (req, res) => {
+  try {
+    const { maxAgeDays = 7, adminKey } = req.body;
+    if (adminKey !== 'valor-master-2024') {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+    const result = await cleanupOldCoverImages(maxAgeDays);
+    res.json({
+      success: true,
+      deleted: result.deleted,
+      maxAgeDays,
+      error: result.error
+    });
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1449,7 +1493,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, accentLightColor, accentColor, lightingColor, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides } = req.body;
 
   const isBackgroundOnly = !network || network.trim() === '';
 
@@ -1500,8 +1544,8 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         const StyleCatalogService = require('./services/styleCatalogService');
         const styleCatalog = new StyleCatalogService();
         // Build color overrides from 3 separate color fields, with legacy fallback
-        const colorOverrides = (bgColor || elementColor || accentLightColor || lightingColor)
-          ? { bgColor: bgColor || null, elementColor: elementColor || null, accentLightColor: accentLightColor || null, lightingColor: lightingColor || null }
+        const colorOverrides = (bgColor || elementColor || elementColor2 || accentLightColor || accentLightColor2 || lightingColor || lightingColor2)
+          ? { bgColor: bgColor || null, elementColor: elementColor || null, elementColor2: elementColor2 || null, accentLightColor: accentLightColor || null, accentLightColor2: accentLightColor2 || null, lightingColor: lightingColor || null, lightingColor2: lightingColor2 || null }
           : accentColor
             ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor, lightingColor: null }
             : null;
@@ -3242,6 +3286,24 @@ server.listen(PORT, () => {
     // Store interval for cleanup
     global.pressReleaseMonitoringInterval = pressReleaseInterval;
     
+    // Run initial cover image cleanup (delete images older than 7 days)
+    cleanupOldCoverImages(7).then(result => {
+      logger.info(`🧹 Initial storage cleanup: ${result.deleted} old cover images deleted`);
+    }).catch(err => {
+      logger.warn(`Storage cleanup failed on startup: ${err.message}`);
+    });
+
+    // Schedule cover image cleanup every 6 hours
+    global.storageCleanupInterval = setInterval(() => {
+      cleanupOldCoverImages(7).then(result => {
+        if (result.deleted > 0) {
+          logger.info(`🧹 Scheduled storage cleanup: ${result.deleted} old cover images deleted`);
+        }
+      }).catch(err => {
+        logger.warn(`Scheduled storage cleanup failed: ${err.message}`);
+      });
+    }, 6 * 60 * 60 * 1000);
+    
   }, 7000); // Wait 7 seconds for other services to initialize
 });
 
@@ -3251,6 +3313,7 @@ process.on('SIGTERM', () => {
   simpleCronService.stop();
   autoUpdateService.stop();
   tempCleanupService.stop();
+  if (global.storageCleanupInterval) clearInterval(global.storageCleanupInterval);
   if (global.pressReleaseMonitoringInterval) {
     pressReleaseService.stopMonitoring(global.pressReleaseMonitoringInterval);
   }
@@ -3265,6 +3328,7 @@ process.on('SIGINT', () => {
   simpleCronService.stop();
   autoUpdateService.stop();
   tempCleanupService.stop();
+  if (global.storageCleanupInterval) clearInterval(global.storageCleanupInterval);
   if (global.pressReleaseMonitoringInterval) {
     pressReleaseService.stopMonitoring(global.pressReleaseMonitoringInterval);
   }
