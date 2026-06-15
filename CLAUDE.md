@@ -1,171 +1,145 @@
-# Cover Generator — Source of Truth & Deployment Notes
+# ⚡ CLAUDE: READ THIS FIRST — Cover Generator Source of Truth
 
-Last reconciled: 2026-06-15
+> If you are a new Claude session, this card tells you everything. Do not search around for "the real backend" — it is this directory. Do not look at `ai-cover-generator/`, `hf-spaces-deployment/`, or any LoRA/RunPod file — they are dead.
 
-## Live URLs
-- **Frontend (LIVE)**: https://crypto-news-frontend-ruddy.vercel.app
-- **Backend  (LIVE)**: https://crypto-news-curator-backend-production.up.railway.app
+## 📍 Canonical Locations (memorize these)
 
-## Source of Truth (GitHub)
-| Component | Repo | Branch | Auto-Deploy |
-|---|---|---|---|
-| Frontend | `Genfinityllc/crypto-news-frontend` | `main` | ✅ Vercel (push → live in ~2 min) |
-| Backend  | `Genfinityllc/crypto-news-curator-backend` | `main` | ❌ NOT git-linked — uses `railway up` |
+| Thing | Path / URL |
+|---|---|
+| **Backend repo (local)** | `/Users/valorkopeny/Desktop/crypto-news-curator-backend` |
+| **Backend repo (GitHub)** | `https://github.com/Genfinityllc/crypto-news-curator-backend` branch `main` |
+| **Backend live URL** | `https://crypto-news-curator-backend-production.up.railway.app` |
+| **Backend deploy** | Manual: `/Users/valorkopeny/.local/bin/railway up` *(not git-auto)* |
+| **Frontend repo (local)** | `/Users/valorkopeny/crypto-news-frontend` |
+| **Frontend repo (GitHub)** | `https://github.com/Genfinityllc/crypto-news-frontend` branch `main` |
+| **Frontend live URL** | `https://crypto-news-frontend-ruddy.vercel.app` |
+| **Frontend deploy** | **Git auto** — `git push origin main` → Vercel deploys in ~2 min |
+| **Frontend Vercel team** | `team_kYZ8yndpCmXg5hf3sDSUQ6tZ` (NOT `valors-projects-e78ccc5f` — that's stale) |
+| **Image API** | Wavespeed Nano-Banana-Pro (`api.wavespeed.ai/api/v3/google/nano-banana-pro/edit`) |
+| **Logo storage** | Supabase (project `daqxnvcfmepjzcgfdrdf`) |
+| **Railway project** | `intelligent-contentment` (ID `8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2`), service `crypto-news-curator-backend` (ID `d20f230c-6855-4641-a026-57f81e649875`), account `support@genfinity.io` |
+| **GitHub auth on this Mac** | `gh auth` is logged in as `ValtronXRP` — has Write access to both Genfinityllc repos (granted 2026-06-15). `git push origin main` just works. |
 
-**Rule**: GitHub `main` is the canonical source for both. Never deploy directly via `vercel --prod` or anything that bypasses git — it desyncs main from live.
+## 🚨 Hard rules
+1. **GitHub `main` is source of truth.** Never deploy with `vercel --prod` directly — it desyncs main from live and creates the same mess we just cleaned up.
+2. **Frontend changes**: edit files in `/Users/valorkopeny/crypto-news-frontend`, `git add && commit && push`. Vercel auto-deploys. Done.
+3. **Backend changes**: edit files in `/Users/valorkopeny/Desktop/crypto-news-curator-backend`, `git add && commit && push`, then `railway up`. (Or, do the one-time Railway → GitHub source link below to make it git-auto.)
+4. **Never touch any file listed under DEPRECATED below.** They are not in the live code path. Modifying them does nothing except create confusion.
+5. **Do not touch ValtronXRP-owned projects.** ValtronXRP is just the GitHub identity used to push to Genfinityllc-owned repos.
 
-### To enable git auto-deploy for backend (recommended one-time setup)
-1. Open `https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2`
-2. Click service `crypto-news-curator-backend`
-3. Settings → Source → **Connect Repo** → `Genfinityllc/crypto-news-curator-backend` branch `main`
-4. After this, `git push origin main` auto-deploys backend just like frontend.
+## 🟢 LIVE files — these are the ONLY ones that run in production
 
-## Deployment Workflow
-
-### Frontend (git-driven, auto)
-```bash
-cd /Users/valorkopeny/crypto-news-frontend
-git add <files> && git commit -m "..." && git push origin main
-# Vercel auto-deploys to crypto-news-frontend-ruddy.vercel.app
-```
-- The Vercel project is linked under team `team_kYZ8yndpCmXg5hf3sDSUQ6tZ` (NOT the `valors-projects-e78ccc5f` team — that team has a stale duplicate project, ignore it).
-- Local `.vercel/project.json` already points to the correct project.
-
-### Backend (manual until git source is connected)
-```bash
-cd /Users/valorkopeny/Desktop/crypto-news-curator-backend
-git add <files> && git commit -m "..." && git push origin main
-/Users/valorkopeny/.local/bin/railway up
-```
-Verify link first: `railway status` should show:
-```
-Project: intelligent-contentment
-Service: crypto-news-curator-backend
-Environment: production
-```
-If not linked: `railway link --project intelligent-contentment --service crypto-news-curator-backend --environment production`
-
-**Railway project info**
-- Account: `support@genfinity.io`
-- Project: `intelligent-contentment` (ID `8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2`)
-- Service: `crypto-news-curator-backend` (ID `d20f230c-6855-4641-a026-57f81e649875`)
-
-## LIVE Cover Generation Stack (use these files)
-
-The cover generator currently in production uses **Wavespeed Nano-Banana-Pro** (`api.wavespeed.ai/api/v3/google/nano-banana-pro/edit`).
-
-### Backend — LIVE files
+### Backend (`/Users/valorkopeny/Desktop/crypto-news-curator-backend/`)
 | File | Role |
 |---|---|
-| `src/server.js` lines 1495-1680 | `/api/cover-generator/generate` route handler |
-| `src/server.js` line 947 | `/api/cover-generator/upload-logo` |
-| `src/server.js` line 1422 | `/api/cover-generator/networks` (logo dropdowns) |
-| `src/services/controlNetService.js` | `generateWithAdvancedControlNet()` → calls Wavespeed Nano-Banana-Pro |
-| `src/services/styleCatalogService.js` | Style template + color override prompt builder |
-| `src/services/svgLogoService.js` | Logo loader from Supabase (crypto detection) |
-| `src/services/watermarkService.js` | Genfinity watermark overlay (1800x900) |
-| `src/routes/style-catalog.js` | Style picker API |
+| `src/server.js` `:1495-1680` | `POST /api/cover-generator/generate` — main entry |
+| `src/server.js` `:947` | `POST /api/cover-generator/upload-logo` |
+| `src/server.js` `:1422` | `GET  /api/cover-generator/networks` (logo dropdowns) |
+| `src/server.js` `:1209,1317` | logo-info, logo-preview |
+| `src/server.js` `:1681,1909,2057,2119,2204,2239,2438` | save / diagnostics / table setup |
+| `src/services/controlNetService.js` | `generateWithAdvancedControlNet()` → calls Wavespeed Nano-Banana-Pro at `:1129` |
+| `src/services/styleCatalogService.js` | Style prompt builder. Accepts dual colors at `:576`. |
+| `src/services/svgLogoService.js` | Loads logos from Supabase + crypto detection |
+| `src/services/watermarkService.js` | Genfinity watermark overlay (LOCKED 1800x900) |
+| `src/routes/style-catalog.js` | Style picker API for frontend |
 | `src/routes/logos.js` | Logo management |
 | `src/routes/client-networks.js` | Client network metadata |
-| `src/config/supabase.js` | Logo storage (Supabase) |
+| `src/config/supabase.js` | Supabase client init |
 
-### Required environment variables (Railway)
-- `WAVESPEED_API_KEY` — Nano-Banana-Pro auth (current: `wsk_live_9Nw8s-...`)
-- `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` — Logo storage
-- `FIREBASE_*` — Auth
-- `OPENAI_API_KEY` — used by some old paths only (legacy)
-
-### Frontend — LIVE files
+### Frontend (`/Users/valorkopeny/crypto-news-frontend/`)
 | File | Role |
 |---|---|
-| `src/pages/CoverGenerator.js` | The whole cover generator UI |
-| `src/lib/api.ts` or fetch calls inline | Talks to `/api/cover-generator/*` |
+| `src/pages/CoverGenerator.js` | The entire cover generator UI |
+| `src/lib/api.ts` (and inline `fetch`) | Talks to backend `/api/cover-generator/*` |
 
-## DEPRECATED — DO NOT MODIFY OR USE
+### Required Railway env vars
+- `WAVESPEED_API_KEY` — current valid key: `wsk_live_9Nw8s-...` (set 2026-06-15)
+- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+- `FIREBASE_*`
+- `OPENAI_API_KEY` (legacy paths only)
 
-All of the following are dead code paths kept only as historical artifacts. Do not extend, do not refactor, do not call:
+## 🔴 DEPRECATED — DO NOT EDIT, DO NOT CALL, DO NOT REFACTOR
 
-### Backend services (dead)
-- `src/services/runpodLoraService.js` — RunPod is **NOT used**, never call this
+### Backend services (all dead)
+- `src/services/runpodLoraService.js` — **RunPod is NOT used**
 - `src/services/hbarLoraService.js`
 - `src/services/hfSpacesLoraService.js`
 - `src/services/loraAiService.js`
-- `src/services/universalLoraService.js`
-- `src/services/universalLoraService_old.js`
+- `src/services/universalLoraService.js` (+ `_old.js`)
 - `src/services/trainedLoraService.js`
-- `src/services/workingLoraService.js`
-- `src/services/workingLoraGenerator.js`
+- `src/services/workingLoraService.js`, `workingLoraGenerator.js`
 - `src/services/freeLoraService.js`
-- `src/services/fixedUniversalLoraService.js`
-- `src/services/simpleFixedLoraService.js`
-- `src/services/ultraFixedLoraService.js`
+- `src/services/fixedUniversalLoraService.js`, `simpleFixedLoraService.js`, `ultraFixedLoraService.js`
 - `src/services/multiProviderSDXL.js`
 - `src/services/coverGenerationService.js` (old OpenAI path)
-- `src/services/vectorFusionService.js`
-- `src/services/vectorNativeService.js`
+- `src/services/vectorFusionService.js`, `vectorNativeService.js`
 - `src/services/directSvgRenderingService.js`
 - `src/services/twoStepLogoService.js`
 - `src/services/coinCompositorService.js`
-- `src/services/controlNetService.js` lines ~4307-4310 — embedded RunPod fallback (dead branch)
+- `src/services/controlNetService.js` `:4307-4310` only — embedded RunPod fallback (the REST of `controlNetService.js` IS live, just that block is dead)
 
-### Backend routes (dead, but still mounted in server.js — safe to ignore)
-- `src/routes/ai-cover.js` (LoRA endpoint — `/api/ai-cover`)
-- `src/routes/lora-archive.js` (`/api/lora-archive`)
-- `src/routes/direct-svg.js`, `direct-svg-test.js`
-- `src/routes/two-step-logo.js`
-- `src/routes/controlnet-png.js`
-- `src/routes/coin-compositor.js`
-- `src/routes/universal-styles.js`
-- `src/routes/vectorfusion.js`
-- `src/routes/vector-native.js`
+### Backend routes (mounted in server.js but never used by frontend)
+- `/api/ai-cover` → `src/routes/ai-cover.js`
+- `/api/lora-archive` → `src/routes/lora-archive.js`
+- `/api/direct-svg`, `/api/direct-svg-test`
+- `/api/two-step-logo`
+- `/api/controlnet-png`
+- `/api/coin-compositor`
+- `/api/universal-styles`
+- `/api/vectorfusion`, `/api/vector-native`
 
-### Whole directories that are dead
-- `hf-spaces-deployment/` — HuggingFace Spaces LoRA training (abandoned)
-- `ai-cover-generator/` (the nested subdir) — old Python generator (abandoned)
-- `training-data/` — LoRA training data (abandoned)
-- `style-examples/` — generated style preview images (used as references, not as code)
-- `scripts/fix-*.js`, `scripts/replace-*.js` — one-off image regeneration scripts (historical)
+### Whole dead directories
+- `hf-spaces-deployment/` — HuggingFace LoRA training
+- `ai-cover-generator/` (the nested one inside this repo) — old Python generator
+- `training-data/` — LoRA training data
+- `scripts/fix-*.js`, `scripts/replace-*.js` — one-off image regen scripts
 
-### Old markdown docs (informational only — do not follow their instructions)
-- `AI_COVER_IMAGE_GENERATOR.md`, `AI_COVER_IMAGE_GENERATOR_UPDATED.md`
-- `DEPLOY_HF_SPACES_NOW.md`, `DEPLOY_PURE_LORA_ONLY.md`
-- `FIX_HF_SPACES_NOW.md`, `FIX_SDXL_LORA_LOADING.md`
-- `HUGGING_FACE_SETUP.md`
-- `ULTRA_LORA_TRAINING_PLAN.md`
-- `URGENT_DEPLOYMENT_SOLUTION.md`
-- `VALOR_APPROVED_SYSTEM.md`
-- `PRODUCTION_SNAPSHOT.md` (Feb snapshot — outdated)
+### Dead markdown docs (ignore them)
+`AI_COVER_IMAGE_GENERATOR*.md`, `DEPLOY_HF_SPACES_NOW.md`, `DEPLOY_PURE_LORA_ONLY.md`, `FIX_HF_SPACES_NOW.md`, `FIX_SDXL_LORA_LOADING.md`, `HUGGING_FACE_SETUP.md`, `ULTRA_LORA_TRAINING_PLAN.md`, `URGENT_DEPLOYMENT_SOLUTION.md`, `VALOR_APPROVED_SYSTEM.md`, `PRODUCTION_SNAPSHOT.md`
 
-### Env vars in Railway that are dead (safe to ignore / can clean up later)
-- `RUNPOD_ENDPOINT_URL`, `RUNPOD_API_KEY`
-- `HF_SPACES_LORA_URL`, `HUGGINGFACE_API_KEY`
-- `FORCE_LORA_FALLBACK`
-- `AI_COVER_GENERATOR_URL`, `AI_SERVICE_URL` (points at deprecated nested service)
+### Dead Railway env vars
+`RUNPOD_ENDPOINT_URL`, `RUNPOD_API_KEY`, `HF_SPACES_LORA_URL`, `HUGGINGFACE_API_KEY`, `FORCE_LORA_FALLBACK`, `AI_COVER_GENERATOR_URL`, `AI_SERVICE_URL`
 
-## LOCKED — Watermark / Output Dimensions
+## 🔒 LOCKED — Do not modify
 
-The 1800x900 output size + watermark position is correct and must stay. The implementation lives in:
-- `src/services/watermarkService.js` — positioning logic
-- `src/services/controlNetService.js` (Wavespeed result handler) — Sharp resize to 1800x900
+### Watermark + dimensions
+- Output is exactly **1800 × 900**
+- Watermark anchored bottom-center, 5px beyond bottom edge:
+  ```javascript
+  leftPosition = Math.round((1800 - watermarkWidth) / 2);
+  topPosition  = 900 - watermarkHeight + 5;
+  ```
+- Implementation: `src/services/watermarkService.js` + Sharp resize step in `controlNetService.js`
 
-```javascript
-leftPosition = Math.round((1800 - watermarkWidth) / 2);  // Center horizontally
-topPosition = 900 - watermarkHeight + 5;                  // 5px beyond bottom edge
-```
+### Network/symbol detection (working — don't break)
+- "aave" → Aave ghost
+- "ripple" / "xrp" → XRP
+- "bitcoin" → BTC (only when actually mentioned)
+- Strong anti-Bitcoin prompts for non-BTC articles
 
-## Network / Symbol Detection
-- Aave: "aave" → Aave ghost symbol
-- XRP/Ripple: "ripple" or "xrp" → XRP symbols
-- Bitcoin: only when title actually mentions Bitcoin
-- Strong anti-Bitcoin prompts for non-Bitcoin articles
+## 🛠 Optional one-time setup: enable git-auto-deploy for backend
 
-## Source-of-Truth History (for future reference)
-- 2026-06-15: Synced GitHub `main` with what was already deployed live on `-ruddy`. Live had been built via direct `vercel --prod` from local `CoverGenerator.js` that was never committed (dual color slots + Reuse Style). Now committed as `da7ea84`.
-- Going forward, ALL changes must be committed and pushed before deploying. Vercel auto-deploys from `main`.
+To bring backend up to the same workflow as frontend (so `git push` deploys it too):
+1. Open https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2
+2. Click service `crypto-news-curator-backend`
+3. Settings → Source → **Connect Repo** → `Genfinityllc/crypto-news-curator-backend` branch `main`
+4. After that, drop the `railway up` step. Every push to main auto-deploys.
 
-## Cover Generator Feature Roadmap (in progress)
-- [x] Dual color slots (elementColor2, accentLightColor2, lightingColor2)
-- [x] "Reuse This Style" / "Reuse Style" buttons on history items
-- [ ] **Glow None/Transparent option** — make picker support transparent so glow can be turned off
-- [ ] **OG Color runtime palette extraction** — when `og_color` material is selected, extract original logo colors at runtime and feed them into the prompt
-- [ ] **Reference image upload + custom prompt** — toolbar section below existing controls; uploads a reference image + free-form prompt ("remove X", "make X larger") and bypasses style template. User picks behavior: composite / replace / style-only
+## 📜 What happened on 2026-06-15 (read if confused later)
+
+- Wavespeed API key was rotated/invalid → 401 errors. Set new key `wsk_live_9Nw8s-...` on Railway. Fixed.
+- Supabase project was paused for billing → DNS failures → no logos. User added credits. Fixed.
+- `UPHOLD_FULL` file was misnamed `UPHOLDFULL_FULL.png` on Supabase → upload bug. Not fixed in code yet (cosmetic).
+- The frontend `-ruddy` was running a build (`main.76e2ac61.js`, May 31) that contained features **never committed to GitHub** — dual color slots + Reuse Style. These had been deployed via direct `vercel --prod` from local. We:
+  1. Verified the local stranded diff = the live bundle (toast string "Style settings loaded" matched verbatim)
+  2. Committed it as `da7ea84` on `main`
+  3. Pushed to GitHub
+  4. Vercel auto-rebuilt from main → bundle `main.fb3f4041.js` is now live and git-driven
+- Granted `ValtronXRP` Write access to both Genfinityllc repos so `git push` works from this Mac without token juggling.
+
+## 🗺 Roadmap (in progress — user requested)
+- [x] Sync GitHub main with live (done 2026-06-15)
+- [x] Inventory live vs deprecated code (this file)
+- [ ] **Glow None/Transparent** — picker option that disables glow on the logo (not scene)
+- [ ] **OG Color runtime palette** — when material = `og_color`, extract original logo colors and feed them into the prompt at generation time, so brand palette is preserved
+- [ ] **Reference image + custom prompt** — collapsible section BELOW the existing toolbar; user uploads a reference image + types a freeform prompt ("remove X", "change color of Y", "make Z larger"). Bypasses style template and uses the image as a starting reference in Nano-Banana. User picks behavior dropdown: composite / replace / style-only.
