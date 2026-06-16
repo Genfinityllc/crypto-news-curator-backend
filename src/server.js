@@ -1671,33 +1671,49 @@ app.post('/api/cover-generator/generate', async (req, res) => {
 
     // Phase 4: REFERENCE-IMAGE MODE — bypass the named style template entirely,
     // but still honor color selectors and append the user's custom prompt.
+    // Phase 4-ext: PURE REF MODE — when there is no logo (background-only) AND
+    // a reference image is supplied, emit a minimal prompt that is essentially
+    // just the user's customPrompt + a tiny ref-mode hint. No anti-frame
+    // boilerplate, no cinematic-3D suffix, no logo language.
     if (useReferenceMode) {
       try {
         const StyleCatalogService = require('./services/styleCatalogService');
         const styleCatalog = new StyleCatalogService();
         const mode = referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference';
-        const networkLine = isBackgroundOnly
-          ? 'Generate an atmospheric scene with no logo and no text.'
-          : `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
-        let refLine;
-        if (mode === 'style_reference') {
-          refLine = `Use the SECOND input image purely as a STYLE REFERENCE — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere. Do NOT copy any of its specific objects, subjects, or composition. Apply only the visual style.`;
+
+        if (isBackgroundOnly) {
+          // PURE REF + PROMPT — minimal prompt, no logo, no boilerplate.
+          const refLine = mode === 'style_reference'
+            ? 'Use the provided reference image purely as a STYLE REFERENCE — mimic its overall aesthetic, color mood, lighting, and atmosphere.'
+            : 'Use the provided reference image as a COMPOSITION BASE — keep its layout and framing but restyle the materials, lighting, and color treatment.';
+          const userText = (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0)
+            ? customPrompt.trim()
+            : 'Generate an image inspired by the reference.';
+          stylePrompt = `${userText} ${refLine}`;
+          logger.info(`📎 PURE REF MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... prompt="${userText.substring(0, 80)}..."`);
         } else {
-          refLine = `Use the SECOND input image as a COMPOSITION BASE — keep its general layout, framing, and arrangement of elements, but restyle the entire scene with new materials, lighting, and color treatment. The composition (where things go, how the eye moves) comes from the reference; the visual style is fresh.`;
+          // LOGO + REF MODE — full prompt with logo-as-hero-subject + ref guidance.
+          const networkLine = `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
+          let refLine;
+          if (mode === 'style_reference') {
+            refLine = `Use the SECOND input image purely as a STYLE REFERENCE — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere. Do NOT copy any of its specific objects, subjects, or composition. Apply only the visual style.`;
+          } else {
+            refLine = `Use the SECOND input image as a COMPOSITION BASE — keep its general layout, framing, and arrangement of elements, but restyle the entire scene with new materials, lighting, and color treatment. The composition (where things go, how the eye moves) comes from the reference; the visual style is fresh.`;
+          }
+          const colorDirectives = styleCatalog.buildColorDirectives(sharedColorOverrides);
+          const promptParts = [
+            'CRITICAL: NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens, NO containers behind or around the logos - all logos must float freely as 3D objects in the scene.',
+            networkLine,
+            refLine,
+            '16:9 cinematic composition, photorealistic 3D rendering, 8K detail, deep dimensional depth, sharp reflective edges, cinematic volumetric lighting.'
+          ];
+          if (colorDirectives) promptParts.push(`IMPORTANT: ${colorDirectives}.`);
+          if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
+            promptParts.push(`ADDITIONAL USER INSTRUCTIONS (apply these on top of everything above, they take priority for any conflict): ${customPrompt.trim()}`);
+          }
+          stylePrompt = promptParts.join(' ');
+          logger.info(`📎 REFERENCE MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... colors=${sharedColorOverrides ? 'overridden' : 'default'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
         }
-        const colorDirectives = styleCatalog.buildColorDirectives(sharedColorOverrides);
-        const promptParts = [
-          'CRITICAL: NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens, NO containers behind or around the logos - all logos must float freely as 3D objects in the scene.',
-          networkLine,
-          refLine,
-          '16:9 cinematic composition, photorealistic 3D rendering, 8K detail, deep dimensional depth, sharp reflective edges, cinematic volumetric lighting.'
-        ];
-        if (colorDirectives) promptParts.push(`IMPORTANT: ${colorDirectives}.`);
-        if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
-          promptParts.push(`ADDITIONAL USER INSTRUCTIONS (apply these on top of everything above, they take priority for any conflict): ${customPrompt.trim()}`);
-        }
-        stylePrompt = promptParts.join(' ');
-        logger.info(`📎 REFERENCE MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... colors=${sharedColorOverrides ? 'overridden' : 'default'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
       } catch (e) {
         logger.warn(`Reference-mode prompt build failed, falling back to style: ${e.message}`);
       }

@@ -1117,10 +1117,20 @@ class ControlNetService {
     // Using 16:9 aspect ratio to match our 1800x900 output without stretching
     // Phase 4: when a referenceImageUrl is supplied, append it as a SECOND
     // input image — Wavespeed Nano-Banana-Pro will use it as a visual reference.
-    const imagesArray = [logoUrl];
-    if (referenceImageUrl) {
-      imagesArray.push(referenceImageUrl);
-      logger.info(`📎 Adding reference image as 2nd input (mode=${referenceMode || 'style_reference'}): ${referenceImageUrl.substring(0, 80)}...`);
+    // Phase 4-ext: PURE REF MODE — when backgroundOnly + referenceImageUrl,
+    // skip the black-canvas primary image entirely and use ONLY the ref image
+    // as input. This lets the user generate freeform images from just a ref +
+    // their custom prompt, with no logo and no boilerplate.
+    let imagesArray;
+    if (backgroundOnly && referenceImageUrl) {
+      imagesArray = [referenceImageUrl];
+      logger.info(`📎 PURE REF MODE: using ref image as sole input, no logo (${referenceImageUrl.substring(0, 80)}...)`);
+    } else {
+      imagesArray = [logoUrl];
+      if (referenceImageUrl) {
+        imagesArray.push(referenceImageUrl);
+        logger.info(`📎 Adding reference image as 2nd input (mode=${referenceMode || 'style_reference'}): ${referenceImageUrl.substring(0, 80)}...`);
+      }
     }
     const payload = {
       enable_base64_output: false,
