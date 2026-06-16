@@ -1693,12 +1693,34 @@ app.post('/api/cover-generator/generate', async (req, res) => {
           logger.info(`📎 PURE REF MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... prompt="${userText.substring(0, 80)}..."`);
         } else {
           // LOGO + REF MODE — full prompt with logo-as-hero-subject + ref guidance.
+
+          // Phase 4-ext2: extract OG-color palettes BEFORE building the prompt so
+          // we can inject a strong brand-color-preservation directive that
+          // overrides the ref image's color influence on the logo.
+          const logoPaletteService = require('./services/logoPaletteService');
+          const ogSymbols = new Set();
+          if (perLogoOverrides && Array.isArray(perLogoOverrides)) {
+            perLogoOverrides.forEach(lo => {
+              if (lo && lo.logoMaterial === 'og_color' && lo.symbol) ogSymbols.add(lo.symbol.toUpperCase());
+            });
+          } else if (logoMaterial === 'og_color' && network) {
+            ogSymbols.add(network.toUpperCase());
+          }
+          const ogPaletteFragments = [];
+          if (ogSymbols.size > 0) {
+            await Promise.all([...ogSymbols].map(async (sym) => {
+              const palette = await logoPaletteService.extractPaletteForSymbol(sym);
+              const frag = logoPaletteService.paletteToPromptFragment(sym, palette);
+              if (frag) ogPaletteFragments.push(frag);
+            }));
+          }
+
           const networkLine = `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
           let refLine;
           if (mode === 'style_reference') {
-            refLine = `Use the SECOND input image purely as a STYLE REFERENCE — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere. Do NOT copy any of its specific objects, subjects, or composition. Apply only the visual style.`;
+            refLine = `Use the SECOND input image purely as a STYLE REFERENCE for the BACKGROUND / SCENE / ENVIRONMENT ONLY — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere for the scene around the logo. Do NOT copy any of its specific objects, subjects, or composition, and do NOT let it tint, restyle, or recolor the logo itself.`;
           } else {
-            refLine = `Use the SECOND input image as a COMPOSITION BASE — keep its general layout, framing, and arrangement of elements, but restyle the entire scene with new materials, lighting, and color treatment. The composition (where things go, how the eye moves) comes from the reference; the visual style is fresh.`;
+            refLine = `Use the SECOND input image as a COMPOSITION BASE for the SCENE — keep its general layout, framing, and arrangement of elements, but restyle the entire scene with new materials, lighting, and color treatment. The composition (where things go, how the eye moves) comes from the reference; the visual style is fresh. The reference must NOT tint, restyle, or recolor the logo itself.`;
           }
           const colorDirectives = styleCatalog.buildColorDirectives(sharedColorOverrides);
           const promptParts = [
@@ -1707,12 +1729,15 @@ app.post('/api/cover-generator/generate', async (req, res) => {
             refLine,
             '16:9 cinematic composition, photorealistic 3D rendering, 8K detail, deep dimensional depth, sharp reflective edges, cinematic volumetric lighting.'
           ];
+          if (ogPaletteFragments.length > 0) {
+            promptParts.push(`ABSOLUTE LOGO COLOR LOCK (highest priority — overrides any style or reference influence on the logo itself): ${ogPaletteFragments.join('; ')}. The logo's gradient stops, hues, and saturation must match the original brand PNG exactly. The reference image only influences the SCENE around the logo, never the logo's colors.`);
+          }
           if (colorDirectives) promptParts.push(`IMPORTANT: ${colorDirectives}.`);
           if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
             promptParts.push(`ADDITIONAL USER INSTRUCTIONS (apply these on top of everything above, they take priority for any conflict): ${customPrompt.trim()}`);
           }
           stylePrompt = promptParts.join(' ');
-          logger.info(`📎 REFERENCE MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... colors=${sharedColorOverrides ? 'overridden' : 'default'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
+          logger.info(`📎 REFERENCE MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... colors=${sharedColorOverrides ? 'overridden' : 'default'} ogSymbols=${ogSymbols.size > 0 ? [...ogSymbols].join(',') : 'none'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
         }
       } catch (e) {
         logger.warn(`Reference-mode prompt build failed, falling back to style: ${e.message}`);
