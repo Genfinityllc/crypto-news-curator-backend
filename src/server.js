@@ -1717,13 +1717,13 @@ app.post('/api/cover-generator/generate', async (req, res) => {
 
           const isOgMode = ogSymbols.size > 0;
           const networkLine = isOgMode
-            ? `The hero subject is the ${network.toUpperCase()} logo (provided as the FIRST input image). This first image is BOTH the shape reference AND the COLOR AUTHORITY for the logo — render the logo as a 3D object with depth, lighting, and reflections, but pull the exact hues, gradients, and brand colors directly from this first input image. Do NOT recolor, retint, or restyle the logo.`
+            ? `The hero subject is the ${network.toUpperCase()} logo (provided as the FIRST input image). The logo MUST be rendered as a fully 3D object — give it depth, material, dimensional thickness, reflections, and cinematic lighting consistent with the scene. HOWEVER, its base hues, gradient colors, and brand palette MUST be pulled directly from the first input image. The reflections and highlights from scene lighting are welcome; tinting, hue-shifting, or recoloring the logo's underlying brand colors is NOT — the underlying surface colors of the logo must match the first input image exactly.`
             : `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
           let refLine;
           if (mode === 'style_reference') {
-            refLine = `Use the SECOND input image purely as a STYLE REFERENCE for the BACKGROUND / SCENE / ENVIRONMENT ONLY — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere for the scene around the logo. Do NOT copy any of its specific objects, subjects, or composition, and do NOT let it tint, restyle, or recolor the logo itself.`;
+            refLine = `Use the SECOND input image purely as a STYLE REFERENCE for the BACKGROUND / SCENE / ENVIRONMENT — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere for the scene around the logo. The scene's lighting may cast reflections and highlights onto the logo (that is good — it makes it feel integrated), but the reference must NOT change the logo's underlying brand hues or gradients. Do NOT copy any of the reference's specific objects, subjects, or composition.`;
           } else {
-            refLine = `Use the SECOND input image as a COMPOSITION BASE for the SCENE — keep its general layout, framing, and arrangement of elements, but restyle the entire scene with new materials, lighting, and color treatment. The composition (where things go, how the eye moves) comes from the reference; the visual style is fresh. The reference must NOT tint, restyle, or recolor the logo itself.`;
+            refLine = `Use the SECOND input image as a COMPOSITION BASE for the SCENE — keep its general layout, framing, and arrangement of elements, but restyle the scene with new materials, lighting, and color treatment. The scene's lighting may cast reflections and highlights onto the logo, but the reference must NOT change the logo's underlying brand hues or gradients.`;
           }
           const colorDirectives = styleCatalog.buildColorDirectives(sharedColorOverrides);
           const promptParts = [
@@ -1733,7 +1733,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
             '16:9 cinematic composition, photorealistic 3D rendering, 8K detail, deep dimensional depth, sharp reflective edges, cinematic volumetric lighting.'
           ];
           if (ogPaletteFragments.length > 0) {
-            promptParts.push(`ABSOLUTE LOGO COLOR LOCK (highest priority — overrides any style or reference influence on the logo itself): ${ogPaletteFragments.join('; ')}. The logo's gradient stops, hues, and saturation must match the original brand PNG exactly. The reference image only influences the SCENE around the logo, never the logo's colors.`);
+            promptParts.push(`ABSOLUTE LOGO BASE-COLOR LOCK (highest priority — overrides any style or reference influence on the logo's underlying surface colors): ${ogPaletteFragments.join('; ')}. The logo's underlying gradient stops, hues, and saturation must match the original brand PNG exactly. Scene-driven reflections, highlights, specular glints, and rim lighting on top of those base colors are good and expected — they make the logo feel like a real 3D object in the scene. What is forbidden is shifting, tinting, or replacing the underlying brand hues with the reference scene's colors.`);
           }
           if (colorDirectives) promptParts.push(`IMPORTANT: ${colorDirectives}.`);
           if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
