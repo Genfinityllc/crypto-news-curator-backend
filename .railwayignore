@@ -1,6 +1,9 @@
 # Node modules
 node_modules/
 
+# Git internals (90M+, never needed at runtime)
+.git/
+
 # Logs
 logs/
 *.log
