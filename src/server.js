@@ -1218,12 +1218,15 @@ app.post('/api/cover-generator/upload-reference', logoUpload.single('reference')
     // Flatten if alpha (Wavespeed handles RGB best). Don't force a background;
     // ref images may legitimately have transparency the user wants preserved.
     const meta = await sharp(buffer).metadata();
-    const filename = `ref_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
+    // Store inside existing `logos` bucket under a `references/` prefix so we
+    // don't need to create a new bucket (createBucket fails for the service
+    // role on this project — but uploads into the existing logos bucket work).
+    const filename = `references/ref_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
     // Normalize to PNG (covers JPGs uploaded as ref images too)
     buffer = await sharp(buffer).png().toBuffer();
-    const supabaseUrl = await uploadImageToStorage(buffer, filename, 'reference-images');
+    const supabaseUrl = await uploadImageToStorage(buffer, filename, 'logos');
     if (!supabaseUrl) {
-      return res.status(500).json({ success: false, error: 'Reference upload to Supabase failed — check that the reference-images bucket exists and is public' });
+      return res.status(500).json({ success: false, error: 'Reference upload to Supabase failed — see Railway logs for details' });
     }
     logger.info(`📎 Reference image uploaded: ${supabaseUrl} (${(buffer.length / 1024).toFixed(1)}KB, ${meta.width}x${meta.height})`);
     res.json({
