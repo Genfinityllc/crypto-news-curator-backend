@@ -1530,6 +1530,58 @@ app.post('/api/cover-generator/generate', async (req, res) => {
     });
   }
 
+  // STRICT LOGO GUARD: never generate logos from scratch. If user requests a
+  // symbol we don't have a PNG for (locally or on Supabase), refuse with 422
+  // and tell them to upload one. This prevents Wavespeed from inventing logos.
+  if (!isBackgroundOnly && allNetworks.length > 0 && skipWatermark !== 'bypass_logo_check') {
+    try {
+      const fsSync = require('fs');
+      const pathLib = require('path');
+      const { getSupabaseClient } = require('./config/supabase');
+      const supabaseClient = getSupabaseClient();
+      const localDir = pathLib.resolve(__dirname, '../uploads/png-logos');
+      let localFiles = [];
+      try { localFiles = fsSync.readdirSync(localDir); } catch (_) {}
+      const localFilesLower = new Set(localFiles.map(f => f.toLowerCase()));
+
+      const missing = [];
+      for (const sym of allNetworks) {
+        const aliased = LOGO_SYMBOL_ALIASES[sym];
+        const candidates = [sym, aliased].filter(Boolean);
+        let found = false;
+        // Check local PNGs first
+        for (const c of candidates) {
+          if (localFilesLower.has(`${c.toLowerCase()}.png`)) { found = true; break; }
+        }
+        // Fall back to Supabase storage check
+        if (!found && supabaseClient) {
+          for (const c of candidates) {
+            try {
+              const { data } = supabaseClient.storage.from('logos').getPublicUrl(`${c}.png`);
+              if (data?.publicUrl) {
+                const head = await require('axios').head(data.publicUrl).catch(() => null);
+                if (head && head.status === 200) { found = true; break; }
+              }
+            } catch (_) {}
+          }
+        }
+        if (!found) missing.push(sym);
+      }
+
+      if (missing.length > 0) {
+        logger.warn(`🚫 Refusing to generate: missing logos for ${missing.join(', ')}`);
+        return res.status(422).json({
+          success: false,
+          error: 'missing_logo',
+          message: `No uploaded logo for ${missing.join(', ')}. Please upload a PNG via the logo manager before generating — the cover generator will not invent or guess logos.`,
+          missingSymbols: missing
+        });
+      }
+    } catch (e) {
+      logger.warn('Logo guard failed (allowing request to proceed):', e.message);
+    }
+  }
+
   try {
     const ControlNetService = require('./services/controlNetService');
     const controlNetService = new ControlNetService();
@@ -1543,6 +1595,24 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       try {
         const StyleCatalogService = require('./services/styleCatalogService');
         const styleCatalog = new StyleCatalogService();
+
+        // Phase 3: extract brand palettes for any logo using og_color material
+        const logoPaletteService = require('./services/logoPaletteService');
+        const palettesBySymbol = {};
+        const ogSymbols = new Set();
+        if (perLogoOverrides && Array.isArray(perLogoOverrides)) {
+          perLogoOverrides.forEach(lo => {
+            if (lo && lo.logoMaterial === 'og_color' && lo.symbol) ogSymbols.add(lo.symbol.toUpperCase());
+          });
+        } else if (logoMaterial === 'og_color' && !isBackgroundOnly && network) {
+          ogSymbols.add(network.toUpperCase());
+        }
+        if (ogSymbols.size > 0) {
+          await Promise.all([...ogSymbols].map(async (sym) => {
+            const palette = await logoPaletteService.extractPaletteForSymbol(sym);
+            if (palette && palette.length > 0) palettesBySymbol[sym] = palette;
+          }));
+        }
         // Build color overrides from 3 separate color fields, with legacy fallback
         const colorOverrides = (bgColor || elementColor || elementColor2 || accentLightColor || accentLightColor2 || lightingColor || lightingColor2)
           ? { bgColor: bgColor || null, elementColor: elementColor || null, elementColor2: elementColor2 || null, accentLightColor: accentLightColor || null, accentLightColor2: accentLightColor2 || null, lightingColor: lightingColor || null, lightingColor2: lightingColor2 || null }
@@ -1557,7 +1627,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         const patternOverrides = (patternId || patternColor)
           ? { patternId: patternId || null, patternColor: patternColor || null }
           : null;
-        stylePrompt = styleCatalog.getStylePrompt(styleId, isBackgroundOnly ? 'BACKGROUND' : network.toUpperCase(), colorOverrides, customSubject || null, logoOverrides, patternOverrides);
+        stylePrompt = styleCatalog.getStylePrompt(styleId, isBackgroundOnly ? 'BACKGROUND' : network.toUpperCase(), colorOverrides, customSubject || null, logoOverrides, patternOverrides, palettesBySymbol);
         const colorLog = colorOverrides ? `bg=${bgColor || 'default'} elem=${elementColor || accentColor || 'default'} accent=${accentLightColor || accentColor || 'default'}` : 'default colors';
         const logoLog = logoOverrides ? ` | logo: mat=${logoMaterial || 'default'} color=${logoBaseColor || 'default'} glow=${logoAccentLight || 'default'}` : '';
         logger.info(`🎨 Using style: ${styleId} [${colorLog}${logoLog}]${customSubject ? ` subject="${customSubject}"` : ''}`);

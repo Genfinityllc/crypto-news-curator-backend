@@ -508,7 +508,7 @@ class StyleCatalogService {
    * @param {string|null} customSubject - Optional custom 3D subject to replace default objects (banks, hands, etc.)
    * @param {object|null} logoOverrides - Optional logo overrides: { logoMaterial, logoBaseColor, logoAccentLight }
    */
-  getStylePrompt(styleId, logoSymbol, colorOverrides = null, customSubject = null, logoOverrides = null, patternOverrides = null) {
+  getStylePrompt(styleId, logoSymbol, colorOverrides = null, customSubject = null, logoOverrides = null, patternOverrides = null, palettesBySymbol = null) {
     const style = this.styles[styleId];
     if (!style) {
       logger.warn(`Style not found: ${styleId}, using default`);
@@ -646,6 +646,12 @@ class StyleCatalogService {
         const isOg = lo.logoMaterial === 'og_color';
         if (isOg) {
           parts.push(`CRITICAL: preserve the EXACT original brand colors from the input image — the logo must use its real brand colors not any material color described in this prompt. Match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT recolor the logo to match the scene material. Render as 3D with depth and lighting but the color of every pixel must match the original input`);
+          // Inject extracted brand palette if available
+          const pal = palettesBySymbol && palettesBySymbol[(sym || '').toUpperCase()];
+          if (pal && pal.length > 0) {
+            const colorList = pal.map(p => `${p.name} ${p.hex}`).join(', ');
+            parts.push(`the actual brand colors for ${sym} are: ${colorList} — every pixel must match one of these exact colors, do not invent new colors and do not shift any hues`);
+          }
           if (lo.logoAccentLight === 'none') {
             parts.push('NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo on this logo — render with flat lighting only');
           } else if (lo.logoAccentLight) {
@@ -674,6 +680,12 @@ class StyleCatalogService {
       const isOgColor = logoOverrides.logoMaterial === 'og_color';
       if (isOgColor) {
         logoDirectives.push('CRITICAL: Preserve the EXACT original brand colors from the input image — the logo must use its real brand colors not any material color described in this prompt. Do NOT recolor the logo to match the scene. Match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT spread a gradient to parts that were originally solid colored. Render the logo as a 3D object with depth, lighting, and shadows but the color of every pixel must match the original input');
+        // Inject extracted brand palette for the single logo
+        const singlePal = palettesBySymbol && palettesBySymbol[(logoSymbol || '').toUpperCase()];
+        if (singlePal && singlePal.length > 0) {
+          const colorList = singlePal.map(p => `${p.name} ${p.hex}`).join(', ');
+          logoDirectives.push(`The actual brand colors for ${logoSymbol} are: ${colorList} — every pixel of the logo must match one of these exact colors, do not invent new colors and do not shift any hues`);
+        }
         if (logoOverrides.logoAccentLight === 'none') {
           logoDirectives.push('OVERRIDE: NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo, NO specular highlights on the logo — render with flat lighting only');
         } else if (logoOverrides.logoAccentLight) {
