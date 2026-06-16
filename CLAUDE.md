@@ -9,7 +9,7 @@
 | **Backend repo (local)** | `/Users/valorkopeny/Desktop/crypto-news-curator-backend` |
 | **Backend repo (GitHub)** | `https://github.com/Genfinityllc/crypto-news-curator-backend` branch `main` |
 | **Backend live URL** | `https://crypto-news-curator-backend-production.up.railway.app` |
-| **Backend deploy** | Manual: `/Users/valorkopeny/.local/bin/railway up` *(not git-auto)* |
+| **Backend deploy** | **Git auto** — `git push origin main` → Railway rebuilds in ~2 min (confirmed 2026-06-16, Settings → Source is connected to `main` with auto-deploy ON). Do NOT use `railway up` — the CLI hangs on "Indexing" indefinitely on this Mac. |
 | **Frontend repo (local)** | `/Users/valorkopeny/crypto-news-frontend` |
 | **Frontend repo (GitHub)** | `https://github.com/Genfinityllc/crypto-news-frontend` branch `main` |
 | **Frontend live URL** | `https://crypto-news-frontend-ruddy.vercel.app` |
@@ -23,7 +23,7 @@
 ## 🚨 Hard rules
 1. **GitHub `main` is source of truth.** Never deploy with `vercel --prod` directly — it desyncs main from live and creates the same mess we just cleaned up.
 2. **Frontend changes**: edit files in `/Users/valorkopeny/crypto-news-frontend`, `git add && commit && push`. Vercel auto-deploys. Done.
-3. **Backend changes**: edit files in `/Users/valorkopeny/Desktop/crypto-news-curator-backend`, `git add && commit && push`, then `railway up`. (Or, do the one-time Railway → GitHub source link below to make it git-auto.)
+3. **Backend changes**: edit files in `/Users/valorkopeny/Desktop/crypto-news-curator-backend`, `git add && commit && push`. Railway auto-deploys from `main`. Done. (Do NOT use `railway up` — see below.)
 4. **Never touch any file listed under DEPRECATED below.** They are not in the live code path. Modifying them does nothing except create confusion.
 5. **Do not touch ValtronXRP-owned projects.** ValtronXRP is just the GitHub identity used to push to Genfinityllc-owned repos.
 
@@ -117,13 +117,13 @@
 - "bitcoin" → BTC (only when actually mentioned)
 - Strong anti-Bitcoin prompts for non-BTC articles
 
-## 🛠 Optional one-time setup: enable git-auto-deploy for backend
+## 🛠 Railway CLI is broken on this Mac (2026-06-16)
 
-To bring backend up to the same workflow as frontend (so `git push` deploys it too):
-1. Open https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2
-2. Click service `crypto-news-curator-backend`
-3. Settings → Source → **Connect Repo** → `Genfinityllc/crypto-news-curator-backend` branch `main`
-4. After that, drop the `railway up` step. Every push to main auto-deploys.
+`railway up` (and `railway up --ci`, `railway up --detach`, `railway up --verbose`) all hang indefinitely at `Indexing...` and eventually die with exit 137. Tried excluding `uploads/reference-images/`, `uploads/logo-backup/`, and `.git/` in `.railwayignore` — no improvement.
+
+**You do not need it.** Backend Settings → Source is already connected to `Genfinityllc/crypto-news-curator-backend` branch `main` with "Auto deploys when pushed to GitHub" enabled. Verified live 2026-06-16 — commit `e085455` (Phase 2 backend) was already running on Railway by the time we tested. Just `git push origin main` and wait ~2 min.
+
+To see deploy status: https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7ecaa2b2 → service `crypto-news-curator-backend` → Deployments tab.
 
 ## 📜 What happened on 2026-06-15 (read if confused later)
 
@@ -140,6 +140,6 @@ To bring backend up to the same workflow as frontend (so `git push` deploys it t
 ## 🗺 Roadmap (in progress — user requested)
 - [x] Sync GitHub main with live (done 2026-06-15)
 - [x] Inventory live vs deprecated code (this file)
-- [ ] **Glow None/Transparent** — picker option that disables glow on the logo (not scene)
+- [x] **Glow None/Transparent** (done 2026-06-16) — frontend `∅` toggle per-logo Glow + global Accent (commit `060e2f6` on frontend). Backend `'none'` sentinel handling in `styleCatalogService.js` via new `_stripGlow()` helper + conditional directives (commit `e085455` on backend). Verified live on both Vercel + Railway.
 - [ ] **OG Color runtime palette** — when material = `og_color`, extract original logo colors and feed them into the prompt at generation time, so brand palette is preserved
 - [ ] **Reference image + custom prompt** — collapsible section BELOW the existing toolbar; user uploads a reference image + types a freeform prompt ("remove X", "change color of Y", "make Z larger"). Bypasses style template and uses the image as a starting reference in Nano-Banana. User picks behavior dropdown: composite / replace / style-only.
