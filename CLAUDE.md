@@ -33,12 +33,15 @@
 | File | Role |
 |---|---|
 | `src/server.js` `:1495-1680` | `POST /api/cover-generator/generate` — main entry |
+| `src/server.js` `:1533-1583` | **STRICT LOGO GUARD** — returns 422 if requested symbol has no uploaded PNG (local or Supabase). Never lets Wavespeed invent a logo. |
+| `src/server.js` `:1547-1563` | OG Color palette pre-extraction (Phase 3) — pulls dominant colors from PNG and passes to style builder |
 | `src/server.js` `:947` | `POST /api/cover-generator/upload-logo` |
 | `src/server.js` `:1422` | `GET  /api/cover-generator/networks` (logo dropdowns) |
 | `src/server.js` `:1209,1317` | logo-info, logo-preview |
 | `src/server.js` `:1681,1909,2057,2119,2204,2239,2438` | save / diagnostics / table setup |
 | `src/services/controlNetService.js` | `generateWithAdvancedControlNet()` → calls Wavespeed Nano-Banana-Pro at `:1129` |
-| `src/services/styleCatalogService.js` | Style prompt builder. Accepts dual colors at `:576`. |
+| `src/services/styleCatalogService.js` | Style prompt builder. Accepts dual colors at `:576`, palettesBySymbol at `:511` (7th arg). |
+| `src/services/logoPaletteService.js` | **NEW (Phase 3)** — Sharp-based dominant-color extraction from logo PNGs. Returns `[{ hex, rgb, name, share }]`. Has color-variant resolver (prefers `Uphold-1.png` over `Uphold.png`, `BTC.png` over `BITCOIN.png`). |
 | `src/services/svgLogoService.js` | Loads logos from Supabase + crypto detection |
 | `src/services/watermarkService.js` | Genfinity watermark overlay (LOCKED 1800x900) |
 | `src/routes/style-catalog.js` | Style picker API for frontend |
@@ -141,5 +144,6 @@ To see deploy status: https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7e
 - [x] Sync GitHub main with live (done 2026-06-15)
 - [x] Inventory live vs deprecated code (this file)
 - [x] **Glow None/Transparent** (done 2026-06-16) — frontend `∅` toggle per-logo Glow + global Accent (commit `060e2f6` on frontend). Backend `'none'` sentinel handling in `styleCatalogService.js` via new `_stripGlow()` helper + conditional directives (commit `e085455` on backend). Verified live on both Vercel + Railway.
-- [ ] **OG Color runtime palette** — when material = `og_color`, extract original logo colors and feed them into the prompt at generation time, so brand palette is preserved
+- [x] **OG Color runtime palette** (done 2026-06-16, commit `0c1e9fd`) — new `logoPaletteService.js` extracts dominant colors from logo PNG via Sharp, filters out transparent/near-white/near-black/low-saturation pixels, returns hex + HSL-based human name (`vivid blue #1050f0`). Generator route pre-extracts for any og_color logo and passes a `palettesBySymbol` map to `styleCatalogService.getStylePrompt`. Both per-logo-array and legacy single-logo paths inject "the actual brand colors for SYMBOL are: …" into the prompt. **Color-variant resolver** prefers `Uphold-1.png` over `Uphold.png` and `BTC.png` over `BITCOIN.png` because the standard files are mono silhouettes. Verified live: `🎨 logoPalette COINBASE: vivid blue(#1050f0, 99%)`.
+- [x] **Strict uploaded-logo guard** (done 2026-06-16, commit `0c1e9fd`) — generator route returns HTTP 422 `{error: "missing_logo", missingSymbols: […]}` if any requested symbol has no uploaded PNG locally or in Supabase. Verified: `POST /generate {network:"FAKESYMBOL123"}` → 422 instantly. The cover generator NEVER invents or guesses logos — user must upload first.
 - [ ] **Reference image + custom prompt** — collapsible section BELOW the existing toolbar; user uploads a reference image + types a freeform prompt ("remove X", "change color of Y", "make Z larger"). Bypasses style template and uses the image as a starting reference in Nano-Banana. User picks behavior dropdown: composite / replace / style-only.
