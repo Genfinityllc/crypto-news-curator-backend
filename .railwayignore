@@ -18,6 +18,8 @@ ai-cover-generator/external/
 temp/
 uploads/logos/
 uploads/temp/
+uploads/reference-images/
+uploads/logo-backup/
 *.tmp
 
 # Keep png-logos for cover generation (don't ignore uploads/png-logos)
