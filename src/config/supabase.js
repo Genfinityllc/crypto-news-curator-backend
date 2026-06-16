@@ -454,12 +454,21 @@ async function uploadImageToStorage(imageBuffer, filename, bucket = 'cover-image
 
     // Ensure bucket exists (will fail silently if already exists)
     try {
-      await client.storage.createBucket(bucket, {
+      const { data: createData, error: createError } = await client.storage.createBucket(bucket, {
         public: true,
         fileSizeLimit: 10485760 // 10MB
       });
+      if (createError) {
+        // "already exists" is the expected/benign case — log everything else loudly
+        const msg = (createError.message || '').toLowerCase();
+        if (!msg.includes('already exists') && !msg.includes('duplicate')) {
+          logger.error(`Supabase createBucket(${bucket}) failed: ${JSON.stringify(createError)}`);
+        }
+      } else if (createData) {
+        logger.info(`✅ Supabase bucket created: ${bucket}`);
+      }
     } catch (bucketError) {
-      // Bucket likely already exists, which is fine
+      logger.error(`Supabase createBucket(${bucket}) threw: ${bucketError && bucketError.message ? bucketError.message : JSON.stringify(bucketError)}`);
     }
 
     // Upload the image
@@ -472,7 +481,7 @@ async function uploadImageToStorage(imageBuffer, filename, bucket = 'cover-image
       });
 
     if (error) {
-      logger.error('Supabase storage upload failed:', error.message);
+      logger.error(`Supabase storage upload failed for bucket=${bucket} file=${filename}: ${JSON.stringify(error)} | message=${error.message || '(no message)'} | statusCode=${error.statusCode || error.status || '(no status)'}`);
       return null;
     }
 
