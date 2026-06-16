@@ -866,6 +866,7 @@ class ControlNetService {
         stylePrompt: options.stylePrompt || null,
         backgroundOnly: backgroundOnly,
         referenceImageUrl: options.referenceImageUrl || null,
+        referenceImageUrls: options.referenceImageUrls || null,
         referenceMode: options.referenceMode || null
       });
           
@@ -1005,7 +1006,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceMode = null }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceImageUrls = null, referenceMode = null }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -1121,15 +1122,24 @@ class ControlNetService {
     // skip the black-canvas primary image entirely and use ONLY the ref image
     // as input. This lets the user generate freeform images from just a ref +
     // their custom prompt, with no logo and no boilerplate.
+    // Phase 4-ext3: MULTI-REF — accept an array of reference URLs (up to 14
+    // total images per Wavespeed Nano-Banana-Pro cap). In PURE REF mode all
+    // 14 slots are ref images; in LOGO+REF mode slot 0 is the logo so 13
+    // refs max.
+    const NANOBANANA_MAX_IMAGES = 14;
+    const refList = Array.isArray(referenceImageUrls) && referenceImageUrls.length > 0
+      ? referenceImageUrls.filter(u => u && typeof u === 'string')
+      : (referenceImageUrl ? [referenceImageUrl] : []);
     let imagesArray;
-    if (backgroundOnly && referenceImageUrl) {
-      imagesArray = [referenceImageUrl];
-      logger.info(`📎 PURE REF MODE: using ref image as sole input, no logo (${referenceImageUrl.substring(0, 80)}...)`);
+    if (backgroundOnly && refList.length > 0) {
+      imagesArray = refList.slice(0, NANOBANANA_MAX_IMAGES);
+      logger.info(`📎 PURE REF MODE: using ${imagesArray.length} ref image(s) as sole input, no logo`);
     } else {
       imagesArray = [logoUrl];
-      if (referenceImageUrl) {
-        imagesArray.push(referenceImageUrl);
-        logger.info(`📎 Adding reference image as 2nd input (mode=${referenceMode || 'style_reference'}): ${referenceImageUrl.substring(0, 80)}...`);
+      if (refList.length > 0) {
+        const cappedRefs = refList.slice(0, NANOBANANA_MAX_IMAGES - 1);
+        cappedRefs.forEach(u => imagesArray.push(u));
+        logger.info(`📎 Adding ${cappedRefs.length} reference image(s) after logo (mode=${referenceMode || 'style_reference'})`);
       }
     }
     const payload = {

@@ -1530,7 +1530,22 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceMode, customPrompt } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceImageUrls, referenceMode, customPrompt } = req.body;
+
+  // Phase 4-ext3: normalize ref images to a single array (max 14 — Wavespeed
+  // Nano-Banana-Pro cap). Accept both new `referenceImageUrls` array and
+  // legacy `referenceImageUrl` single string.
+  const refUrls = [];
+  if (Array.isArray(referenceImageUrls)) {
+    referenceImageUrls.forEach(u => { if (u && typeof u === 'string') refUrls.push(u); });
+  }
+  if (referenceImageUrl && typeof referenceImageUrl === 'string' && !refUrls.includes(referenceImageUrl)) {
+    refUrls.unshift(referenceImageUrl);
+  }
+  // hard cap: PURE REF mode can use all 14; LOGO+REF mode shares with the
+  // logo so cap at 13. We don't know mode yet here, so cap at 14 and the
+  // payload builder downstream trims further if a logo is present.
+  if (refUrls.length > 14) refUrls.length = 14;
 
   const isBackgroundOnly = !network || network.trim() === '';
 
@@ -1667,7 +1682,8 @@ app.post('/api/cover-generator/generate', async (req, res) => {
 
     // Get style prompt from catalog if styleId is provided
     let stylePrompt = null;
-    const useReferenceMode = !!referenceImageUrl;
+    const useReferenceMode = refUrls.length > 0;
+    const primaryRefUrl = refUrls[0] || null;
 
     // Phase 4: REFERENCE-IMAGE MODE — bypass the named style template entirely,
     // but still honor color selectors and append the user's custom prompt.
@@ -1683,14 +1699,15 @@ app.post('/api/cover-generator/generate', async (req, res) => {
 
         if (isBackgroundOnly) {
           // PURE REF + PROMPT — minimal prompt, no logo, no boilerplate.
+          const refsWord = refUrls.length === 1 ? 'reference image' : `${refUrls.length} reference images (combine and blend them)`;
           const refLine = mode === 'style_reference'
-            ? 'Use the provided reference image purely as a STYLE REFERENCE — mimic its overall aesthetic, color mood, lighting, and atmosphere.'
-            : 'Use the provided reference image as a COMPOSITION BASE — keep its layout and framing but restyle the materials, lighting, and color treatment.';
+            ? `Use the provided ${refsWord} purely as a STYLE REFERENCE — mimic the overall aesthetic, color mood, lighting, and atmosphere.`
+            : `Use the provided ${refsWord} as a COMPOSITION BASE — keep the layout and framing but restyle the materials, lighting, and color treatment.`;
           const userText = (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0)
             ? customPrompt.trim()
-            : 'Generate an image inspired by the reference.';
+            : 'Generate an image inspired by the references.';
           stylePrompt = `${userText} ${refLine}`;
-          logger.info(`📎 PURE REF MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... prompt="${userText.substring(0, 80)}..."`);
+          logger.info(`📎 PURE REF MODE [${mode}] refs=${refUrls.length} prompt="${userText.substring(0, 80)}..."`);
         } else {
           // LOGO + REF MODE — full prompt with logo-as-hero-subject + ref guidance.
 
@@ -1719,11 +1736,14 @@ app.post('/api/cover-generator/generate', async (req, res) => {
           const networkLine = isOgMode
             ? `The hero subject is the ${network.toUpperCase()} logo (provided as the FIRST input image). The logo MUST be rendered as a fully 3D object — give it depth, material, dimensional thickness, reflections, and cinematic lighting consistent with the scene. HOWEVER, its base hues, gradient colors, and brand palette MUST be pulled directly from the first input image. The reflections and highlights from scene lighting are welcome; tinting, hue-shifting, or recoloring the logo's underlying brand colors is NOT — the underlying surface colors of the logo must match the first input image exactly.`
             : `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
+          const refsCount = refUrls.length;
+          const refsRange = refsCount === 1 ? 'the SECOND input image' : `the additional input images (images 2 through ${refsCount + 1})`;
+          const refsVerb = refsCount === 1 ? 'it' : 'them collectively (blending their styles)';
           let refLine;
           if (mode === 'style_reference') {
-            refLine = `Use the SECOND input image purely as a STYLE REFERENCE for the BACKGROUND / SCENE / ENVIRONMENT — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere for the scene around the logo. The scene's lighting may cast reflections and highlights onto the logo (that is good — it makes it feel integrated), but the reference must NOT change the logo's underlying brand hues or gradients. Do NOT copy any of the reference's specific objects, subjects, or composition.`;
+            refLine = `Use ${refsRange} purely as STYLE REFERENCE${refsCount > 1 ? 'S' : ''} for the BACKGROUND / SCENE / ENVIRONMENT — mimic ${refsVerb}, their overall aesthetic, color mood, lighting style, material treatment, and atmosphere for the scene around the logo. The scene's lighting may cast reflections and highlights onto the logo (that is good — it makes it feel integrated), but the reference${refsCount > 1 ? 's' : ''} must NOT change the logo's underlying brand hues or gradients. Do NOT copy any specific objects, subjects, or composition from the reference${refsCount > 1 ? 's' : ''}.`;
           } else {
-            refLine = `Use the SECOND input image as a COMPOSITION BASE for the SCENE — keep its general layout, framing, and arrangement of elements, but restyle the scene with new materials, lighting, and color treatment. The scene's lighting may cast reflections and highlights onto the logo, but the reference must NOT change the logo's underlying brand hues or gradients.`;
+            refLine = `Use ${refsRange} as COMPOSITION BASE${refsCount > 1 ? 'S' : ''} for the SCENE — ${refsCount > 1 ? 'blend their layouts and framing' : 'keep its general layout, framing, and arrangement of elements'}, but restyle the scene with new materials, lighting, and color treatment. The scene's lighting may cast reflections and highlights onto the logo, but the reference${refsCount > 1 ? 's' : ''} must NOT change the logo's underlying brand hues or gradients.`;
           }
           const colorDirectives = styleCatalog.buildColorDirectives(sharedColorOverrides);
           const promptParts = [
@@ -1740,7 +1760,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
             promptParts.push(`ADDITIONAL USER INSTRUCTIONS (apply these on top of everything above, they take priority for any conflict): ${customPrompt.trim()}`);
           }
           stylePrompt = promptParts.join(' ');
-          logger.info(`📎 REFERENCE MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... colors=${sharedColorOverrides ? 'overridden' : 'default'} ogSymbols=${ogSymbols.size > 0 ? [...ogSymbols].join(',') : 'none'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
+          logger.info(`📎 REFERENCE MODE [${mode}] refs=${refUrls.length} colors=${sharedColorOverrides ? 'overridden' : 'default'} ogSymbols=${ogSymbols.size > 0 ? [...ogSymbols].join(',') : 'none'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
         }
       } catch (e) {
         logger.warn(`Reference-mode prompt build failed, falling back to style: ${e.message}`);
@@ -1801,7 +1821,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       articleTitle,
       isBackgroundOnly ? null : network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true, referenceImageUrl: useReferenceMode ? referenceImageUrl : null, referenceMode: useReferenceMode ? (referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference') : null }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true, referenceImageUrl: useReferenceMode ? primaryRefUrl : null, referenceImageUrls: useReferenceMode ? refUrls : null, referenceMode: useReferenceMode ? (referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference') : null }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);
