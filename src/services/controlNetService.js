@@ -864,7 +864,9 @@ class ControlNetService {
         imageId: imageId,
         article: { ...options, allLogos: backgroundOnly ? [] : loadedLogos.map(l => l.symbol) },
         stylePrompt: options.stylePrompt || null,
-        backgroundOnly: backgroundOnly
+        backgroundOnly: backgroundOnly,
+        referenceImageUrl: options.referenceImageUrl || null,
+        referenceMode: options.referenceMode || null
       });
           
       imagePath = result.imagePath;
@@ -1003,7 +1005,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceMode = null }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -1113,10 +1115,17 @@ class ControlNetService {
     
     // EXACT Wavespeed API format from official docs
     // Using 16:9 aspect ratio to match our 1800x900 output without stretching
+    // Phase 4: when a referenceImageUrl is supplied, append it as a SECOND
+    // input image — Wavespeed Nano-Banana-Pro will use it as a visual reference.
+    const imagesArray = [logoUrl];
+    if (referenceImageUrl) {
+      imagesArray.push(referenceImageUrl);
+      logger.info(`📎 Adding reference image as 2nd input (mode=${referenceMode || 'style_reference'}): ${referenceImageUrl.substring(0, 80)}...`);
+    }
     const payload = {
       enable_base64_output: false,
       enable_sync_mode: false,
-      images: [logoUrl],
+      images: imagesArray,
       output_format: "png",
       prompt: prompt,
       resolution: "2k",  // 2K resolution - same cost as 1K but better quality!

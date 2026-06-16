@@ -576,7 +576,7 @@ class StyleCatalogService {
 
     // Apply color overrides if provided
     if (colorOverrides) {
-      const { bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, lightingColor, lightingColor2 } = colorOverrides;
+      const { bgColor, elementColor, accentLightColor, lightingColor } = colorOverrides;
 
       // PASS 1: Background color
       if (bgColor) {
@@ -604,31 +604,10 @@ class StyleCatalogService {
         logger.info(`🎨 Lighting color: ${lightingColor}`);
       }
 
-      // Append targeted color directives per channel
-      const directives = [];
-      if (bgColor) directives.push(`The background/void color is ${bgColor}`);
-      if (elementColor && elementColor2) {
-        directives.push(`OVERRIDE all element colors: the 3D elements, geometric shapes, coins, and objects MUST use a two-tone palette of ${elementColor} and ${elementColor2} — some objects ${elementColor}, others ${elementColor2}. Do NOT use any other color for scene objects`);
-        logger.info(`🎨 Element colors: ${elementColor} + ${elementColor2}`);
-      } else if (elementColor) {
-        directives.push(`The primary color for all 3D elements, geometric shapes, flat color sections, coins, and objects is ${elementColor} - make these elements prominently ${elementColor}`);
-      }
-      if (accentLightColor === 'none') {
-        directives.push('NO rim lighting, NO ambient glow, NO inner glow, NO neon effects, NO edge lighting, NO accent glow anywhere in the scene — completely flat unlit accents');
-      } else if (accentLightColor && accentLightColor2) {
-        directives.push(`OVERRIDE all accent lighting: rim lights, ambient glow, inner glow, neon effects MUST alternate between ${accentLightColor} and ${accentLightColor2}. Do NOT use any other glow colors`);
-        logger.info(`🎨 Accent colors: ${accentLightColor} + ${accentLightColor2}`);
-      } else if (accentLightColor) {
-        directives.push(`The accent lighting color for rim lights, ambient glow, inner glow, neon effects, and edge lighting is ${accentLightColor}`);
-      }
-      if (lightingColor && lightingColor2) {
-        directives.push(`OVERRIDE scene lighting: volumetric glow, light reflections, specular highlights MUST blend ${lightingColor} and ${lightingColor2} — cast both colors across the scene. Do NOT use any other lighting colors`);
-        logger.info(`🎨 Lighting colors: ${lightingColor} + ${lightingColor2}`);
-      } else if (lightingColor) {
-        directives.push(`The scene lighting, volumetric glow, light reflections on surfaces, specular highlights, and rim light color is ${lightingColor} - cast ${lightingColor} tinted light across the entire scene`);
-      }
-      if (directives.length > 0) {
-        prompt += `. IMPORTANT: ${directives.join('. ')}.`;
+      // Append targeted color directives per channel (Phase 4: reused by ref-mode path)
+      const directivesFragment = this.buildColorDirectives(colorOverrides);
+      if (directivesFragment) {
+        prompt += `. IMPORTANT: ${directivesFragment}.`;
       }
     }
 
@@ -1080,6 +1059,37 @@ class StyleCatalogService {
       style.description.toLowerCase().includes(lowerQuery) ||
       style.category.toLowerCase().includes(lowerQuery)
     );
+  }
+
+  /**
+   * Phase 4: Build the per-channel color directives fragment from colorOverrides.
+   * Exported as a public helper so the reference-image-mode path (which bypasses
+   * the named style template) can still honor the user's color selectors.
+   * Returns a sentence-fragment string, or '' if no overrides supplied.
+   */
+  buildColorDirectives(colorOverrides) {
+    if (!colorOverrides) return '';
+    const { bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, lightingColor, lightingColor2 } = colorOverrides;
+    const directives = [];
+    if (bgColor) directives.push(`The background/void color is ${bgColor}`);
+    if (elementColor && elementColor2) {
+      directives.push(`OVERRIDE all element colors: the 3D elements, geometric shapes, coins, and objects MUST use a two-tone palette of ${elementColor} and ${elementColor2} — some objects ${elementColor}, others ${elementColor2}. Do NOT use any other color for scene objects`);
+    } else if (elementColor) {
+      directives.push(`The primary color for all 3D elements, geometric shapes, flat color sections, coins, and objects is ${elementColor} - make these elements prominently ${elementColor}`);
+    }
+    if (accentLightColor === 'none') {
+      directives.push('NO rim lighting, NO ambient glow, NO inner glow, NO neon effects, NO edge lighting, NO accent glow anywhere in the scene — completely flat unlit accents');
+    } else if (accentLightColor && accentLightColor2) {
+      directives.push(`OVERRIDE all accent lighting: rim lights, ambient glow, inner glow, neon effects MUST alternate between ${accentLightColor} and ${accentLightColor2}. Do NOT use any other glow colors`);
+    } else if (accentLightColor) {
+      directives.push(`The accent lighting color for rim lights, ambient glow, inner glow, neon effects, and edge lighting is ${accentLightColor}`);
+    }
+    if (lightingColor && lightingColor2) {
+      directives.push(`OVERRIDE scene lighting: volumetric glow, light reflections, specular highlights MUST blend ${lightingColor} and ${lightingColor2} — cast both colors across the scene. Do NOT use any other lighting colors`);
+    } else if (lightingColor) {
+      directives.push(`The scene lighting, volumetric glow, light reflections on surfaces, specular highlights, and rim light color is ${lightingColor} - cast ${lightingColor} tinted light across the entire scene`);
+    }
+    return directives.join('. ');
   }
 
   /**

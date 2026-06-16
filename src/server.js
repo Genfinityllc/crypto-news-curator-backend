@@ -1205,6 +1205,40 @@ app.post('/api/cover-generator/cleanup-storage', async (req, res) => {
   }
 });
 
+// POST /api/cover-generator/upload-reference - Phase 4: upload a reference image
+// for ref-mode generation. Returns a Supabase public URL the generate endpoint
+// can pass to Wavespeed as a second `images[]` entry.
+app.post('/api/cover-generator/upload-reference', logoUpload.single('reference'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded (field name: reference)' });
+    }
+    const sharp = require('sharp');
+    let buffer = req.file.buffer;
+    // Flatten if alpha (Wavespeed handles RGB best). Don't force a background;
+    // ref images may legitimately have transparency the user wants preserved.
+    const meta = await sharp(buffer).metadata();
+    const filename = `ref_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
+    // Normalize to PNG (covers JPGs uploaded as ref images too)
+    buffer = await sharp(buffer).png().toBuffer();
+    const supabaseUrl = await uploadImageToStorage(buffer, filename, 'reference-images');
+    if (!supabaseUrl) {
+      return res.status(500).json({ success: false, error: 'Reference upload to Supabase failed — check that the reference-images bucket exists and is public' });
+    }
+    logger.info(`📎 Reference image uploaded: ${supabaseUrl} (${(buffer.length / 1024).toFixed(1)}KB, ${meta.width}x${meta.height})`);
+    res.json({
+      success: true,
+      referenceImageUrl: supabaseUrl,
+      width: meta.width,
+      height: meta.height,
+      sizeKb: Math.round(buffer.length / 1024)
+    });
+  } catch (e) {
+    logger.error('Reference image upload failed:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/cover-generator/logo-info/:symbol - Get logo info with source
 app.get('/api/cover-generator/logo-info/:symbol', async (req, res) => {
   try {
@@ -1493,7 +1527,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceMode, customPrompt } = req.body;
 
   const isBackgroundOnly = !network || network.trim() === '';
 
@@ -1589,9 +1623,50 @@ app.post('/api/cover-generator/generate', async (req, res) => {
     const networkLabel = allNetworks.join(' + ');
     const articleTitle = title || `${networkLabel} Cryptocurrency News`;
 
+    // Shared: build color/logo/pattern overrides once for both style + ref modes
+    const sharedColorOverrides = (bgColor || elementColor || elementColor2 || accentLightColor || accentLightColor2 || lightingColor || lightingColor2)
+      ? { bgColor: bgColor || null, elementColor: elementColor || null, elementColor2: elementColor2 || null, accentLightColor: accentLightColor || null, accentLightColor2: accentLightColor2 || null, lightingColor: lightingColor || null, lightingColor2: lightingColor2 || null }
+      : accentColor
+        ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor, lightingColor: null }
+        : null;
+
     // Get style prompt from catalog if styleId is provided
     let stylePrompt = null;
-    if (styleId) {
+    const useReferenceMode = !!referenceImageUrl;
+
+    // Phase 4: REFERENCE-IMAGE MODE — bypass the named style template entirely,
+    // but still honor color selectors and append the user's custom prompt.
+    if (useReferenceMode) {
+      try {
+        const StyleCatalogService = require('./services/styleCatalogService');
+        const styleCatalog = new StyleCatalogService();
+        const mode = referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference';
+        const networkLine = isBackgroundOnly
+          ? 'Generate an atmospheric scene with no logo and no text.'
+          : `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
+        let refLine;
+        if (mode === 'style_reference') {
+          refLine = `Use the SECOND input image purely as a STYLE REFERENCE — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere. Do NOT copy any of its specific objects, subjects, or composition. Apply only the visual style.`;
+        } else {
+          refLine = `Use the SECOND input image as a COMPOSITION BASE — keep its general layout, framing, and arrangement of elements, but restyle the entire scene with new materials, lighting, and color treatment. The composition (where things go, how the eye moves) comes from the reference; the visual style is fresh.`;
+        }
+        const colorDirectives = styleCatalog.buildColorDirectives(sharedColorOverrides);
+        const promptParts = [
+          'CRITICAL: NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens, NO containers behind or around the logos - all logos must float freely as 3D objects in the scene.',
+          networkLine,
+          refLine,
+          '16:9 cinematic composition, photorealistic 3D rendering, 8K detail, deep dimensional depth, sharp reflective edges, cinematic volumetric lighting.'
+        ];
+        if (colorDirectives) promptParts.push(`IMPORTANT: ${colorDirectives}.`);
+        if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
+          promptParts.push(`ADDITIONAL USER INSTRUCTIONS (apply these on top of everything above, they take priority for any conflict): ${customPrompt.trim()}`);
+        }
+        stylePrompt = promptParts.join(' ');
+        logger.info(`📎 REFERENCE MODE [${mode}] ref=${referenceImageUrl.substring(0, 80)}... colors=${sharedColorOverrides ? 'overridden' : 'default'} customPrompt=${customPrompt ? `"${customPrompt.substring(0, 60)}..."` : 'none'}`);
+      } catch (e) {
+        logger.warn(`Reference-mode prompt build failed, falling back to style: ${e.message}`);
+      }
+    } else if (styleId) {
       try {
         const StyleCatalogService = require('./services/styleCatalogService');
         const styleCatalog = new StyleCatalogService();
@@ -1613,12 +1688,6 @@ app.post('/api/cover-generator/generate', async (req, res) => {
             if (palette && palette.length > 0) palettesBySymbol[sym] = palette;
           }));
         }
-        // Build color overrides from 3 separate color fields, with legacy fallback
-        const colorOverrides = (bgColor || elementColor || elementColor2 || accentLightColor || accentLightColor2 || lightingColor || lightingColor2)
-          ? { bgColor: bgColor || null, elementColor: elementColor || null, elementColor2: elementColor2 || null, accentLightColor: accentLightColor || null, accentLightColor2: accentLightColor2 || null, lightingColor: lightingColor || null, lightingColor2: lightingColor2 || null }
-          : accentColor
-            ? { bgColor: null, elementColor: accentColor, accentLightColor: accentColor, lightingColor: null }
-            : null;
         const logoOverrides = perLogoOverrides && Array.isArray(perLogoOverrides)
           ? perLogoOverrides
           : (logoMaterial || logoBaseColor || logoAccentLight)
@@ -1627,8 +1696,13 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         const patternOverrides = (patternId || patternColor)
           ? { patternId: patternId || null, patternColor: patternColor || null }
           : null;
-        stylePrompt = styleCatalog.getStylePrompt(styleId, isBackgroundOnly ? 'BACKGROUND' : network.toUpperCase(), colorOverrides, customSubject || null, logoOverrides, patternOverrides, palettesBySymbol);
-        const colorLog = colorOverrides ? `bg=${bgColor || 'default'} elem=${elementColor || accentColor || 'default'} accent=${accentLightColor || accentColor || 'default'}` : 'default colors';
+        stylePrompt = styleCatalog.getStylePrompt(styleId, isBackgroundOnly ? 'BACKGROUND' : network.toUpperCase(), sharedColorOverrides, customSubject || null, logoOverrides, patternOverrides, palettesBySymbol);
+        // Phase 4: customPrompt is also honored in style-template mode — appended last
+        if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
+          stylePrompt += ` ADDITIONAL USER INSTRUCTIONS (apply these on top of the style, they take priority for any conflict): ${customPrompt.trim()}`;
+          logger.info(`📝 Custom prompt appended to style: "${customPrompt.substring(0, 60)}..."`);
+        }
+        const colorLog = sharedColorOverrides ? `bg=${bgColor || 'default'} elem=${elementColor || accentColor || 'default'} accent=${accentLightColor || accentColor || 'default'}` : 'default colors';
         const logoLog = logoOverrides ? ` | logo: mat=${logoMaterial || 'default'} color=${logoBaseColor || 'default'} glow=${logoAccentLight || 'default'}` : '';
         logger.info(`🎨 Using style: ${styleId} [${colorLog}${logoLog}]${customSubject ? ` subject="${customSubject}"` : ''}`);
       } catch (e) {
@@ -1639,16 +1713,16 @@ app.post('/api/cover-generator/generate', async (req, res) => {
     const resolvedLogoTextMode = ['full', 'mark'].includes(logoTextMode) ? logoTextMode : 'full';
 
     if (isBackgroundOnly) {
-      logger.info(`🎨 Cover Generator: Creating BACKGROUND ONLY cover... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''}`);
+      logger.info(`🎨 Cover Generator: Creating BACKGROUND ONLY cover... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''}${useReferenceMode ? ' [REF-MODE]' : ''}`);
     } else {
-      logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''} (logoTextMode: ${resolvedLogoTextMode})`);
+      logger.info(`🎨 Cover Generator: Creating ${networkLabel} cover (${allNetworks.length} logo(s))... ${customKeyword ? `(keyword: ${customKeyword})` : ''} ${styleId ? `(style: ${styleId})` : ''} (logoTextMode: ${resolvedLogoTextMode})${useReferenceMode ? ' [REF-MODE]' : ''}`);
     }
 
     const result = await controlNetService.generateWithAdvancedControlNet(
       articleTitle,
       isBackgroundOnly ? null : network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true, referenceImageUrl: useReferenceMode ? referenceImageUrl : null, referenceMode: useReferenceMode ? (referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference') : null }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);
