@@ -1715,7 +1715,10 @@ app.post('/api/cover-generator/generate', async (req, res) => {
             }));
           }
 
-          const networkLine = `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
+          const isOgMode = ogSymbols.size > 0;
+          const networkLine = isOgMode
+            ? `The hero subject is the ${network.toUpperCase()} logo (provided as the FIRST input image). This first image is BOTH the shape reference AND the COLOR AUTHORITY for the logo — render the logo as a 3D object with depth, lighting, and reflections, but pull the exact hues, gradients, and brand colors directly from this first input image. Do NOT recolor, retint, or restyle the logo.`
+            : `The hero subject is the ${network.toUpperCase()} logo (provided as the first input image) — it must be rendered prominently as a 3D object with depth, lighting, and reflections, preserving the exact shape and proportions from the uploaded PNG.`;
           let refLine;
           if (mode === 'style_reference') {
             refLine = `Use the SECOND input image purely as a STYLE REFERENCE for the BACKGROUND / SCENE / ENVIRONMENT ONLY — mimic its overall aesthetic, color mood, lighting style, material treatment, and atmosphere for the scene around the logo. Do NOT copy any of its specific objects, subjects, or composition, and do NOT let it tint, restyle, or recolor the logo itself.`;
