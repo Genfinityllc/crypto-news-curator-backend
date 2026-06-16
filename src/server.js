@@ -1581,16 +1581,45 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       try { localFiles = fsSync.readdirSync(localDir); } catch (_) {}
       const localFilesLower = new Set(localFiles.map(f => f.toLowerCase()));
 
+      // Build a lookup from symbol -> friendly name from both lists so we can
+      // try the network's full name as a logo-file candidate too (e.g. SOL -> SOLANA.png).
+      // This means new entries added to NETWORKS_LIST / COMPANIES_LIST work as long as
+      // the PNG file is named after either the symbol OR the friendly name — no manual
+      // alias updates required.
+      const symbolToFriendly = {};
+      for (const entry of [...NETWORKS_LIST, ...COMPANIES_LIST]) {
+        if (entry && entry.symbol && entry.name) {
+          symbolToFriendly[entry.symbol.toUpperCase()] = entry.name;
+        }
+      }
+
       const missing = [];
       for (const sym of allNetworks) {
         const aliased = LOGO_SYMBOL_ALIASES[sym];
-        const candidates = [sym, aliased].filter(Boolean);
+        const friendly = symbolToFriendly[sym];
+        // Try multiple candidate filenames: ticker, alias-mapped name, friendly
+        // name (no spaces, various casings). The local-file check is already
+        // case-insensitive so we just need to feed every plausible base name.
+        const candidates = new Set();
+        const addCand = (c) => { if (c && typeof c === 'string') candidates.add(c.replace(/\s+/g, '')); };
+        addCand(sym);
+        addCand(aliased);
+        if (friendly) {
+          addCand(friendly);
+          addCand(friendly.toUpperCase());
+          addCand(friendly.replace(/\(.*?\)/g, '').trim()); // strip parenthetical e.g. "XRP (Ripple)" -> "XRP"
+          // Also try the first word only (e.g. "Hedera Hashgraph" -> "Hedera")
+          const firstWord = friendly.split(/\s+/)[0];
+          addCand(firstWord);
+          addCand(firstWord.toUpperCase());
+        }
         let found = false;
-        // Check local PNGs first
+        // Check local PNGs first (case-insensitive)
         for (const c of candidates) {
           if (localFilesLower.has(`${c.toLowerCase()}.png`)) { found = true; break; }
         }
-        // Fall back to Supabase storage check
+        // Fall back to Supabase storage check (case-sensitive on Supabase side,
+        // so we try each candidate as-is)
         if (!found && supabaseClient) {
           for (const c of candidates) {
             try {
@@ -1602,7 +1631,10 @@ app.post('/api/cover-generator/generate', async (req, res) => {
             } catch (_) {}
           }
         }
-        if (!found) missing.push(sym);
+        if (!found) {
+          logger.warn(`🚫 Logo guard could not find PNG for ${sym}; tried: ${Array.from(candidates).join(', ')}`);
+          missing.push(sym);
+        }
       }
 
       if (missing.length > 0) {
