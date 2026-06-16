@@ -564,7 +564,10 @@ class StyleCatalogService {
           logger.info(`🎨 Logo base color: ${logoBaseColor}`);
         }
 
-        if (logoAccentLight) {
+        if (logoAccentLight === 'none') {
+          prompt = this._stripGlow(prompt);
+          logger.info(`🎨 Logo accent light: NONE (glow disabled on logo)`);
+        } else if (logoAccentLight) {
           prompt = this._replaceLogoAccentLight(prompt, logoAccentLight);
           logger.info(`🎨 Logo accent light: ${logoAccentLight}`);
         }
@@ -588,7 +591,10 @@ class StyleCatalogService {
       }
 
       // PASS 3: Accent lighting color (rim, glow, neon)
-      if (accentLightColor) {
+      if (accentLightColor === 'none') {
+        prompt = this._stripGlow(prompt);
+        logger.info(`🎨 Accent light color: NONE (scene glow stripped)`);
+      } else if (accentLightColor) {
         prompt = this._replaceAccentLightColor(prompt, accentLightColor);
         logger.info(`🎨 Accent light color: ${accentLightColor}`);
       }
@@ -607,7 +613,9 @@ class StyleCatalogService {
       } else if (elementColor) {
         directives.push(`The primary color for all 3D elements, geometric shapes, flat color sections, coins, and objects is ${elementColor} - make these elements prominently ${elementColor}`);
       }
-      if (accentLightColor && accentLightColor2) {
+      if (accentLightColor === 'none') {
+        directives.push('NO rim lighting, NO ambient glow, NO inner glow, NO neon effects, NO edge lighting, NO accent glow anywhere in the scene — completely flat unlit accents');
+      } else if (accentLightColor && accentLightColor2) {
         directives.push(`OVERRIDE all accent lighting: rim lights, ambient glow, inner glow, neon effects MUST alternate between ${accentLightColor} and ${accentLightColor2}. Do NOT use any other glow colors`);
         logger.info(`🎨 Accent colors: ${accentLightColor} + ${accentLightColor2}`);
       } else if (accentLightColor) {
@@ -638,7 +646,9 @@ class StyleCatalogService {
         const isOg = lo.logoMaterial === 'og_color';
         if (isOg) {
           parts.push(`CRITICAL: preserve the EXACT original brand colors from the input image — the logo must use its real brand colors not any material color described in this prompt. Match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT recolor the logo to match the scene material. Render as 3D with depth and lighting but the color of every pixel must match the original input`);
-          if (lo.logoAccentLight) {
+          if (lo.logoAccentLight === 'none') {
+            parts.push('NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo on this logo — render with flat lighting only');
+          } else if (lo.logoAccentLight) {
             parts.push(`the logo glow, inner glow, rim light, and edge light color MUST be ${lo.logoAccentLight}`);
           }
         } else {
@@ -649,7 +659,9 @@ class StyleCatalogService {
           if (lo.logoBaseColor) {
             parts.push(`the logo surface/body color MUST be ${lo.logoBaseColor}`);
           }
-          if (lo.logoAccentLight) {
+          if (lo.logoAccentLight === 'none') {
+            parts.push('NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo on this logo — render with flat lighting only');
+          } else if (lo.logoAccentLight) {
             parts.push(`the logo glow, inner glow, rim light, and edge light color MUST be ${lo.logoAccentLight}`);
           }
         }
@@ -662,7 +674,9 @@ class StyleCatalogService {
       const isOgColor = logoOverrides.logoMaterial === 'og_color';
       if (isOgColor) {
         logoDirectives.push('CRITICAL: Preserve the EXACT original brand colors from the input image — the logo must use its real brand colors not any material color described in this prompt. Do NOT recolor the logo to match the scene. Match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT spread a gradient to parts that were originally solid colored. Render the logo as a 3D object with depth, lighting, and shadows but the color of every pixel must match the original input');
-        if (logoOverrides.logoAccentLight) {
+        if (logoOverrides.logoAccentLight === 'none') {
+          logoDirectives.push('OVERRIDE: NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo, NO specular highlights on the logo — render with flat lighting only');
+        } else if (logoOverrides.logoAccentLight) {
           logoDirectives.push(`OVERRIDE: the logo glow, inner glow, rim light, edge light, and specular highlights MUST be ${logoOverrides.logoAccentLight}`);
         }
       } else {
@@ -675,7 +689,9 @@ class StyleCatalogService {
         } else {
           logoDirectives.push('Preserve the original brand colors of the logo as much as possible');
         }
-        if (logoOverrides.logoAccentLight) {
+        if (logoOverrides.logoAccentLight === 'none') {
+          logoDirectives.push('OVERRIDE: NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo, NO specular highlights on the logo — render with flat lighting only');
+        } else if (logoOverrides.logoAccentLight) {
           logoDirectives.push(`OVERRIDE: the logo glow, inner glow, rim light, edge light, and specular highlights MUST be ${logoOverrides.logoAccentLight}`);
         }
       }
@@ -684,11 +700,54 @@ class StyleCatalogService {
       prompt += `. LOGO: ${logoDirectives.join('. ')}.`;
     }
 
-    // Always append anti-spotlight directive
-    prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, volumetric fog, and edge lighting';
+    // Detect if glow is explicitly disabled anywhere (scene or any logo)
+    const sceneGlowOff = colorOverrides && colorOverrides.accentLightColor === 'none';
+    const anyLogoGlowOff = (isPerLogoArray
+      ? logoOverrides.some(lo => lo && lo.logoAccentLight === 'none')
+      : (logoOverrides && logoOverrides.logoAccentLight === 'none'));
+
+    // Always append anti-spotlight directive — but suppress glow language when glow is disabled
+    if (sceneGlowOff) {
+      prompt += ', absolutely no spotlights, no directional spot lights, no rim lighting, no ambient glow, no edge lighting, no volumetric glow anywhere — completely flat scene lighting';
+    } else if (anyLogoGlowOff) {
+      prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, volumetric fog, and edge lighting in the scene, but the logo itself must have NO glow, NO rim light, NO inner glow, NO edge light';
+    } else {
+      prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, volumetric fog, and edge lighting';
+    }
     prompt += ', CRITICAL: the logo must float freely in the scene as a 3D object - absolutely NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens, NO glass cards, NO glass panes, NO rounded rectangle containers behind or around the logo, NO solid block behind the letters, NO unified slab or base connecting the letters, NO flat surface or sheet of glass behind the logo, NO monitor or screen shape - the logo letters and icon maintain their correct original positions and alignment reading as a cohesive word/brand but each character is its own 3D piece in the specified material WITHOUT a flat backing plate or any rectangular shape surrounding it';
     prompt += ', IMPORTANT: you MUST replicate the EXACT logo shape, letters, and icon from the provided input image — do NOT invent, modify, or replace any part of the logo with a different design — trace the precise contours and layout of the input image logo faithfully';
 
+    return prompt;
+  }
+
+  /**
+   * Strip glow / rim / accent-lighting phrases from a prompt.
+   * Used when accentLightColor or logoAccentLight === 'none'.
+   * Goal: remove anything that would re-introduce glow language that the
+   * negative directives are trying to suppress.
+   */
+  _stripGlow(prompt) {
+    // Generic glow/rim/edge phrases (with adjective slot)
+    prompt = prompt.replace(/\bwith\s+(?:[a-z#0-9 \-]+?)?\s*inner glow\b/gi, 'with 3D depth');
+    prompt = prompt.replace(/\b(?:[a-z#0-9 \-]+?)?\s*inner glow\b/gi, '3D depth');
+    prompt = prompt.replace(/\bambient glow\b/gi, 'ambient light');
+    prompt = prompt.replace(/\bneon glow\b/gi, 'soft light');
+    prompt = prompt.replace(/\bedge glow\b/gi, 'edge');
+    prompt = prompt.replace(/\bglowing\b/gi, 'lit');
+    prompt = prompt.replace(/\bglow\b/gi, 'light');
+    prompt = prompt.replace(/\brim light\b/gi, 'soft light');
+    prompt = prompt.replace(/\brim lighting\b/gi, 'soft lighting');
+    prompt = prompt.replace(/\brim accents?\b/gi, 'accents');
+    prompt = prompt.replace(/\bneon edge accents\b/gi, 'edge accents');
+    prompt = prompt.replace(/\bneon accent(?:s|\s+lighting)?\b/gi, 'accent');
+    prompt = prompt.replace(/\bspecular highlights?\b/gi, 'highlights');
+    prompt = prompt.replace(/\bvolumetric light rays?\b/gi, 'soft light');
+    prompt = prompt.replace(/\bvolumetric fog\b/gi, 'soft atmosphere');
+    prompt = prompt.replace(/\bhalo\b/gi, '');
+    prompt = prompt.replace(/\biridescent\b/gi, '');
+    prompt = prompt.replace(/\bneon\b/gi, '');
+    // Squash double spaces / leftover punctuation
+    prompt = prompt.replace(/\s{2,}/g, ' ').replace(/\s+,/g, ',');
     return prompt;
   }
 
