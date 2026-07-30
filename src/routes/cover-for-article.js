@@ -4,6 +4,7 @@ const axios = require('axios');
 const sharp = require('sharp');
 const logger = require('../utils/logger');
 const { detectCryptocurrency, networkToSymbol } = require('../services/cryptoDetectionService');
+const { deriveVisualSubject } = require('../services/articlePipelineService');
 const { getSupabaseClient } = require('../config/supabase');
 
 /**
@@ -198,6 +199,11 @@ router.post('/for-article', async (req, res) => {
     // styleId, so only rotate a curated style when NOT using a reference.
     const chosenStyle = usingReference ? null : (styleId || await nextStyleId());
 
+    // One short, article-related subject to fill the style's 3D-element slot
+    // (customSubject). Kept to a single simple concept so Nano-Banana renders it
+    // cleanly. Best-effort: null falls back to the style's own default subject.
+    const visualSubject = (chosenStyle && title) ? await deriveVisualSubject(title, content) : null;
+
     let generated = null;
     let mode = null;
     let symbolUsed = null;
@@ -209,7 +215,8 @@ router.post('/for-article', async (req, res) => {
         title: title || '',
         referenceImageUrls: refUrls,
         referenceMode: 'style_reference',
-        ...(chosenStyle ? { styleId: chosenStyle } : {})
+        ...(chosenStyle ? { styleId: chosenStyle } : {}),
+        ...(visualSubject ? { customSubject: visualSubject } : {})
       };
       try {
         generated = await callGenerator(logoBody);
@@ -232,7 +239,8 @@ router.post('/for-article', async (req, res) => {
         referenceImageUrls: refUrls,
         referenceMode: 'style_reference',
         customPrompt: title ? `Editorial crypto news cover reflecting: ${title}` : '',
-        ...(chosenStyle ? { styleId: chosenStyle } : {})
+        ...(chosenStyle ? { styleId: chosenStyle } : {}),
+        ...(visualSubject ? { customSubject: visualSubject } : {})
       };
       generated = await callGenerator(bgBody);
       mode = 'background';
@@ -261,6 +269,7 @@ router.post('/for-article', async (req, res) => {
       symbolUsed,
       mode,
       styleUsed: chosenStyle,
+      subjectUsed: visualSubject,
       usedReference: usingReference,
       duration
     });
