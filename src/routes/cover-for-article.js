@@ -28,8 +28,35 @@ const { getSupabaseClient } = require('../config/supabase');
  */
 
 const GENERATE_URL = `http://localhost:${process.env.PORT || 3001}/api/cover-generator/generate`;
+const STYLE_CATALOG_URL = `http://localhost:${process.env.PORT || 3001}/api/style-catalog`;
 const X_MAX_BYTES = 1000000; // x.com pulls images reliably under 1 MB
 const COVERS_BUCKET = 'covers';
+
+// Style rotation. When NO reference image is used, we rotate through the
+// curated style catalog so rewrite covers have variety instead of the random
+// default. When a reference image IS used, the generator runs in
+// style_reference mode and ignores styleId (the source image drives the look),
+// so rotation only applies to the no-reference case.
+let STYLE_IDS = null;
+let styleRotationIndex = 0;
+
+async function nextStyleId() {
+  try {
+    if (!STYLE_IDS) {
+      const resp = await axios.get(STYLE_CATALOG_URL, { timeout: 15000 });
+      const data = resp.data || {};
+      const list = Array.isArray(data) ? data : (data.styles || data.data || data.catalog || []);
+      STYLE_IDS = list.map(s => s && (s.id || s.styleId || s.slug)).filter(Boolean);
+    }
+    if (!STYLE_IDS || STYLE_IDS.length === 0) return null;
+    const id = STYLE_IDS[styleRotationIndex % STYLE_IDS.length];
+    styleRotationIndex = (styleRotationIndex + 1) % STYLE_IDS.length;
+    return id;
+  } catch (e) {
+    logger.warn(`Could not load style catalog for rotation: ${e.message}`);
+    return null;
+  }
+}
 
 /**
  * Resolve a logo symbol from an explicit network tag or from the article text.
@@ -145,19 +172,29 @@ async function uploadXReady(buffer, contentType, ext) {
 
 /**
  * POST /api/cover-generator/for-article
- * Body: { title, content, sourceImageUrl, network?, xFormat? }
- * Returns: { success, imageUrl, xReadyUrl, symbolUsed, mode }
+ * Body: { title, content, sourceImageUrl?, network?, xFormat?, styleId?, useReference? }
+ *   - useReference: false skips the source image even if provided (poor source images)
+ *   - styleId: pin a specific style; omit to rotate through the catalog (no-ref only)
+ * Returns: { success, imageUrl, xReadyUrl, symbolUsed, mode, styleUsed, usedReference }
  */
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
 
     const symbol = resolveSymbol(network, title, content);
-    const refUrls = (sourceImageUrl && typeof sourceImageUrl === 'string') ? [sourceImageUrl] : [];
+    // The reference image is used only when the caller wants it AND provides one.
+    // Toggling it off (useReference === false) makes covers ignore a poor source image.
+    const wantReference = useReference !== false;
+    const refUrls = (wantReference && sourceImageUrl && typeof sourceImageUrl === 'string') ? [sourceImageUrl] : [];
+    const usingReference = refUrls.length > 0;
+
+    // With a reference image the generator uses style_reference mode and ignores
+    // styleId, so only rotate a curated style when NOT using a reference.
+    const chosenStyle = usingReference ? null : (styleId || await nextStyleId());
 
     let generated = null;
     let mode = null;
@@ -169,7 +206,8 @@ router.post('/for-article', async (req, res) => {
         network: symbol,
         title: title || '',
         referenceImageUrls: refUrls,
-        referenceMode: 'style_reference'
+        referenceMode: 'style_reference',
+        ...(chosenStyle ? { styleId: chosenStyle } : {})
       };
       try {
         generated = await callGenerator(logoBody);
@@ -191,7 +229,8 @@ router.post('/for-article', async (req, res) => {
         title: title || '',
         referenceImageUrls: refUrls,
         referenceMode: 'style_reference',
-        customPrompt: title ? `Editorial crypto news cover reflecting: ${title}` : ''
+        customPrompt: title ? `Editorial crypto news cover reflecting: ${title}` : '',
+        ...(chosenStyle ? { styleId: chosenStyle } : {})
       };
       generated = await callGenerator(bgBody);
       mode = 'background';
@@ -218,6 +257,8 @@ router.post('/for-article', async (req, res) => {
       xReadyUrl,
       symbolUsed,
       mode,
+      styleUsed: chosenStyle,
+      usedReference: usingReference,
       duration
     });
   } catch (error) {
