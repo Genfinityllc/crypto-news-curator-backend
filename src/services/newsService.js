@@ -155,9 +155,51 @@ function validateClientNetworkContent(title, content, source = '') {
  * Validate if content is genuinely crypto-related
  * Returns { isValid: boolean, reason: string, confidence: number }
  */
+// LEVEL 2 crypto-only gate.
+// A crypto topic must appear in the HEADLINE, not just somewhere in the body.
+// This drops tangential pieces from crypto outlets (macro, politics, general
+// tech) that only mention a coin in passing or not at all, while keeping every
+// article whose headline is actually about crypto. Unambiguous crypto terms
+// only, so non-crypto headlines are not matched by accident.
+const TITLE_CRYPTO_SIGNALS = [
+  // core vocabulary
+  'crypto', 'cryptocurrency', 'blockchain', 'defi', 'decentralized finance',
+  'stablecoin', 'altcoin', 'memecoin', 'tokenization', 'tokenized',
+  'nft', 'web3', 'dao', 'staking', 'airdrop', 'mainnet', 'testnet',
+  'on-chain', 'onchain', 'ledger', 'validator', 'smart contract',
+  // major assets, tickers, networks
+  'bitcoin', 'btc', 'ethereum', 'eth', 'ripple', 'xrp', 'solana', 'sol',
+  'cardano', 'ada', 'dogecoin', 'doge', 'shiba', 'bnb', 'binance', 'polygon',
+  'matic', 'avalanche', 'avax', 'polkadot', 'chainlink', 'litecoin', 'ltc',
+  'stellar', 'xlm', 'cosmos', 'atom', 'near protocol', 'tron', 'trx', 'toncoin',
+  'hedera', 'hbar', 'hashgraph', 'hashpack', 'algorand', 'algo',
+  'xdc', 'xinfin', 'constellation network', ' dag ', 'sui network', 'aptos',
+  // exchanges / issuers strongly tied to crypto
+  'coinbase', 'kraken', 'bitfinex', 'tether', 'usdt', 'usdc', 'circle'
+];
+
+function titleHasCryptoSignal(title) {
+  const t = ` ${(title || '').toLowerCase()} `;
+  // Explicit crypto terms only. We deliberately do NOT use the general crypto
+  // detector here, because it also matches crypto-adjacent companies (for
+  // example NVIDIA), which would let non-crypto headlines through.
+  return TITLE_CRYPTO_SIGNALS.some(term => t.includes(term));
+}
+
 function validateCryptoContent(title, content, source = '') {
   const searchText = `${title} ${content}`.toLowerCase();
   const fullText = `${title} ${content} ${source}`.toLowerCase();
+
+  // LEVEL 2 gate: require the crypto topic in the headline for every article,
+  // including trusted sources. This is what stops non-crypto pieces from crypto
+  // outlets (their macro/politics/tech coverage) leaking into the feed.
+  if (!titleHasCryptoSignal(title)) {
+    return {
+      isValid: false,
+      reason: 'No crypto topic in the headline (Level 2 crypto-only gate)',
+      confidence: 0.9
+    };
+  }
   
   // TRUSTED CRYPTO SOURCES: Articles from these sources should have relaxed validation
   const trustedCryptoSources = [
@@ -188,9 +230,12 @@ function validateCryptoContent(title, content, source = '') {
       'tourism industry', 'fashion industry', 'movie industry', 'music industry'
     ];
     
-    // Only reject if article is CLEARLY about non-crypto topics
+    // Only reject if article is CLEARLY about non-crypto topics.
+    // Match on word boundaries so short tokens like "nfl" do not match inside
+    // words such as "inflows" (a very common crypto-news term).
     for (const blacklistTerm of hardBlacklist) {
-      if (searchText.includes(blacklistTerm)) {
+      const re = new RegExp(`\\b${blacklistTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      if (re.test(searchText)) {
         return {
           isValid: false,
           reason: `Trusted source but contains non-crypto content: "${blacklistTerm}"`,
