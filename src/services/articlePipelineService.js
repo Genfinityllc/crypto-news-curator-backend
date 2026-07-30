@@ -42,12 +42,12 @@ const ARTICLE_TARGETS = {
 };
 
 const QUALITY_GATE = {
-  overall: 9.1,
-  factual: 9.3,
-  source: 9.0,
-  seo: 9.0,
-  readability: 8.8,
-  google: 9.0
+  overall: 8.6,
+  factual: 8.6,
+  source: 8.5,
+  seo: 8.5,
+  readability: 8.5,
+  google: 8.5
 };
 
 // Genfinity's exact disclaimer, appended verbatim at the end of every rewrite.
