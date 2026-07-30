@@ -1,9 +1,12 @@
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 const logger = require('../utils/logger');
 const jobService = require('../services/rewriteJobService');
 const { runPipeline } = require('../services/articlePipelineService');
 const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite');
+
+const FOR_ARTICLE_URL = `http://localhost:${process.env.PORT || 3001}/api/cover-generator/for-article`;
 
 /**
  * REWRITE PIPELINE ROUTES (Phase 2)
@@ -114,6 +117,54 @@ router.get('/list', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 40, 100);
   const items = await jobService.listJobs(limit);
   return res.json({ success: true, jobs: items });
+});
+
+/**
+ * POST /api/rewrite-pipeline/:jobId/cover
+ * Body: { styleId?, useSubject?, xFormat? }
+ * Generates a cover for a completed rewrite using the fact-checked headline and
+ * verified entities, then persists it onto the job so it is there on reopen.
+ */
+router.post('/:jobId/cover', async (req, res) => {
+  try {
+    const job = await jobService.getJob(req.params.jobId);
+    if (!job || !job.result || !job.result.article) {
+      return res.status(404).json({ success: false, error: 'Completed rewrite not found' });
+    }
+    const a = job.result.article;
+    const brief = job.result.visualBrief || {};
+    const entities = (brief.primary_entities || []).join(', ');
+    const { styleId, useSubject, xFormat } = req.body || {};
+
+    // The article is fact-checked, so detecting the logo from its headline +
+    // verified entities avoids the stray-mention problem of the raw source title.
+    const resp = await axios.post(FOR_ARTICLE_URL, {
+      title: a.headline,
+      content: `${entities}. ${(a.article_markdown || '').slice(0, 500)}`,
+      styleId,
+      useSubject,
+      xFormat: xFormat || 'png'
+    }, { timeout: 240000, validateStatus: (s) => s < 500 });
+
+    if (resp.status !== 200 || !resp.data || !resp.data.success) {
+      return res.status(502).json({ success: false, error: (resp.data && resp.data.error) || 'Cover generation failed' });
+    }
+
+    const cover = {
+      imageUrl: resp.data.imageUrl,
+      xReadyUrl: resp.data.xReadyUrl,
+      symbolUsed: resp.data.symbolUsed,
+      styleUsed: resp.data.styleUsed,
+      subjectUsed: resp.data.subjectUsed,
+      mode: resp.data.mode
+    };
+    // Persist the cover onto the job result (getJob warmed the in-memory cache).
+    jobService.updateJob(job.id, { result: { ...job.result, cover } });
+    return res.json({ success: true, cover });
+  } catch (error) {
+    logger.error(`job cover failed (${req.params.jobId}): ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 module.exports = router;
