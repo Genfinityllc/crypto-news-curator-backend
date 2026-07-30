@@ -59,6 +59,17 @@ process.on('uncaughtException', (error) => {
   logger.error('Uncaught exception (kept process alive):', error);
 });
 
+// Disable Sharp's decoded-image cache. Image buffers live in native (off-heap)
+// memory; the default cache accumulating across many operations added to the
+// memory pressure behind past OOM kills. Thread concurrency is left at its
+// default so multi-logo cover generation keeps full speed.
+try {
+  require('sharp').cache(false);
+  logger.info('🧵 Sharp image cache disabled (lower native memory footprint)');
+} catch (e) {
+  logger.warn(`Could not configure Sharp cache: ${e.message}`);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 

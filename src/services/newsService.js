@@ -1157,7 +1157,15 @@ async function fetchRealCryptoNews() {
         logger.info(`Parsing RSS feed: ${feedUrl}`);
         const feed = await parser.parseURL(feedUrl);
         
-        const articles = await Promise.all(feed.items.slice(0, 30).map(async (item) => {
+        // Cap concurrency: process items in small batches so we never hold
+        // 30 concurrent HTTP responses + decoded article images in memory at
+        // once. That burst is what pushed the container to OOM ("Killed").
+        // All items are still processed, just a few at a time, not all 30.
+        const articles = [];
+        const itemsToProcess = feed.items.slice(0, 30);
+        const ITEM_CONCURRENCY = 6;
+        for (let batchStart = 0; batchStart < itemsToProcess.length; batchStart += ITEM_CONCURRENCY) {
+        const batchResults = await Promise.all(itemsToProcess.slice(batchStart, batchStart + ITEM_CONCURRENCY).map(async (item) => {
           try {
             // Enhanced crypto content validation using new validateCryptoContent function
             const title = item.title || '';
@@ -1288,8 +1296,10 @@ async function fetchRealCryptoNews() {
           console.log(`❌ Error processing article: ${error.message}`);
           return null;
         }
-      }));
-      
+        }));
+        articles.push(...batchResults);
+        }
+
       // Filter out null results and map to final article format
       console.log(`🔍 DEBUG: Feed ${feedUrl} - Raw articles: ${articles.length}, Non-null: ${articles.filter(item => item !== null).length}`);
       const validArticles = articles.filter(item => item !== null).map(item => {
