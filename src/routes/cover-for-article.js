@@ -181,7 +181,7 @@ async function uploadXReady(buffer, contentType, ext) {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -200,9 +200,10 @@ router.post('/for-article', async (req, res) => {
     const chosenStyle = usingReference ? null : (styleId || await nextStyleId());
 
     // One short, article-related subject to fill the style's 3D-element slot
-    // (customSubject). Kept to a single simple concept so Nano-Banana renders it
-    // cleanly. Best-effort: null falls back to the style's own default subject.
-    const visualSubject = (chosenStyle && title) ? await deriveVisualSubject(title, content) : null;
+    // (customSubject). Optional via useSubject (default on); off falls back to
+    // the style's own default subject. Best-effort: null also falls back.
+    const wantSubject = useSubject !== false;
+    const visualSubject = (wantSubject && chosenStyle && title) ? await deriveVisualSubject(title, content) : null;
 
     let generated = null;
     let mode = null;
