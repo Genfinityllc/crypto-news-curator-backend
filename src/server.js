@@ -47,6 +47,18 @@ const { authMiddleware } = require('./middleware/auth');
 // Import logger
 const logger = require('./utils/logger');
 
+// Global crash guards — keep the process alive when a background job
+// (RSS fetch, cache refresh, external API call, etc.) throws an unhandled
+// rejection or error. Without these, a single flaky feed/API can kill the
+// whole server, and Railway's restart policy eventually gives up, leaving
+// the site's logos/data endpoints down until a manual restart.
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled promise rejection (kept process alive):', reason);
+});
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception (kept process alive):', error);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
