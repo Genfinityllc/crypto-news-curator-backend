@@ -50,9 +50,9 @@ const QUALITY_GATE = {
   google: 9.0
 };
 
-// Placeholder disclaimer. Replace with Genfinity's exact legal disclaimer.
+// Genfinity's exact disclaimer, appended verbatim at the end of every rewrite.
 const GENFINITY_DISCLAIMER =
-  'This article is for informational purposes only and does not constitute financial, investment, or legal advice. Always do your own research.';
+  'Disclaimer: News content provided by Genfinity is intended solely for informational purposes. While we strive to deliver accurate and up-to-date information, we do not offer financial or legal advice of any kind. Readers are encouraged to conduct their own research and consult with qualified professionals before making any financial or legal decisions. Genfinity disclaims any responsibility for actions taken based on the information presented in our articles. Our commitment is to share knowledge, foster discussion, and contribute to a better understanding of the topics covered in our articles. We advise our readers to exercise caution and diligence when seeking information or making decisions based on the content we provide.';
 
 // ---------------------------------------------------------------------------
 // OpenAI Responses helper
