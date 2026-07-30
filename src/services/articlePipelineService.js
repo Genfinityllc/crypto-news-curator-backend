@@ -104,11 +104,11 @@ async function callResponses(opts) {
   }
 
   let lastErr = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const resp = await axios.post(OPENAI_URL, body, {
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        timeout: 180000,
+        timeout: 240000,
         validateStatus: s => s < 500
       });
       if (resp.status !== 200 || (resp.data && resp.data.error)) {
@@ -160,7 +160,9 @@ RULES
 For each claim return: the claim, a verdict (confirmed, partially_confirmed, unverified, contradicted, opinion),
 a confidence 0-100, an explanation, the best supporting sources with URLs and whether each is primary,
 safe wording that could be published, and wording that must be removed or qualified.
-Finally return the overall verdict, confirmed facts, excluded claims, important context and publication risks.`;
+Finally return the overall verdict, confirmed facts, excluded claims, important context and publication risks.
+
+IMPORTANT: Do AT MOST 3 web searches, then STOP searching and write your findings. Do not loop on searches.`;
 
 const NORMALIZE_INSTRUCTIONS =
   'Convert the supplied research into the required schema. Do not add facts, sources or URLs that are not in the research.';
@@ -381,8 +383,8 @@ async function runFactCheck(originalArticle) {
     instructions: FACT_CHECK_PROMPT,
     input: originalArticle,
     tools: [{ type: 'web_search' }],
-    effort: 'high',
-    maxOutputTokens: 5000
+    effort: 'low',
+    maxOutputTokens: 8000
   });
   return r.text;
 }
@@ -394,8 +396,7 @@ async function normalizeResearch(researchText) {
     input: researchText,
     schema: VERIFICATION_SCHEMA,
     schemaName: 'verification_report',
-    effort: 'low',
-    maxOutputTokens: 3000
+    maxOutputTokens: 4000
   });
   return r.parsed;
 }
@@ -408,8 +409,8 @@ async function runRewrite(originalArticle, verification) {
     input,
     schema: ARTICLE_SCHEMA,
     schemaName: 'article_package',
-    effort: 'high',
-    maxOutputTokens: 5000
+    effort: 'medium',
+    maxOutputTokens: 10000
   });
   return r.parsed;
 }
@@ -422,8 +423,7 @@ async function runAudit(article, verification) {
     input,
     schema: AUDIT_SCHEMA,
     schemaName: 'audit_report',
-    effort: 'medium',
-    maxOutputTokens: 3000
+    maxOutputTokens: 5000
   });
   return r.parsed;
 }
@@ -436,8 +436,8 @@ async function runRevision(article, verification, audit, mechanicalFailures) {
     input,
     schema: ARTICLE_SCHEMA,
     schemaName: 'article_package',
-    effort: 'high',
-    maxOutputTokens: 5000
+    effort: 'medium',
+    maxOutputTokens: 10000
   });
   return r.parsed;
 }
@@ -449,8 +449,7 @@ async function runVisualBrief(article) {
     input: `FINAL ARTICLE:\n${article.article_markdown}\n\nHEADLINE: ${article.headline}`,
     schema: BRIEF_SCHEMA,
     schemaName: 'visual_brief',
-    effort: 'low',
-    maxOutputTokens: 800
+    maxOutputTokens: 1500
   });
   return r.parsed;
 }
