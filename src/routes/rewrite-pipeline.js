@@ -83,7 +83,7 @@ router.post('/start', async (req, res) => {
     if (!title || !content) {
       return res.status(400).json({ success: false, error: 'title and content are required' });
     }
-    const job = jobService.createJob();
+    const job = jobService.createJob({ title });
     // Fire and forget; the handler is fully guarded so it never rejects here.
     runJob(job.id, { title, content, url }).catch((e) => {
       logger.error(`rewrite job ${job.id} crashed: ${e.message}`);
@@ -100,10 +100,20 @@ router.post('/start', async (req, res) => {
  * GET /api/rewrite-pipeline/status/:jobId
  * Returns: { success, jobId, status, step, stepLabel, progress, usedFallback, error, result }
  */
-router.get('/status/:jobId', (req, res) => {
-  const job = jobService.getJob(req.params.jobId);
+router.get('/status/:jobId', async (req, res) => {
+  const job = await jobService.getJob(req.params.jobId);
   if (!job) return res.status(404).json({ success: false, error: 'job not found' });
   return res.json({ success: true, ...jobService.publicView(job) });
+});
+
+/**
+ * GET /api/rewrite-pipeline/list?limit=40
+ * Shared recent rewrites for the Article Studio page (summaries, no full result).
+ */
+router.get('/list', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 40, 100);
+  const items = await jobService.listJobs(limit);
+  return res.json({ success: true, jobs: items });
 });
 
 module.exports = router;
