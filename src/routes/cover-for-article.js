@@ -186,9 +186,11 @@ router.post('/for-article', async (req, res) => {
     }
 
     const symbol = resolveSymbol(network, title, content);
-    // The reference image is used only when the caller wants it AND provides one.
-    // Toggling it off (useReference === false) makes covers ignore a poor source image.
-    const wantReference = useReference !== false;
+    // Source referencing is OFF by default: it pulled too much from the source
+    // image and produced derivative covers. Covers now rotate through the
+    // curated styles instead. A caller must explicitly pass useReference: true
+    // (and a sourceImageUrl) to opt back in; nothing does today.
+    const wantReference = useReference === true;
     const refUrls = (wantReference && sourceImageUrl && typeof sourceImageUrl === 'string') ? [sourceImageUrl] : [];
     const usingReference = refUrls.length > 0;
 
@@ -242,7 +244,8 @@ router.post('/for-article', async (req, res) => {
     // Build + host the X-ready copy. Never fail the request if this part fails.
     let xReadyUrl = null;
     if (imageUrl) {
-      const xCopy = await buildXReadyCopy(imageUrl, xFormat === 'png' ? 'png' : 'jpeg');
+      // Default to PNG (palette-quantized to fit under 1 MB); JPEG only if asked.
+      const xCopy = await buildXReadyCopy(imageUrl, xFormat === 'jpeg' ? 'jpeg' : 'png');
       if (xCopy) {
         xReadyUrl = await uploadXReady(xCopy.buffer, xCopy.contentType, xCopy.ext);
       }
