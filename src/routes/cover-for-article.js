@@ -284,7 +284,7 @@ router.post('/for-article', async (req, res) => {
       const items = [];
       if (Array.isArray(buildings)) items.push(...buildings.filter(b => typeof b === 'string' && b.trim()).slice(0, 4).map(b => b.trim()));
       if (subject && typeof subject === 'string' && subject.trim()) items.push(subject.trim());
-      if (items.length) collageDirective += ` Build the collage imagery from these subjects, each shown at most once, varied, no repeats: ${items.join(', ')}.`;
+      if (items.length) collageDirective += ` Build the collage imagery using ONLY these subjects, exactly these and no other buildings, each shown once: ${items.join(', ')}.`;
       if (title) collageDirective += ` Thematically reflect this specific news topic, without rendering any text or words: ${title}.`;
       collageDirective = collageDirective.trim();
 
