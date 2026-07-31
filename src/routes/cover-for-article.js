@@ -59,15 +59,49 @@ async function nextStyleId() {
   }
 }
 
+// Cached logo library (networks + companies, ~184 entries). The crypto detector
+// only knows ~50 tickers, so it misses company logos like Coinbase. Matching the
+// article text against the real library is what actually finds the right logo.
+const NETWORKS_URL = `http://localhost:${process.env.PORT || 3001}/api/cover-generator/networks`;
+let LIBRARY = null;
+
+async function getLibrary() {
+  if (LIBRARY) return LIBRARY;
+  try {
+    const resp = await axios.get(NETWORKS_URL, { timeout: 15000 });
+    const j = resp.data || {};
+    const all = [...(j.networks || []), ...(j.companies || [])];
+    LIBRARY = all
+      .map(x => ({ symbol: String(x.symbol || '').toUpperCase(), name: String(x.name || '').toLowerCase(), hasLogo: !!x.hasLogo }))
+      .filter(x => x.symbol && x.name.length >= 3);
+  } catch (e) {
+    logger.warn(`Could not load logo library: ${e.message}`);
+    LIBRARY = [];
+  }
+  return LIBRARY;
+}
+
+async function matchLibrarySymbol(text) {
+  const t = ` ${(text || '').toLowerCase()} `;
+  const lib = await getLibrary();
+  const hits = lib.filter(e => new RegExp(`\\b${e.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(t));
+  if (!hits.length) return null;
+  // Prefer entries that have a logo, then the most specific (longest) name.
+  hits.sort((a, b) => (b.hasLogo - a.hasLogo) || (b.name.length - a.name.length));
+  return hits[0].symbol;
+}
+
 /**
- * Resolve a logo symbol from an explicit network tag or from the article text.
- * Returns an uppercase symbol string, or null if nothing confident was found.
+ * Resolve a logo symbol from an explicit network tag, the full logo library, or
+ * the crypto detector (in that order). Returns an uppercase symbol or null.
  */
-function resolveSymbol(network, title, content) {
+async function resolveSymbol(network, title, content) {
   if (network && typeof network === 'string' && network.trim()) {
     const sym = networkToSymbol(network.trim());
     if (sym) return String(sym).toUpperCase();
   }
+  const libSym = await matchLibrarySymbol(`${title || ''} ${content || ''}`);
+  if (libSym) return libSym;
   const detection = detectCryptocurrency(title || '', content || '');
   if (detection && detection.crypto && (detection.confidence === undefined || detection.confidence > 0)) {
     return String(detection.crypto).toUpperCase();
@@ -186,7 +220,7 @@ router.post('/for-article', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
 
-    const symbol = resolveSymbol(network, title, content);
+    const symbol = await resolveSymbol(network, title, content);
     // Source referencing is OFF by default: it pulled too much from the source
     // image and produced derivative covers. Covers now rotate through the
     // curated styles instead. A caller must explicitly pass useReference: true
