@@ -657,9 +657,10 @@ class StyleCatalogService {
     // (the Article Studio concept), so bespoke story art wins over the rotation.
     if (COLLAGE_STYLE_IDS.has(styleId)) {
       prompt += ` SUBJECT QUALITY: render each named subject as a rich, detailed, stylized finance graphic, never plain clip-art — a chart is a detailed candlestick trading chart with distinct up and down candles, wicks and gridlines (not a simple line graph), a briefcase is a styled executive leather briefcase, a building is specific and architectural; keep subjects within the two-color-plus-grayscale palette and vary the styling.`;
+      prompt += ` NO DUPLICATES: every subject, object and building appears EXACTLY ONCE; never duplicate, mirror or repeat the same element anywhere in the image (for example never show two vaults or two copies of a building).`;
       if (centeredLogo) {
-        // User asked for the logo as the big centered hero (like the other styles).
-        prompt += ` CENTERED HERO LOGO: make the ${logoSymbol} logo LARGE, bold and CENTERED as the clear main subject of the composition, like a hero product shot; arrange the collage subjects, color blocks and textures around it in a balanced way; the logo dominates and is the unmistakable focal point.`;
+        // Big centered logo, but still a FLAT collage mark (no glow / product shot).
+        prompt += ` CENTERED HERO LOGO: make the ${logoSymbol} logo LARGE and CENTERED as the clear main subject; render it FLAT and matte (distressed screen-print or matte metallic) integrated into the collage with torn paper and halftone around it — NO glow, NO neon, NO glowing outline, NO glossy floating product-shot look. Arrange the other cutouts cleanly around it; the logo dominates as the focal point.`;
       } else if (conceptMode) {
         // A bespoke story concept in the additional instructions drives the layout.
         prompt += ` COMPOSITION: build the ENTIRE layout from the VISUAL CONCEPT given in the additional instructions; the elements must physically INTERACT to tell that story (not sit side by side), with one clear hero, strong focal hierarchy, and generous negative space. Do not use a generic symmetrical or evenly-spaced arrangement.`;

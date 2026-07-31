@@ -417,7 +417,8 @@ async function runCoverJob(jobId, body) {
     // Editorial Collage with a title: derive a bespoke interacting-metaphor
     // concept from the title so the elements tell a story instead of being
     // placed side by side. Scoped to the collage; other styles are untouched.
-    if (body && body.styleId === '32_editorial_collage' && body.title && String(body.title).trim()) {
+    const centeredRequested = /^\s*CENTERED_LOGO\|/.test(String((body && body.customSubject) || ''));
+    if (body && body.styleId === '32_editorial_collage' && body.title && String(body.title).trim() && !centeredRequested) {
       try {
         coverJobService.updateJob(jobId, { progress: 15, stepLabel: 'Designing concept' });
         const rawSubj = String(body.customSubject || '').replace(/^(?:\s*[A-Z_]+\|)+/, '').trim();
