@@ -215,10 +215,17 @@ async function uploadXReady(buffer, contentType, ext) {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
+
+    // Background color override. When black is requested we also add a strong
+    // customPrompt directive (which the generator gives priority) so even styles
+    // with a hardcoded colored background come out black.
+    const blackBg = typeof bgColor === 'string' && /(^#?0{3,6}$)|black/i.test(bgColor.trim());
+    const bgDirective = blackBg ? 'The background must be solid pure black, ignore any other background color.' : '';
+    const bgFields = bgColor ? { bgColor } : {};
 
     const symbol = await resolveSymbol(network, title, content);
     // Source referencing is OFF by default: it pulled too much from the source
@@ -251,7 +258,9 @@ router.post('/for-article', async (req, res) => {
         referenceImageUrls: refUrls,
         referenceMode: 'style_reference',
         ...(chosenStyle ? { styleId: chosenStyle } : {}),
-        ...(visualSubject ? { customSubject: visualSubject } : {})
+        ...(visualSubject ? { customSubject: visualSubject } : {}),
+        ...bgFields,
+        ...(bgDirective ? { customPrompt: bgDirective } : {})
       };
       try {
         generated = await callGenerator(logoBody);
@@ -273,9 +282,10 @@ router.post('/for-article', async (req, res) => {
         title: title || '',
         referenceImageUrls: refUrls,
         referenceMode: 'style_reference',
-        customPrompt: title ? `Editorial crypto news cover reflecting: ${title}` : '',
+        customPrompt: [title ? `Editorial crypto news cover reflecting: ${title}` : '', bgDirective].filter(Boolean).join(' '),
         ...(chosenStyle ? { styleId: chosenStyle } : {}),
-        ...(visualSubject ? { customSubject: visualSubject } : {})
+        ...(visualSubject ? { customSubject: visualSubject } : {}),
+        ...bgFields
       };
       generated = await callGenerator(bgBody);
       mode = 'background';

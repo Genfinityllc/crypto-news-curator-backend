@@ -49,11 +49,42 @@ function mapFallback(fb) {
   };
 }
 
+/**
+ * Generate a cover for a completed pipeline result via the live /for-article
+ * wrapper (real logo from the verified entities, rotated style, article 3D
+ * subject, PNG X-ready). Shared by the auto-cover step and the manual endpoint.
+ */
+async function generateCoverForResult(result, opts = {}) {
+  const a = result.article || {};
+  const brief = result.visualBrief || {};
+  const entities = (brief.primary_entities || []).join(', ');
+  const resp = await axios.post(FOR_ARTICLE_URL, {
+    title: a.headline,
+    content: `${entities}. ${(a.article_markdown || '').slice(0, 500)}`,
+    styleId: opts.styleId,
+    useSubject: opts.useSubject,
+    xFormat: opts.xFormat || 'png',
+    bgColor: '#000000' // article covers always use a black background (styles still rotate)
+  }, { timeout: 240000, validateStatus: (s) => s < 500 });
+  if (resp.status !== 200 || !resp.data || !resp.data.success) {
+    throw new Error((resp.data && resp.data.error) || 'Cover generation failed');
+  }
+  const d = resp.data;
+  return { imageUrl: d.imageUrl, xReadyUrl: d.xReadyUrl, symbolUsed: d.symbolUsed, styleUsed: d.styleUsed, subjectUsed: d.subjectUsed, mode: d.mode };
+}
+
 async function runJob(jobId, source) {
   try {
     const result = await runPipeline(source, (step, label, pct) => {
       jobService.updateJob(jobId, { step, stepLabel: label, progress: pct });
     });
+    // Auto-generate the cover so every finished rewrite arrives with one.
+    try {
+      jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 95 });
+      result.cover = await generateCoverForResult(result, {});
+    } catch (ce) {
+      logger.warn(`auto-cover failed (${jobId}): ${ce.message}`);
+    }
     jobService.updateJob(jobId, {
       status: 'completed', progress: 100, step: 'done', stepLabel: 'Complete', result
     });
@@ -131,33 +162,8 @@ router.post('/:jobId/cover', async (req, res) => {
     if (!job || !job.result || !job.result.article) {
       return res.status(404).json({ success: false, error: 'Completed rewrite not found' });
     }
-    const a = job.result.article;
-    const brief = job.result.visualBrief || {};
-    const entities = (brief.primary_entities || []).join(', ');
     const { styleId, useSubject, xFormat } = req.body || {};
-
-    // The article is fact-checked, so detecting the logo from its headline +
-    // verified entities avoids the stray-mention problem of the raw source title.
-    const resp = await axios.post(FOR_ARTICLE_URL, {
-      title: a.headline,
-      content: `${entities}. ${(a.article_markdown || '').slice(0, 500)}`,
-      styleId,
-      useSubject,
-      xFormat: xFormat || 'png'
-    }, { timeout: 240000, validateStatus: (s) => s < 500 });
-
-    if (resp.status !== 200 || !resp.data || !resp.data.success) {
-      return res.status(502).json({ success: false, error: (resp.data && resp.data.error) || 'Cover generation failed' });
-    }
-
-    const cover = {
-      imageUrl: resp.data.imageUrl,
-      xReadyUrl: resp.data.xReadyUrl,
-      symbolUsed: resp.data.symbolUsed,
-      styleUsed: resp.data.styleUsed,
-      subjectUsed: resp.data.subjectUsed,
-      mode: resp.data.mode
-    };
+    const cover = await generateCoverForResult(job.result, { styleId, useSubject, xFormat });
     // Persist the cover onto the job result (getJob warmed the in-memory cache).
     jobService.updateJob(job.id, { result: { ...job.result, cover } });
     return res.json({ success: true, cover });

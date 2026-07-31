@@ -134,6 +134,31 @@ async function callResponses(opts) {
   throw lastErr;
 }
 
+// Fetch the full article text from the source URL so the pipeline reasons over
+// the complete, correctly dated story instead of a short feed excerpt. Best
+// effort: returns '' on any failure, and the pipeline falls back to the excerpt.
+async function fetchArticleText(url) {
+  if (!url || !/^https?:\/\//.test(url)) return '';
+  try {
+    const resp = await axios.get(url, {
+      timeout: 20000,
+      maxContentLength: 6 * 1024 * 1024,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GenfinityBot/1.0; +https://genfinity.io)' },
+      validateStatus: s => s >= 200 && s < 400
+    });
+    let html = typeof resp.data === 'string' ? resp.data : '';
+    if (!html) return '';
+    html = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
+    const bodyMatch = html.match(/<article[\s\S]*?<\/article>/i) || html.match(/<main[\s\S]*?<\/main>/i);
+    const chunk = bodyMatch ? bodyMatch[0] : html;
+    const text = chunk.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+    return text.slice(0, 9000);
+  } catch (e) {
+    logger.warn(`fetchArticleText failed for ${url}: ${e.message}`);
+    return '';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Prompts
 // ---------------------------------------------------------------------------
@@ -162,6 +187,8 @@ a confidence 0-100, an explanation, the best supporting sources with URLs and wh
 safe wording that could be published, and wording that must be removed or qualified.
 Finally return the overall verdict, confirmed facts, excluded claims, important context and publication risks.
 
+TIMELINESS (critical): This is CURRENT news. Anchor strictly to the reporting period, quarter, and dates stated in the article body and the TODAY date provided. Verify the SPECIFIC current event. Do NOT substitute or conflate figures from an earlier quarter or year, even if older figures rank higher in search results. If the article is about a recent event, your verification and the eventual article must be about THAT recent event, not a historical one.
+
 IMPORTANT: Do AT MOST 3 web searches, then STOP searching and write your findings. Do not loop on searches.`;
 
 const NORMALIZE_INSTRUCTIONS =
@@ -182,7 +209,7 @@ EDITORIAL REQUIREMENTS
 - Include an Official Sources section with the strongest primary sources.
 
 SEO REQUIREMENTS
-- SEO title 45-65 chars, accurate, no clickbait. Meta description 140-160 chars.
+- SEO title 45-65 chars: a strong, present-tense, keyword-led CURRENT-news headline that leads with the primary entity and the news. No clickbait, and no backward-looking or corrective phrasings like "was reported" or a past year unless the story is genuinely a correction. Reflect the current event. Meta description 140-160 chars.
 - One natural focus keyphrase, five secondary keyphrases, 5-10 single-word tags, 3-5 categories.
 - Use the focus topic naturally in the headline, introduction and meta description. Do not keyword-stuff.
 - Provide accurate image alt text and an image caption.
@@ -410,8 +437,8 @@ async function runRewrite(originalArticle, verification) {
     input,
     schema: ARTICLE_SCHEMA,
     schemaName: 'article_package',
-    effort: 'medium',
-    maxOutputTokens: 10000
+    effort: 'high',
+    maxOutputTokens: 12000
   });
   return r.parsed;
 }
@@ -459,8 +486,8 @@ ${GENFINITY_DISCLAIMER}`;
     input,
     schema: ARTICLE_SCHEMA,
     schemaName: 'article_package',
-    effort: 'medium',
-    maxOutputTokens: 10000
+    effort: 'high',
+    maxOutputTokens: 12000
   });
   return r.parsed;
 }
@@ -488,9 +515,18 @@ async function runVisualBrief(article) {
  * @returns {Promise<object>} full result
  */
 async function runPipeline(source, onProgress = () => {}) {
-  const originalArticle = `TITLE: ${source.title || ''}\n\n${source.content || ''}\n\nSOURCE URL: ${source.url || ''}`;
+  onProgress('fetch', 'Fetching the full source article', 5);
+  const fullText = await fetchArticleText(source.url);
+  const body = (fullText && fullText.length > (source.content || '').length) ? fullText : (source.content || '');
+  const today = new Date().toISOString().slice(0, 10);
+  const originalArticle = `TODAY IS ${today}. This is a CURRENT news item; treat it as current, not historical.
+TITLE: ${source.title || ''}
+SOURCE URL: ${source.url || ''}
 
-  onProgress('fact_check', 'Fact-checking with web research', 10);
+ARTICLE BODY:
+${body}`;
+
+  onProgress('fact_check', 'Fact-checking with web research', 12);
   const research = await runFactCheck(originalArticle);
 
   onProgress('normalize', 'Structuring verified facts', 30);
