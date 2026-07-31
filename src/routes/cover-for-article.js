@@ -215,7 +215,7 @@ async function uploadXReady(buffer, contentType, ext) {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -240,11 +240,19 @@ router.post('/for-article', async (req, res) => {
     // styleId, so only rotate a curated style when NOT using a reference.
     const chosenStyle = usingReference ? null : (styleId || await nextStyleId());
 
-    // One short, article-related subject to fill the style's 3D-element slot
-    // (customSubject). Optional via useSubject (default on); off falls back to
-    // the style's own default subject. Best-effort: null also falls back.
+    // Subject to fill the style's 3D-element slot (customSubject). Optional via
+    // useSubject (default on). A caller-supplied `subject` string takes priority;
+    // otherwise it is auto-derived from the article. Off falls back to the
+    // style's own default subject. (Flat styles ignore customSubject entirely.)
     const wantSubject = useSubject !== false;
-    const visualSubject = (wantSubject && chosenStyle && title) ? await deriveVisualSubject(title, content) : null;
+    let visualSubject = null;
+    if (wantSubject && chosenStyle) {
+      if (subject && typeof subject === 'string' && subject.trim()) {
+        visualSubject = subject.trim();
+      } else if (title) {
+        visualSubject = await deriveVisualSubject(title, content);
+      }
+    }
 
     let generated = null;
     let mode = null;

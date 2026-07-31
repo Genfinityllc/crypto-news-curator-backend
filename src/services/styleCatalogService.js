@@ -30,6 +30,16 @@ class StyleCatalogService {
         prompt: (logoSymbol) => `infinite deep blue void with subtle atmospheric depth, soft volumetric fog, gentle light rays piercing darkness, soft cinematic blue with cool undertones and professional depth, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject floating freely with NO frame NO box NO rectangular panel NO glass pane behind it, the ${logoSymbol} symbol rendered in iridescent crystal glass with rainbow refractions, clean rim lighting, subtle spectral reflections on edges, luxury 3D CGI product render, floating abstract {{3D_ELEMENTS}} as background accents, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
 
+      '32_editorial_collage': {
+        id: '32_editorial_collage',
+        name: 'Editorial Collage',
+        description: 'Flat torn-paper collage: black-and-white finance imagery, halftone textures and bold color pops around the real logo (no 3D)',
+        filename: '32_editorial_collage.png',
+        category: 'flat',
+        defaultColors: { bgColor: '#000000', elementColor: '#dbff03', accentLightColor: '#ff2d9b', lightingColor: '#00e5ff' },
+        prompt: (logoSymbol) => `A bold FLAT editorial collage cover in a torn-paper mixed-media style. This is a 2D collage, NOT 3D, NOT glass, no CGI render, no glossy reflections, no depth-of-field. High-contrast black-and-white photographic cutouts of government and finance architecture (Federal Reserve style columns, bank facades, a capitol dome, a stock exchange) arranged as ripped-paper fragments with rough torn white edges, layered over a solid background. Heavy halftone dot textures, photocopy grain, grunge scratches, ink splatters, spray-paint marks, and strips of tape and paperclips holding fragments together. The ${logoSymbol} cryptocurrency logo is the clear focal element, rendered FLAT and integrated into the collage as a large, high-contrast, distressed screen-printed graphic (cracked-concrete or riso-print texture), keeping the logo's real shape and mark clearly recognizable, NOT a 3D object and NOT glass. Bold POPS of vivid accent color as torn color-blocks, painted shapes, halftone color fields and dripping paint punctuating the composition. Gritty magazine-cover energy, strong diagonal composition, dramatic contrast, editorial finance-news mood. STRICT: flat 2D collage only, absolutely no 3D rendering, no glass, no Octane, no Cinema 4D, no bokeh. No text, no typography, no words, no numbers, no headlines. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
+      },
+
       '02_glass_banks_lime': {
         id: '02_glass_banks_lime',
         name: 'Glass Banks',

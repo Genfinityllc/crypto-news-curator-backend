@@ -61,10 +61,12 @@ async function generateCoverForResult(result, opts = {}) {
   const resp = await axios.post(FOR_ARTICLE_URL, {
     title: a.headline,
     content: `${entities}. ${(a.article_markdown || '').slice(0, 500)}`,
-    styleId: opts.styleId,
+    // opts.defaultStyle is used only when the caller did not pick a style (auto-cover).
+    styleId: opts.styleId || opts.defaultStyle,
     useSubject: opts.useSubject,
+    subject: opts.subject, // optional user-typed 3D element (glass styles only)
     xFormat: opts.xFormat || 'png',
-    bgColor: '#000000' // article covers always use a black background (styles still rotate)
+    bgColor: '#000000' // article covers always use a black background
   }, { timeout: 240000, validateStatus: (s) => s < 500 });
   if (resp.status !== 200 || !resp.data || !resp.data.success) {
     throw new Error((resp.data && resp.data.error) || 'Cover generation failed');
@@ -81,7 +83,8 @@ async function runJob(jobId, source) {
     // Auto-generate the cover so every finished rewrite arrives with one.
     try {
       jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 95 });
-      result.cover = await generateCoverForResult(result, {});
+      // Default rewrite covers to the flat Editorial Collage style.
+      result.cover = await generateCoverForResult(result, { defaultStyle: '32_editorial_collage' });
     } catch (ce) {
       logger.warn(`auto-cover failed (${jobId}): ${ce.message}`);
     }
@@ -162,8 +165,8 @@ router.post('/:jobId/cover', async (req, res) => {
     if (!job || !job.result || !job.result.article) {
       return res.status(404).json({ success: false, error: 'Completed rewrite not found' });
     }
-    const { styleId, useSubject, xFormat } = req.body || {};
-    const cover = await generateCoverForResult(job.result, { styleId, useSubject, xFormat });
+    const { styleId, useSubject, xFormat, subject } = req.body || {};
+    const cover = await generateCoverForResult(job.result, { styleId, useSubject, xFormat, subject });
     // Persist the cover onto the job result (getJob warmed the in-memory cache).
     jobService.updateJob(job.id, { result: { ...job.result, cover } });
     return res.json({ success: true, cover });
