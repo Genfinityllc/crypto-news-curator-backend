@@ -53,6 +53,11 @@ function nextLogoTreatment() {
   return v;
 }
 
+// The collage-specific prompt behaviour (composition rotation, logo-treatment
+// rotation, flat two-color inks, flat cutout subjects) applies ONLY to these
+// exact styles, never to any other style even if it shares the 'flat' category.
+const COLLAGE_STYLE_IDS = new Set(['32_editorial_collage', '32b_editorial_collage_news']);
+
 /**
  * Style Catalog Service
  *
@@ -615,7 +620,7 @@ class StyleCatalogService {
     if (customSubject && style.customSubject?.enabled) {
       const subject = customSubject.trim();
       prompt = prompt.replace('{{3D_ELEMENTS}}', subject);
-      if (style.category === 'flat') {
+      if (COLLAGE_STYLE_IDS.has(styleId)) {
         prompt += `. IMPORTANT: use ONLY these subjects as FLAT collage cutouts (not 3D objects), exactly these and no other buildings: ${subject} — separate from the main logo, each shown once at various sizes.`;
       } else {
         prompt += `. IMPORTANT 3D ELEMENTS: You MUST include multiple visible ${subject} floating around the scene as secondary 3D objects — these are separate from the main logo and must be clearly rendered at various sizes and positions.`;
@@ -632,7 +637,7 @@ class StyleCatalogService {
     // treatment, never the same frame twice. The logo-treatment line defers to
     // any story-specific treatment described in the additional instructions
     // (the Article Studio concept), so bespoke story art wins over the rotation.
-    if (style.category === 'flat') {
+    if (COLLAGE_STYLE_IDS.has(styleId)) {
       prompt += ` CRITICAL COMPOSITION OVERRIDE — this is the single most important instruction and DEFINES the layout of this specific image; follow it exactly and do NOT fall back to a symmetrical or centered arrangement, freely reposition and resize the logo away from the center as described: ${nextFlatComposition()}`;
       prompt += ` ${nextLogoTreatment()} (If the additional instructions describe a specific logo treatment or visual concept, follow THAT instead of this default.)`;
     }
@@ -708,7 +713,7 @@ class StyleCatalogService {
       // "accent lighting color" directive (which frames the second color as rim
       // glow) leaves the second color unused and only one color shows. Restate
       // both chosen colors as FLAT PRINTED INKS used in roughly equal amounts.
-      if (style.category === 'flat') {
+      if (COLLAGE_STYLE_IDS.has(styleId)) {
         const c1 = elementColor;
         const c2 = (accentLightColor && accentLightColor !== 'none') ? accentLightColor : null;
         if (c1 && c2) {
