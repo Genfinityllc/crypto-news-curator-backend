@@ -159,6 +159,28 @@ async function fetchArticleText(url) {
   }
 }
 
+// Fetch existing Genfinity articles related to the finished piece, via the
+// public WordPress REST API, so the pipeline can add real internal links (which
+// render as embedded cards on the site). Best effort: returns [] on any failure.
+async function fetchRelatedGenfinityPosts(terms, limit = 5) {
+  const q = encodeURIComponent(String(terms || '').trim().slice(0, 90));
+  if (!q) return [];
+  try {
+    const resp = await axios.get(
+      `https://genfinity.io/wp-json/wp/v2/posts?search=${q}&per_page=${limit}&_fields=title,link,excerpt`,
+      { timeout: 15000, headers: { 'User-Agent': 'GenfinityBot/1.0' }, validateStatus: s => s >= 200 && s < 400 }
+    );
+    const arr = Array.isArray(resp.data) ? resp.data : [];
+    const strip = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+    return arr
+      .map(p => ({ title: strip(p.title && p.title.rendered), url: p.link, excerpt: strip(p.excerpt && p.excerpt.rendered).slice(0, 200) }))
+      .filter(p => p.url && p.title);
+  } catch (e) {
+    logger.warn(`fetchRelatedGenfinityPosts failed: ${e.message}`);
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Prompts
 // ---------------------------------------------------------------------------
@@ -230,6 +252,18 @@ Return category scores with strengths, problems and required fixes, plus unsuppo
 
 const BRIEF_INSTRUCTIONS =
   'From the final article, produce a visual brief for a 2:1 crypto-news cover. Only include entities actually confirmed in the article. Do not invent logos.';
+
+const LINK_INSTRUCTIONS = `You add internal links to a finished Genfinity news article. You are given the article Markdown and a list of EXISTING Genfinity articles (title, URL, excerpt).
+
+Insert links that genuinely help the reader:
+- Add up to 4 INLINE anchor-text links inside existing sentences: wrap a short, relevant phrase that is ALREADY in the sentence in a Markdown link to the most on-topic Genfinity URL (for example, link a product, company, or concept name to the Genfinity article about it).
+- Additionally you MAY place at MOST ONE of the most relevant URLs on ITS OWN line as a bare URL (nothing else on that line, blank line above and below), between two paragraphs where it fits the flow, so the site renders it as an embedded card.
+
+RULES:
+- Use ONLY the provided URLs, exactly as given. Never invent, guess, or modify a URL. Link each URL at most once.
+- Only link where the target is genuinely relevant to the surrounding sentence. If none of the provided articles are relevant, return the article completely unchanged.
+- Do NOT change any wording, facts, figures, headings, order, or the disclaimer. ONLY add links. Keep the disclaimer verbatim at the very end.
+- Return the FULL article Markdown with the links added.`;
 
 // ---------------------------------------------------------------------------
 // Schemas (strict json_schema: every property required, additionalProperties false)
@@ -314,6 +348,15 @@ const AUDIT_SCHEMA = {
   },
   required: ['factual_accuracy', 'source_quality', 'seo', 'readability', 'originality', 'google_quality',
     'technical_readiness', 'unsupported_sentences', 'repetitive_sections', 'final_recommendation']
+};
+
+const LINK_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    article_markdown: { type: 'string' },
+    linked_urls: { type: 'array', items: { type: 'string' } }
+  },
+  required: ['article_markdown', 'linked_urls']
 };
 
 const BRIEF_SCHEMA = {
@@ -492,6 +535,55 @@ ${GENFINITY_DISCLAIMER}`;
   return r.parsed;
 }
 
+/**
+ * Add internal Genfinity links to the finished article. Returns { markdown,
+ * links }. Best effort: on any failure it returns the original markdown so the
+ * pipeline is never blocked by the linking step.
+ */
+async function runInternalLinking(article) {
+  const original = article.article_markdown || '';
+  try {
+    const terms = [article.focus_keyphrase, ...(article.secondary_keyphrases || []).slice(0, 2)]
+      .filter(Boolean).join(' ');
+    let related = await fetchRelatedGenfinityPosts(terms, 6);
+    // Drop any post that is essentially this same story (avoid a self-link) and
+    // cap how many we hand the model.
+    const headline = (article.headline || '').toLowerCase();
+    related = related
+      .filter(p => {
+        const t = p.title.toLowerCase();
+        return t && t !== headline && !(headline && (t.includes(headline) || headline.includes(t)));
+      })
+      .slice(0, 5);
+    if (!related.length) return { markdown: original, links: [] };
+
+    const input = `ARTICLE MARKDOWN:\n${original}\n\nEXISTING GENFINITY ARTICLES (use only these URLs):\n${related.map((p, i) => `${i + 1}. ${p.title}\n   URL: ${p.url}\n   ${p.excerpt}`).join('\n')}`;
+    const r = await callResponses({
+      model: MODELS.rewrite, // strong model: precise, no wording changes
+      instructions: LINK_INSTRUCTIONS,
+      input,
+      schema: LINK_SCHEMA,
+      schemaName: 'linked_article',
+      effort: 'low',
+      maxOutputTokens: 9000
+    });
+    const md = r.parsed && r.parsed.article_markdown;
+    // Only accept the result if it kept the article intact (no big length swing)
+    // and actually used real provided URLs.
+    const provided = new Set(related.map(p => p.url));
+    const used = (r.parsed && r.parsed.linked_urls || []).filter(u => provided.has(u));
+    const lenOk = md && Math.abs(md.length - original.length) < original.length * 0.5;
+    const disclaimerOk = md && md.includes('Disclaimer:');
+    if (md && lenOk && disclaimerOk && used.length) {
+      return { markdown: md, links: used };
+    }
+    return { markdown: original, links: [] };
+  } catch (e) {
+    logger.warn(`runInternalLinking failed: ${e.message}`);
+    return { markdown: original, links: [] };
+  }
+}
+
 async function runVisualBrief(article) {
   const r = await callResponses({
     model: MODELS.brief,
@@ -570,6 +662,14 @@ ${body}`;
   }
   const requiresHumanReview = reviewReasons.length > 0;
 
+  onProgress('linking', 'Adding internal Genfinity links', 84);
+  let internalLinks = [];
+  try {
+    const linked = await runInternalLinking(article);
+    article.article_markdown = linked.markdown;
+    internalLinks = linked.links;
+  } catch (e) { /* keep the unlinked article */ }
+
   onProgress('brief', 'Preparing the cover brief', 88);
   const visualBrief = await runVisualBrief(article);
 
@@ -584,6 +684,7 @@ ${body}`;
     requiresHumanReview,
     reviewReasons,
     visualBrief,
+    internalLinks,
     sources: verification.sources || [],
     disclaimer: GENFINITY_DISCLAIMER
   };
