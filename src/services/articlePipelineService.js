@@ -768,7 +768,7 @@ Return, as JSON:
 - concept: one vivid sentence describing the SINGLE dominant visual metaphor for THIS story. It must read as one clean, high-impact scene with a clear hero and lots of breathing room, never a busy pile of items.
 - focal_subject: the ONE hero of that metaphor, as a bold photographic cutout (an animal, person, object, or building). 2 to 5 words.
 - supporting_subjects: only 1 to 2 small supporting cutouts that reinforce the SAME single scene (return an empty list if the hero alone tells it). Concrete physical objects, each 1 to 4 words. Fewer is better; never list props just to fill space.
-- logo_treatment: one short phrase describing a CREATIVE way the crypto logo itself is used to tell THIS story, not just a flat stamp. Examples: "minted on a weathered coin leaning against a crumbling wall", "gripped and squeezed in a fist", "cracked like the surface it sits on", "the hub of a ship's wheel", "spray-stencilled on a vault door", "sealed inside a glass jar". Pick one that fits the story. 3 to 12 words.
+- logo_treatment: one short phrase describing a CREATIVE way the crypto logo itself is used to tell THIS story, not just a flat stamp, and always as a PROMINENT, clearly visible part of the hero at substantial size (never a small background detail). Examples: "minted large on a weathered coin leaning against a crumbling wall", "gripped and squeezed in a fist", "cracked like the surface it sits on", "the hub of a ship's wheel", "spray-stencilled on a vault door", "sealed inside a glass jar". Pick one that fits the story. 3 to 12 words.
 - text_elements: only 3 to 5 SHORT factual snippets pulled DIRECTLY and TRUTHFULLY from the article, each 1 to 6 words, the most striking facts only. Use real figures, names, dates, percentages, dollar amounts, share counts, and short key phrases that ACTUALLY APPEAR in the article text. Set emphasis:true for the 1 to 2 most important. Spell each exactly. Fewer, stronger clippings beat many small ones.
 - accent1, accent2: two BOLD, saturated, high-impact hex colors (for example lime "#c6ff00", hot magenta "#ff2d9b", electric cyan "#00e5ff", electric blue "#2979ff", safety orange "#ff7a00"). Do NOT choose muted, muddy, pastel, beige, tan, brown, grey, or earth-tone colors. Everything else in the art stays black and white.
 
@@ -836,7 +836,7 @@ const VISUAL_CONCEPT_INSTRUCTIONS = `You are the art director for a crypto and f
 
 Return JSON:
 - concept: one vivid sentence describing the single dominant scene for THIS headline and HOW the elements physically interact and relate to tell the story, with one clear hero and generous negative space. If the user named specific subjects, weave them into the SAME interacting scene rather than listing them separately.
-- logo_treatment: one short phrase for how the crypto logo participates in the scene (for example "the gear the bull turns", "minted on the coin against the wall", "the vault's lock").
+- logo_treatment: one short phrase for how the crypto logo participates in the scene as a PROMINENT, clearly visible part of the hero at substantial size, never a small background detail (for example "the gear the bull turns", "minted large on the coin against the wall", "the vault's lock").
 
 Keep it to ONE strong idea. Never describe a busy board of many separate items. No text or lettering in the scene.
 
