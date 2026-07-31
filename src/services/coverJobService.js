@@ -43,9 +43,23 @@ function persist(job) {
   }
 }
 
+// Keep the in-memory map bounded so long-running processes never leak memory
+// from accumulated cover jobs. Finished jobs older than the cap are dropped from
+// memory (a persisted copy still exists in storage for late polls).
+const MAX_JOBS = 250;
+function evictIfNeeded() {
+  if (jobs.size <= MAX_JOBS) return;
+  const sorted = [...jobs.values()].sort((a, b) => a.updatedAt - b.updatedAt);
+  for (const j of sorted) {
+    if (jobs.size <= MAX_JOBS) break;
+    if (j.status !== 'running') jobs.delete(j.id);
+  }
+}
+
 function createJob(meta = {}) {
   const id = newId();
   const now = Date.now();
+  evictIfNeeded();
   const job = {
     id, status: 'running', progress: 5, stepLabel: 'Starting',
     title: meta.title || '', result: null, error: null,
