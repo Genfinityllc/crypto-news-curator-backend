@@ -891,12 +891,12 @@ async function loadDynamicLogos() {
       networksCacheTime = 0;
       console.log(`📦 Loaded ${DYNAMIC_NETWORKS.length} dynamic networks and ${DYNAMIC_COMPANIES.length} dynamic companies from local file`);
     } catch (e) {
-      DYNAMIC_NETWORKS = [];
-      DYNAMIC_COMPANIES = [];
+      // Load failed: keep whatever we already have (last-good, or the initial
+      // empty arrays on first boot). Never wipe good data on a transient error,
+      // so uploaded logos never vanish from the dropdown.
     }
   } catch (error) {
-    DYNAMIC_NETWORKS = [];
-    DYNAMIC_COMPANIES = [];
+    // Same guarantee at the outer level: preserve last-good dynamic logos.
   }
 }
 

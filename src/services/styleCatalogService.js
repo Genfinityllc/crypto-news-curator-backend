@@ -2,6 +2,29 @@ const logger = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
 
+// Composition variety for the flat editorial collage. The examples share one
+// look but every one is a different composition; to guarantee that, we rotate a
+// distinct layout directive per generation (with a random start so runs are not
+// in lockstep). This is appended to the flat-style prompt and therefore applies
+// to BOTH the Cover Generator and the Article Studio news collage, since both
+// go through getStylePrompt.
+const FLAT_COMPOSITIONS = [
+  'COMPOSITION: place the hero subject as a large cutout on the RIGHT third; torn documents and clippings cascade diagonally from the upper-left; one bold accent color-block sweeps behind the subject; scatter paperclipped scraps along the bottom edge.',
+  'COMPOSITION: center the hero subject framed by tall columns of ripped clippings on both sides; run a ticker-tape strip of scraps across the bottom; a single large stamped filing sits top-left at a slight tilt.',
+  'COMPOSITION: hero subject LOWER-LEFT peering out from behind torn edges; a tall stack of layered documents rises on the RIGHT; a small jagged accent shape punches through the upper-right corner.',
+  'COMPOSITION: hero subject UPPER-RIGHT; a big diagonal accent-color band cuts across the frame from lower-left to upper-right; clippings fan out from the center like a dropped file; heavy halftone in the corners.',
+  'COMPOSITION: arrange the whole collage as a cracked grid of rectangular fragments of different sizes; the hero subject breaks through the middle, overlapping several cells; accent color appears only in two or three cells.',
+  'COMPOSITION: hero subject as a wide cutout across the LEFT half; a rusted padlock, chain, or seal crosses the middle; snippets fan out on the RIGHT at varied angles; torn white edges everywhere.',
+  'COMPOSITION: hero subject small and CENTERED inside a large torn aperture, like it is caged by surrounding paper; documents radiate outward; accent underlines mark the key figures near the edges.',
+  'COMPOSITION: dense magazine-spread layout with the hero subject anchored BOTTOM-CENTER; overlapping clippings stacked upward toward the top; one dramatic accent splash behind the headline scrap.'
+];
+let flatCompositionIndex = Math.floor(Math.random() * FLAT_COMPOSITIONS.length);
+function nextFlatComposition() {
+  const v = FLAT_COMPOSITIONS[flatCompositionIndex % FLAT_COMPOSITIONS.length];
+  flatCompositionIndex = (flatCompositionIndex + 1) % FLAT_COMPOSITIONS.length;
+  return v;
+}
+
 /**
  * Style Catalog Service
  *
@@ -574,6 +597,12 @@ class StyleCatalogService {
       prompt = prompt.replace('{{3D_ELEMENTS}}', style.customSubject.defaultSubject);
     } else {
       prompt = prompt.replace('{{3D_ELEMENTS}}', '');
+    }
+
+    // Flat collage: append a rotating composition directive so consecutive
+    // covers are visibly different layouts, never the same frame twice.
+    if (style.category === 'flat') {
+      prompt += ` ${nextFlatComposition()}`;
     }
 
     // LOGO OVERRIDES: Apply logo-specific changes BEFORE scene color overrides
