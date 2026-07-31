@@ -87,6 +87,13 @@ async function getJob(id) {
     const { data, error } = await client.storage.from(BUCKET).download(`${PREFIX}/${id}.json`);
     if (error || !data) return null;
     const job = JSON.parse(await data.text());
+    // A cache miss means this process did not run the job (it restarted). If the
+    // persisted copy still says 'running', the owning process is gone, so the job
+    // can never complete — resolve it to failed so the client stops waiting.
+    if (job.status === 'running') {
+      job.status = 'failed';
+      job.error = 'Interrupted by a server restart. Please generate again.';
+    }
     jobs.set(id, job);
     return job;
   } catch (e) {
