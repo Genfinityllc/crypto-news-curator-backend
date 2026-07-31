@@ -4,7 +4,7 @@ const axios = require('axios');
 const sharp = require('sharp');
 const logger = require('../utils/logger');
 const { detectCryptocurrency, networkToSymbol } = require('../services/cryptoDetectionService');
-const { deriveVisualSubject } = require('../services/articlePipelineService');
+const { deriveVisualSubject, deriveVisualConcept } = require('../services/articlePipelineService');
 const { getSupabaseClient } = require('../config/supabase');
 const coverJobService = require('../services/coverJobService');
 
@@ -414,7 +414,26 @@ router.post('/for-article', async (req, res) => {
  */
 async function runCoverJob(jobId, body) {
   try {
-    coverJobService.updateJob(jobId, { progress: 25, stepLabel: 'Generating' });
+    // Editorial Collage with a title: derive a bespoke interacting-metaphor
+    // concept from the title so the elements tell a story instead of being
+    // placed side by side. Scoped to the collage; other styles are untouched.
+    if (body && body.styleId === '32_editorial_collage' && body.title && String(body.title).trim()) {
+      try {
+        coverJobService.updateJob(jobId, { progress: 15, stepLabel: 'Designing concept' });
+        const rawSubj = String(body.customSubject || '').replace(/^(?:\s*[A-Z_]+\|)+/, '').trim();
+        const concept = await deriveVisualConcept({ title: body.title, subjects: rawSubj, logoSymbol: body.network });
+        if (concept && concept.concept) {
+          const conceptText = `VISUAL CONCEPT (build the entire composition from this; the elements must physically INTERACT to tell the story, not sit side by side): ${concept.concept}${concept.logo_treatment ? ` Logo treatment: ${concept.logo_treatment}.` : ''}`;
+          body.customPrompt = [body.customPrompt, conceptText].filter(Boolean).join(' ');
+          // Prepend the CONCEPT sentinel so getStylePrompt defers layout to it.
+          const existing = String(body.customSubject || '');
+          body.customSubject = existing.startsWith('CENTERED_LOGO|')
+            ? existing.replace(/^CENTERED_LOGO\|/, 'CENTERED_LOGO|CONCEPT|')
+            : `CONCEPT|${existing}`;
+        }
+      } catch (ce) { logger.warn(`concept derive failed (${jobId}): ${ce.message}`); }
+    }
+    coverJobService.updateJob(jobId, { progress: 30, stepLabel: 'Generating' });
     const data = await callGenerator(body); // throws on failure (incl. 422)
     coverJobService.updateJob(jobId, {
       status: 'completed', progress: 100, stepLabel: 'Complete', result: data

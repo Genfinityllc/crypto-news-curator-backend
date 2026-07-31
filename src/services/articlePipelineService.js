@@ -772,6 +772,8 @@ Return, as JSON:
 - text_elements: only 3 to 5 SHORT factual snippets pulled DIRECTLY and TRUTHFULLY from the article, each 1 to 6 words, the most striking facts only. Use real figures, names, dates, percentages, dollar amounts, share counts, and short key phrases that ACTUALLY APPEAR in the article text. Set emphasis:true for the 1 to 2 most important. Spell each exactly. Fewer, stronger clippings beat many small ones.
 - accent1, accent2: two hex color strings (like "#c6ff00") that suit the story's mood; everything else in the art stays black and white.
 
+AESTHETIC CONSTRAINT (critical): the scene must work as a FLAT, gritty, black-and-white PHOTOGRAPHIC torn-paper collage with halftone texture. Use ONLY physical, tangible, real-world subjects (animals, people, buildings, machines, printing presses, printed documents, coins, hands, vaults, objects). Do NOT propose glowing, neon, holographic, wireframe, circuit-board, "data stream", flowing-code, sci-fi, or 3D-digital imagery, and the logo must NEVER glow — it is a flat printed mark or a matte minted coin. Translate abstract or digital ideas into a concrete physical metaphor (for example, "onchain data feeds" becomes a printing press stamping paper ledgers, not glowing data).
+
 TRUTH RULES (critical): every text_element must be verifiable from the article text provided. If you are not certain a figure or name appears in the article, do NOT include it. Never invent, round, or estimate a number. No hashtags, no editorial labels that are not in the story, no author or publication names. Keep each snippet short enough to read on a small torn scrap.`;
 
 /**
@@ -818,10 +820,116 @@ async function deriveCoverConcept(a = {}) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Visual concept from a HEADLINE only (Cover Generator collage). No article
+// body, no text clippings; just a single interacting-metaphor scene so the
+// Cover Generator collage tells a story instead of placing cutouts side by side.
+// ---------------------------------------------------------------------------
+
+const VISUAL_CONCEPT_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: { concept: { type: 'string' }, logo_treatment: { type: 'string' } },
+  required: ['concept', 'logo_treatment']
+};
+
+const VISUAL_CONCEPT_INSTRUCTIONS = `You are the art director for a crypto and finance publication, designing ONE bold torn-paper collage cover from a news HEADLINE (you do not have the article body). The best covers tell the story through a SINGLE striking, often surreal, visual metaphor where the elements INTERACT, not a set of cutouts placed side by side. Examples of interaction: a whale sealed inside a glass jar, a bull smashing through a bank-vault door, a gear-shaped logo powering a money-printing press, a coin leaning against a crumbling wall, a hand squeezing coins until they crack.
+
+Return JSON:
+- concept: one vivid sentence describing the single dominant scene for THIS headline and HOW the elements physically interact and relate to tell the story, with one clear hero and generous negative space. If the user named specific subjects, weave them into the SAME interacting scene rather than listing them separately.
+- logo_treatment: one short phrase for how the crypto logo participates in the scene (for example "the gear the bull turns", "minted on the coin against the wall", "the vault's lock").
+
+Keep it to ONE strong idea. Never describe a busy board of many separate items. No text or lettering in the scene.
+
+AESTHETIC CONSTRAINT (critical): the scene must work as a FLAT, gritty, black-and-white PHOTOGRAPHIC torn-paper collage with halftone texture. Use ONLY physical, tangible, real-world subjects (animals, people, buildings, machines, presses, coins, hands, vaults, objects). Do NOT propose glowing, neon, holographic, wireframe, circuit-board, "data stream", flowing-code, sci-fi, or 3D-digital imagery, and the logo must NEVER glow — it is a flat printed mark or a matte minted coin. Translate any abstract or digital idea into a concrete physical metaphor.`;
+
+/**
+ * Derive a single interacting-metaphor concept from a headline (+ optional
+ * user-picked subjects and logo). Returns { concept, logo_treatment } or null.
+ */
+async function deriveVisualConcept(a = {}) {
+  try {
+    const subj = (a.subjects && String(a.subjects).trim()) ? `\nUser-picked subjects to weave into the same scene: ${a.subjects}` : '';
+    const logo = a.logoSymbol ? `\nLogo/brand present in the scene: ${a.logoSymbol}` : '';
+    const r = await callResponses({
+      model: MODELS.brief,
+      instructions: VISUAL_CONCEPT_INSTRUCTIONS,
+      input: `HEADLINE: ${a.title || ''}${subj}${logo}`,
+      schema: VISUAL_CONCEPT_SCHEMA,
+      schemaName: 'visual_concept',
+      maxOutputTokens: 700
+    });
+    const c = r.parsed;
+    if (!c) return null;
+    const clip = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ');
+    c.concept = String(c.concept || '').trim().slice(0, 400);
+    c.logo_treatment = clip(c.logo_treatment, 16);
+    return c.concept ? c : null;
+  } catch (e) {
+    logger.warn(`deriveVisualConcept failed: ${e.message}`);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SEO metadata from a pasted article (manual Article Studio entry). Fills the
+// SEO fields WITHOUT rewriting the body, so a manually entered article gets the
+// same metadata treatment as a rewrite.
+// ---------------------------------------------------------------------------
+
+const SEO_META_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    seo_title: { type: 'string' },
+    meta_description: { type: 'string' },
+    focus_keyphrase: { type: 'string' },
+    secondary_keyphrases: { type: 'array', items: { type: 'string' } },
+    categories: { type: 'array', items: { type: 'string' } },
+    tags: { type: 'array', items: { type: 'string' } },
+    slug: { type: 'string' },
+    image_alt_text: { type: 'string' },
+    image_caption: { type: 'string' }
+  },
+  required: ['seo_title', 'meta_description', 'focus_keyphrase', 'secondary_keyphrases',
+    'categories', 'tags', 'slug', 'image_alt_text', 'image_caption']
+};
+
+const SEO_META_INSTRUCTIONS = `You are an SEO editor. From the given article title and body, produce accurate WordPress SEO metadata that reflects the article's actual content. Do NOT rewrite or summarize the body; only produce metadata.
+- seo_title: 45 to 65 characters, present-tense, keyword-led, leading with the main entity and topic.
+- meta_description: 140 to 160 characters summarizing the article accurately.
+- focus_keyphrase: one natural focus keyphrase for the article.
+- secondary_keyphrases: five related keyphrases.
+- categories: 3 to 5 relevant categories.
+- tags: 5 to 10 short or long-tail tags.
+- slug: a lowercase hyphenated URL slug.
+- image_alt_text and image_caption: accurate to the article's topic.
+Base everything ONLY on the provided article; do not invent facts, numbers, or sources.`;
+
+/**
+ * Derive SEO metadata for a pasted article. Returns the metadata object, or null.
+ */
+async function deriveSeoMetadata(a = {}) {
+  try {
+    const r = await callResponses({
+      model: MODELS.brief,
+      instructions: SEO_META_INSTRUCTIONS,
+      input: `TITLE: ${a.title || ''}\n\nARTICLE:\n${(a.body || '').slice(0, 7000)}`,
+      schema: SEO_META_SCHEMA,
+      schemaName: 'seo_metadata',
+      maxOutputTokens: 1400
+    });
+    return r.parsed || null;
+  } catch (e) {
+    logger.warn(`deriveSeoMetadata failed: ${e.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   runPipeline,
   deriveVisualSubject,
   deriveCoverConcept,
+  deriveVisualConcept,
+  deriveSeoMetadata,
   // exported for testing
   articleChecks,
   hasSharedNgram,

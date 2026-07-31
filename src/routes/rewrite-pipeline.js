@@ -3,7 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 const logger = require('../utils/logger');
 const jobService = require('../services/rewriteJobService');
-const { runPipeline, deriveCoverConcept } = require('../services/articlePipelineService');
+const { runPipeline, deriveCoverConcept, deriveSeoMetadata } = require('../services/articlePipelineService');
 const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite');
 
 // Article Studio covers default to the text-enabled news collage (real factual
@@ -166,7 +166,25 @@ async function runManualJob(jobId, source) {
     requiresHumanReview: false, reviewReasons: [], visualBrief: null, sources: []
   };
   try {
-    jobService.updateJob(jobId, { step: 'concept', stepLabel: 'Designing the cover concept from your article', progress: 40 });
+    // Fill the SEO metadata fields from the pasted article (without rewriting it).
+    jobService.updateJob(jobId, { step: 'seo', stepLabel: 'Generating SEO metadata', progress: 25 });
+    try {
+      const seo = await deriveSeoMetadata({ title: source.title, body: source.content });
+      if (seo) {
+        Object.assign(result.article, {
+          seo_title: seo.seo_title || source.title,
+          meta_description: seo.meta_description || '',
+          focus_keyphrase: seo.focus_keyphrase || '',
+          secondary_keyphrases: Array.isArray(seo.secondary_keyphrases) ? seo.secondary_keyphrases : [],
+          categories: Array.isArray(seo.categories) ? seo.categories : [],
+          tags: Array.isArray(seo.tags) ? seo.tags : [],
+          slug: seo.slug || '',
+          image_alt_text: seo.image_alt_text || '',
+          image_caption: seo.image_caption || ''
+        });
+      }
+    } catch (se) { logger.warn(`manual SEO metadata failed (${jobId}): ${se.message}`); }
+    jobService.updateJob(jobId, { step: 'concept', stepLabel: 'Designing the cover concept from your article', progress: 45 });
     jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 70 });
     try {
       result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE });
