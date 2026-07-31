@@ -176,6 +176,7 @@ EDITORIAL REQUIREMENTS
 - Measured, factual, authoritative tone. Do not overstate significance.
 - Do not call something a partnership unless verified. Do not claim an outcome (efficiency, liquidity, volume, adoption, speed, engagement) unless evidence demonstrates it.
 - Label analysis as analysis. Attribute important facts. Use exact dates and technical names.
+- CRITICAL: every factual sentence must be supported by the verification report. If a claim cannot be supported, REMOVE it entirely or rewrite it as clearly labeled analysis. Never leave an unverified factual claim in the article. A shorter, fully verified article is better than a longer one with unverifiable claims. Do not tell the reader to verify anything; resolve it yourself by cutting or attributing.
 - Short paragraphs. Descriptive H2 headings. No manufactured quotes.
 - Do not reproduce more than eight consecutive non-essential words from the original.
 - Include an Official Sources section with the strongest primary sources.
@@ -429,7 +430,29 @@ async function runAudit(article, verification) {
 }
 
 async function runRevision(article, verification, audit, mechanicalFailures) {
-  const input = `Revise this article to fix the problems below, keeping ONLY facts in the verification report.\n\nARTICLE:\n${JSON.stringify(article, null, 2)}\n\nAUDIT PROBLEMS:\n${JSON.stringify({ required: audit, mechanical: mechanicalFailures }, null, 2)}\n\nVERIFICATION REPORT:\n${JSON.stringify(verification, null, 2)}\n\nREQUIRED DISCLAIMER:\n${GENFINITY_DISCLAIMER}`;
+  const unsupported = audit.unsupported_sentences || [];
+  const fixes = {
+    factual: audit.factual_accuracy.required_fixes,
+    source: audit.source_quality.required_fixes,
+    seo: audit.seo.required_fixes,
+    readability: audit.readability.required_fixes
+  };
+  const input = `Revise this article. Keep ONLY facts in the verification report.
+
+MANDATORY: the following sentences are unsupported. REMOVE each one, or rewrite it as clearly labeled analysis, so that NONE of them remain as factual claims. Resolve every one yourself by cutting or attributing. Do not ask the reader to verify anything.
+${unsupported.length ? unsupported.map((u, i) => `${i + 1}. ${u}`).join('\n') : '(none listed)'}
+
+Also apply these required fixes and fix these mechanical issues:
+${JSON.stringify({ required_fixes: fixes, mechanical: mechanicalFailures }, null, 2)}
+
+ARTICLE:
+${JSON.stringify(article, null, 2)}
+
+VERIFICATION REPORT:
+${JSON.stringify(verification, null, 2)}
+
+REQUIRED DISCLAIMER:
+${GENFINITY_DISCLAIMER}`;
   const r = await callResponses({
     model: MODELS.rewrite,
     instructions: REWRITE_PROMPT,
@@ -479,7 +502,6 @@ async function runPipeline(source, onProgress = () => {}) {
   let audit = null;
   let overall = 0;
   let mechanicalFailures = [];
-  let requiresHumanReview = false;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     onProgress('audit', `Auditing (pass ${attempt + 1})`, 60 + attempt * 8);
@@ -490,15 +512,27 @@ async function runPipeline(source, onProgress = () => {}) {
       mechanicalFailures.push('Shares a 12-word sequence with the original draft.');
     }
     if (passesGate(audit, overall, mechanicalFailures)) break;
-    if (attempt >= 2) { requiresHumanReview = true; break; }
-    onProgress('revise', `Revising to pass quality gate (attempt ${attempt + 1})`, 65 + attempt * 8);
+    if (attempt >= 2) break; // stop revising; reasons computed below
+    onProgress('revise', `Cleaning up unverified claims (pass ${attempt + 1})`, 65 + attempt * 8);
     article = await runRevision(article, verification, audit, mechanicalFailures);
   }
 
-  // Human-review flags from the pipeline method
+  // Reason-driven human-review flag. The pipeline already removes what it can
+  // (unsupported claims), so this flags only genuine, unresolved factual or
+  // legal issues and states exactly why. Style-only shortfalls (SEO/readability)
+  // do NOT flag, since they need editing, not fact-research.
+  const reviewReasons = [];
+  if (audit.unsupported_sentences && audit.unsupported_sentences.length > 0) {
+    reviewReasons.push(`${audit.unsupported_sentences.length} claim(s) could not be verified`);
+  }
+  if (audit.factual_accuracy.score < QUALITY_GATE.factual) {
+    reviewReasons.push(`factual accuracy ${audit.factual_accuracy.score} below ${QUALITY_GATE.factual}`);
+  }
   const risks = (verification.publication_risks || []).join(' ').toLowerCase();
-  if (audit.factual_accuracy.score < QUALITY_GATE.factual) requiresHumanReview = true;
-  if (/regulat|litigat|lawsuit|criminal|sec /.test(risks)) requiresHumanReview = true;
+  if (/litigat|lawsuit|criminal|indict|fraud|sanction/.test(risks)) {
+    reviewReasons.push('involves litigation, criminal, or sanctions matters');
+  }
+  const requiresHumanReview = reviewReasons.length > 0;
 
   onProgress('brief', 'Preparing the cover brief', 88);
   const visualBrief = await runVisualBrief(article);
@@ -512,6 +546,7 @@ async function runPipeline(source, onProgress = () => {}) {
     overallScore: overall,
     mechanicalFailures,
     requiresHumanReview,
+    reviewReasons,
     visualBrief,
     sources: verification.sources || [],
     disclaimer: GENFINITY_DISCLAIMER
