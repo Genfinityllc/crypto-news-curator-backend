@@ -8,20 +8,48 @@ const fs = require('fs');
 // in lockstep). This is appended to the flat-style prompt and therefore applies
 // to BOTH the Cover Generator and the Article Studio news collage, since both
 // go through getStylePrompt.
+// The "focal element" below is the logo (Cover Generator) or the hero cutout
+// subject (Article Studio news collage). Each variant dictates a DIFFERENT focal
+// placement and size (rarely centered), a different layout, and a DIFFERENT set
+// of connective/texture treatments, so no single motif (paperclips, tape,
+// halftone) becomes a standard element that appears every time.
 const FLAT_COMPOSITIONS = [
-  'COMPOSITION: place the hero subject as a large cutout on the RIGHT third; torn documents and clippings cascade diagonally from the upper-left; one bold accent color-block sweeps behind the subject; scatter paperclipped scraps along the bottom edge.',
-  'COMPOSITION: center the hero subject framed by tall columns of ripped clippings on both sides; run a ticker-tape strip of scraps across the bottom; a single large stamped filing sits top-left at a slight tilt.',
-  'COMPOSITION: hero subject LOWER-LEFT peering out from behind torn edges; a tall stack of layered documents rises on the RIGHT; a small jagged accent shape punches through the upper-right corner.',
-  'COMPOSITION: hero subject UPPER-RIGHT; a big diagonal accent-color band cuts across the frame from lower-left to upper-right; clippings fan out from the center like a dropped file; heavy halftone in the corners.',
-  'COMPOSITION: arrange the whole collage as a cracked grid of rectangular fragments of different sizes; the hero subject breaks through the middle, overlapping several cells; accent color appears only in two or three cells.',
-  'COMPOSITION: hero subject as a wide cutout across the LEFT half; a rusted padlock, chain, or seal crosses the middle; snippets fan out on the RIGHT at varied angles; torn white edges everywhere.',
-  'COMPOSITION: hero subject small and CENTERED inside a large torn aperture, like it is caged by surrounding paper; documents radiate outward; accent underlines mark the key figures near the edges.',
-  'COMPOSITION: dense magazine-spread layout with the hero subject anchored BOTTOM-CENTER; overlapping clippings stacked upward toward the top; one dramatic accent splash behind the headline scrap.'
+  'COMPOSITION A: focal element LARGE and off-center to the RIGHT third; torn documents and clippings cascade diagonally from the upper-left; one bold accent color-block sweeps behind it. Connective/texture treatment for THIS image only: a couple of paperclips, no tape, halftone concentrated in the lower-left. Do not add other connective elements.',
+  'COMPOSITION B: focal element CENTER-LEFT at medium size, breaking through a torn paper aperture; ticker-tape strips and index-card scraps stacked on the right. Connective/texture treatment for THIS image only: strips of masking tape at the corners, NO paperclips, heavy photocopy grain overall.',
+  'COMPOSITION C: focal element LOWER-LEFT and smaller than the surrounding collage; a tall stack of layered documents and a jagged chart rise on the RIGHT. Connective/texture treatment for THIS image only: torn edges ONLY, no clips and no tape, a single spray-paint accent splatter top-right.',
+  'COMPOSITION D: focal element UPPER-RIGHT; a big diagonal accent band cuts lower-left to upper-right; clippings fan out from the center like a dropped file. Connective/texture treatment for THIS image only: staples and one binder clip, grunge scratches across the frame, no paperclips.',
+  'COMPOSITION E: the whole frame is a cracked grid of rectangular fragments of different sizes; the focal element overlaps several cells slightly LEFT of center; accent appears in only two or three cells. Connective/texture treatment for THIS image only: none, just clean torn cell edges, minimal texture.',
+  'COMPOSITION F: focal element as a WIDE cutout across the LEFT half; a rusted padlock, chain, or wax seal crosses the middle; snippets fan on the RIGHT at varied angles. Connective/texture treatment for THIS image only: one length of tape and one paperclip, ink-stamp textures.',
+  'COMPOSITION G: focal element SMALL and integrated into a torn newspaper scrap near the TOP; documents radiate outward and downward. Connective/texture treatment for THIS image only: paperclips clustered in ONE corner only, a soft halftone-dot background wash, no tape.',
+  'COMPOSITION H: dense magazine-spread with the focal element anchored BOTTOM-CENTER and partly cropped by the edge; overlapping clippings stack upward. Connective/texture treatment for THIS image only: torn edges and spray paint, NO clips and NO tape, one dramatic accent splash behind a scrap.',
+  'COMPOSITION I: focal element hard against the RIGHT edge, half-cropped; a wide horizontal band of stacked clippings runs along the bottom third. Connective/texture treatment for THIS image only: masking tape crossed in an X over one scrap, gritty photocopy streaks, no paperclips.',
+  'COMPOSITION J: asymmetric, focal element in the UPPER-LEFT quadrant; large negative space of solid background in the lower-right with a single accent drip. Connective/texture treatment for THIS image only: one paperclip and torn edges, minimal texture, very high contrast.'
 ];
 let flatCompositionIndex = Math.floor(Math.random() * FLAT_COMPOSITIONS.length);
 function nextFlatComposition() {
   const v = FLAT_COMPOSITIONS[flatCompositionIndex % FLAT_COMPOSITIONS.length];
   flatCompositionIndex = (flatCompositionIndex + 1) % FLAT_COMPOSITIONS.length;
+  return v;
+}
+
+// How the logo itself is rendered. It should not always be a flat centered
+// stamp; it can be embossed on a coin, used in an action, cracked, sprayed, or
+// be the hub of a relevant object, whatever best tells the story. The rotation
+// gives the Cover Generator variety; the Article Studio concept can override it
+// with a story-specific treatment (the appended clause defers to the concept).
+const LOGO_TREATMENTS = [
+  'LOGO TREATMENT: render the logo FLAT as a large distressed screen-printed / riso graphic with cracked-concrete or torn-poster texture, integrated into a paper scrap.',
+  'LOGO TREATMENT: emboss or mint the logo onto a weathered metal COIN or medallion resting, leaning, or falling within the collage, catching a little raking light, while everything around it stays flat torn-paper.',
+  'LOGO TREATMENT: show the logo being USED IN AN ACTION that tells the story — gripped or squeezed by a hand, stamped down, chained, wrung out, or pushed — chosen to fit the article.',
+  'LOGO TREATMENT: the logo is cracked, shattered, or crumbling like the surface it sits on, signalling the story tension.',
+  'LOGO TREATMENT: the logo is spray-painted or stencilled onto a wall, crate, or torn poster inside the collage, with a few paint drips.',
+  'LOGO TREATMENT: the logo is the HUB or centerpiece of a relevant object (a wheel, vault door, gauge, seal, or jar), built into the scene rather than pasted on top.',
+  'LOGO TREATMENT: the logo rides a small flat sticker, stamp, or ticker label clipped among the document scraps, kept secondary to a larger hero subject.'
+];
+let logoTreatmentIndex = Math.floor(Math.random() * LOGO_TREATMENTS.length);
+function nextLogoTreatment() {
+  const v = LOGO_TREATMENTS[logoTreatmentIndex % LOGO_TREATMENTS.length];
+  logoTreatmentIndex = (logoTreatmentIndex + 1) % LOGO_TREATMENTS.length;
   return v;
 }
 
@@ -61,7 +89,7 @@ class StyleCatalogService {
         category: 'flat',
         customSubject: { enabled: true, placeholder: 'e.g. Federal Reserve, gavel, cash', defaultSubject: 'imagery relevant to the news topic' },
         defaultColors: { bgColor: '#000000', elementColor: '#dbff03', accentLightColor: '#ff2d9b', lightingColor: '#00e5ff' },
-        prompt: (logoSymbol) => `A bold FLAT editorial collage cover in a torn-paper mixed-media style. This is a 2D collage, NOT 3D, NOT glass, no CGI render, no glossy reflections, no depth-of-field. High-contrast black-and-white photographic cutouts of {{3D_ELEMENTS}} (use ONLY these named subjects for the photographic building/subject cutouts, exactly as many as are named, and do NOT add any other buildings or extra buildings), supported by abstract textures and shapes relevant to the news topic described in the additional instructions, arranged as ripped-paper fragments with rough torn white edges over a solid background. Use a VARIED mix of subjects: each distinct subject appears AT MOST ONCE, never repeat the same element, and do not fill the frame with copies of one thing. If no subjects are named, choose imagery that fits the news topic (this is not always about government buildings). Heavy halftone dot textures, photocopy grain, grunge scratches, ink splatters, spray-paint marks, and strips of tape and paperclips holding fragments together. The ${logoSymbol} cryptocurrency logo is the clear focal element, rendered FLAT and integrated into the collage as a large, high-contrast, distressed screen-printed graphic (cracked-concrete or riso-print texture), keeping the logo's real shape and mark clearly recognizable, NOT a 3D object and NOT glass. TWO-COLOR RULE: use ONLY the two accent colors provided (the element color and the accent color) as the color pops, applied as torn color-blocks, painted shapes, halftone color fields and dripping paint; every other part of the image (all photographic cutouts, textures, paper, tape, splatters, and the logo) is BLACK AND WHITE / grayscale, with no other hues. The collage must thematically reflect the specific news topic described in the additional instructions. Gritty magazine-cover energy, strong diagonal composition, dramatic contrast, editorial finance-news mood. STRICT: flat 2D collage only, absolutely no 3D rendering, no glass, no Octane, no Cinema 4D, no bokeh. Absolutely NO text, NO typography, NO words, NO numbers, NO letters, NO headlines anywhere in the image. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
+        prompt: (logoSymbol) => `A bold editorial COLLAGE cover in a gritty torn-paper mixed-media style, like clipped newspaper and document scraps. The collage sheets, backgrounds and textures are FLAT 2D print, not glossy CGI, not glass, no bokeh; the focal element MAY carry limited dimensional rendering (for example embossed on a coin or shown as an object) but the overall look stays a distressed print collage, never a slick 3D product render. High-contrast black-and-white photographic cutouts of {{3D_ELEMENTS}} (use ONLY these named subjects, exactly as many as are named, and do NOT add any other buildings or extra subjects), plus torn documents, ledgers, charts and abstract textures relevant to the news topic in the additional instructions, arranged as ripped-paper fragments with rough torn white edges over a solid background. Each distinct subject appears AT MOST ONCE, never repeat the same element. If no subjects are named, choose imagery that fits the news topic (this is not always about government buildings). The ${logoSymbol} cryptocurrency logo appears exactly ONCE and stays clearly recognizable with its real shape and mark; its placement, size and treatment follow the COMPOSITION and LOGO TREATMENT directives below, so do NOT default to a large dead-center flat logo. Collage textures (halftone, photocopy grain, grunge, ink, spray paint) and connective elements (torn edges, tape, paperclips, staples, seals) are used SELECTIVELY exactly as the COMPOSITION directive specifies, never all at once and never the same combination twice; do NOT treat paperclips or tape as a standard element in every image. TWO-COLOR RULE: use ONLY the two accent colors provided as FLAT color pops (torn color-blocks, painted shapes, halftone fields, spray marks); every other part of the image is BLACK AND WHITE / grayscale, with no other hues. The collage must thematically TELL the specific news story described in the additional instructions. Gritty investigative magazine energy, strong ASYMMETRIC composition, dramatic contrast. Absolutely NO text, NO typography, NO words, NO numbers, NO letters, NO headlines anywhere in the image. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
       },
 
       // INTERNAL (hidden from the Cover Generator picker): the Article Studio
@@ -78,7 +106,7 @@ class StyleCatalogService {
         internal: true,
         customSubject: { enabled: true, placeholder: 'e.g. Shiba Inu, padlock, stock certificate', defaultSubject: 'imagery relevant to the news topic' },
         defaultColors: { bgColor: '#000000', elementColor: '#c6ff00', accentLightColor: '#ff3b30', lightingColor: '#00e5ff' },
-        prompt: (logoSymbol) => `A bold FLAT investigative editorial collage cover in a torn-paper mixed-media style, like clipped newspaper and legal-document scraps pinned to a black board. This is a 2D collage, NOT 3D, NOT glass, no CGI render, no glossy reflections, no depth-of-field. High-contrast black-and-white photographic cutouts of {{3D_ELEMENTS}} (use ONLY these named subjects, exactly as many as are named, do NOT add other buildings or extra subjects), supported by torn financial documents, stamped filings, ledgers, ticker strips and abstract textures relevant to the news topic in the additional instructions, arranged as ripped-paper fragments with rough torn white edges over a solid background. Use a VARIED mix of subjects: each distinct subject appears AT MOST ONCE, never repeat the same element. Heavy halftone dot textures, photocopy grain, grunge scratches, ink stamps, official seals, and strips of tape and paperclips holding fragments together. The ${logoSymbol} cryptocurrency logo is a clear focal element, rendered FLAT and integrated into the collage as a large, high-contrast, distressed screen-printed graphic, keeping the logo's real shape and mark clearly recognizable, NOT a 3D object and NOT glass. TEXT CLIPPINGS: integrate the short factual phrases listed in the additional instructions as REAL, LEGIBLE text, each phrase on its own torn scrap of aged paper (newspaper clipping, ticker label, stamped document snippet, index card), taped or paperclipped into the collage at varied angles and sizes, in a mix of serif newspaper and typewriter or stencil fonts. Spell every provided phrase EXACTLY as given with correct characters and digits, no misspellings, no invented extra words or numbers, and add NO other text beyond the phrases provided. TWO-COLOR RULE: use ONLY the two accent colors provided as the color pops (torn color-blocks, painted shapes, halftone fields, and hand-drawn marker underlines or highlights on the one or two most important figures); every other part of the image, including all photographic cutouts, paper, tape, textures, the logo, and all body text, is BLACK AND WHITE / grayscale with no other hues. The collage must thematically reflect the specific news story described in the additional instructions. Gritty investigative magazine-cover energy, strong diagonal composition, dramatic contrast. STRICT: flat 2D collage only, absolutely no 3D rendering, no glass, no Octane, no Cinema 4D, no bokeh. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
+        prompt: (logoSymbol) => `A bold investigative editorial COLLAGE cover in a gritty torn-paper mixed-media style, like clipped newspaper and legal-document scraps pinned to a board. The collage sheets, backgrounds and textures are FLAT 2D print, not glossy CGI, not glass, no bokeh; the focal element or hero cutout MAY carry limited dimensional rendering (a coin, an object, a hand using it) but the overall look stays a distressed print collage, never a slick 3D product render. High-contrast black-and-white photographic cutouts of {{3D_ELEMENTS}} (use ONLY these named subjects, exactly as many as are named, do NOT add other buildings or extra subjects), plus torn financial documents, stamped filings, ledgers, ticker strips and abstract textures relevant to the news topic in the additional instructions, arranged as ripped-paper fragments with rough torn white edges over a solid background. Each distinct subject appears AT MOST ONCE, never repeat the same element. The ${logoSymbol} cryptocurrency logo appears exactly ONCE and stays clearly recognizable with its real shape and mark; its placement, size and treatment follow the COMPOSITION and LOGO TREATMENT directives below, so do NOT default to a large dead-center flat logo. Collage textures (halftone, photocopy grain, grunge, ink stamps, seals) and connective elements (torn edges, tape, paperclips, staples) are used SELECTIVELY exactly as the COMPOSITION directive specifies, never all at once and never the same combination twice; do NOT treat paperclips or tape as a standard element in every image. TEXT CLIPPINGS: integrate the short factual phrases listed in the additional instructions as REAL, LEGIBLE text, each phrase on its own torn scrap of aged paper (newspaper clipping, ticker label, stamped document snippet, index card), placed into the collage at varied angles and sizes, in a mix of serif newspaper and typewriter or stencil fonts. Spell every provided phrase EXACTLY as given with correct characters and digits, no misspellings, no invented extra words or numbers, and add NO other text beyond the phrases provided. TWO-COLOR RULE: use ONLY the two accent colors provided as FLAT color pops (torn color-blocks, painted shapes, halftone fields, and hand-drawn marker underlines or highlights on the one or two most important figures); every other part of the image, including all photographic cutouts, paper, textures, the logo, and all body text, is BLACK AND WHITE / grayscale with no other hues. The collage must thematically TELL the specific news story described in the additional instructions. Gritty investigative magazine energy, strong ASYMMETRIC composition, dramatic contrast. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
       },
 
       '02_glass_banks_lime': {
@@ -599,10 +627,14 @@ class StyleCatalogService {
       prompt = prompt.replace('{{3D_ELEMENTS}}', '');
     }
 
-    // Flat collage: append a rotating composition directive so consecutive
-    // covers are visibly different layouts, never the same frame twice.
+    // Flat collage: append a rotating composition + logo-treatment directive so
+    // consecutive covers are visibly different layouts with a different logo
+    // treatment, never the same frame twice. The logo-treatment line defers to
+    // any story-specific treatment described in the additional instructions
+    // (the Article Studio concept), so bespoke story art wins over the rotation.
     if (style.category === 'flat') {
       prompt += ` ${nextFlatComposition()}`;
+      prompt += ` ${nextLogoTreatment()} (If the additional instructions describe a specific logo treatment or visual concept, follow THAT instead of this default.)`;
     }
 
     // LOGO OVERRIDES: Apply logo-specific changes BEFORE scene color overrides
@@ -670,6 +702,20 @@ class StyleCatalogService {
       const directivesFragment = this.buildColorDirectives(colorOverrides);
       if (directivesFragment) {
         prompt += `. IMPORTANT: ${directivesFragment}.`;
+      }
+
+      // FLAT COLLAGE color fix: this style has no lighting/glow, so the generic
+      // "accent lighting color" directive (which frames the second color as rim
+      // glow) leaves the second color unused and only one color shows. Restate
+      // both chosen colors as FLAT PRINTED INKS used in roughly equal amounts.
+      if (style.category === 'flat') {
+        const c1 = elementColor;
+        const c2 = (accentLightColor && accentLightColor !== 'none') ? accentLightColor : null;
+        if (c1 && c2) {
+          prompt += ` STRICT TWO-COLOR PALETTE for this flat collage: the ONLY chromatic colors in the entire image are ${c1} and ${c2}. These are FLAT PRINTED INKS (torn color-blocks, painted shapes, halftone fields, spray marks, marker underlines), NOT lighting or glow. Use BOTH colors prominently and in roughly equal amounts. Everything else is pure grayscale black and white. Do not introduce any third color.`;
+        } else if (c1) {
+          prompt += ` STRICT: the ONLY chromatic color in this flat collage is ${c1}, used as a flat printed ink; everything else is grayscale. It is not lighting or glow.`;
+        }
       }
     }
 

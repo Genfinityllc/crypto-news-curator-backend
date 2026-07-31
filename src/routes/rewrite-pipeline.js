@@ -83,7 +83,7 @@ async function generateCoverForResult(result, opts = {}) {
       facts
     });
     if (c) {
-      concept = c.concept;
+      concept = [c.concept, c.logo_treatment ? `Logo treatment: ${c.logo_treatment}.` : ''].filter(Boolean).join(' ');
       textElements = c.text_elements;
       if (!subject) subject = [c.focal_subject, ...(c.supporting_subjects || [])].filter(Boolean).join(', ');
       if (!paletteColors && c.accent1 && c.accent2) paletteColors = [c.accent1, c.accent2];

@@ -646,6 +646,7 @@ const CONCEPT_SCHEMA = {
     concept: { type: 'string' },
     focal_subject: { type: 'string' },
     supporting_subjects: { type: 'array', items: { type: 'string' } },
+    logo_treatment: { type: 'string' },
     text_elements: {
       type: 'array',
       items: {
@@ -657,7 +658,7 @@ const CONCEPT_SCHEMA = {
     accent1: { type: 'string' },
     accent2: { type: 'string' }
   },
-  required: ['concept', 'focal_subject', 'supporting_subjects', 'text_elements', 'accent1', 'accent2']
+  required: ['concept', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements', 'accent1', 'accent2']
 };
 
 const CONCEPT_INSTRUCTIONS = `You are the art director for a crypto and finance news publication. Design ONE editorial torn-paper collage cover concept for the specific article provided, in the style of investigative newspaper and legal-document clippings pinned to a black board.
@@ -666,6 +667,7 @@ Return, as JSON:
 - concept: one sentence describing the single strongest visual metaphor for THIS story (for example, a Shiba Inu behind bars made of stock certificates for a story about a Dogecoin treasury firm's pledged-away shares).
 - focal_subject: the one hero subject rendered as a black-and-white photographic cutout (an animal, person, object, or building central to the story). 2 to 5 words.
 - supporting_subjects: 2 to 5 supporting photographic cutout objects that reinforce the story (a padlock, a chain, a torn SEC filing, a stock certificate, a rubber stamp, a downward chart). Concrete physical objects only, each 1 to 4 words.
+- logo_treatment: one short phrase describing a CREATIVE way the crypto logo itself is used to tell THIS story, not just a flat stamp. Examples: "minted on a weathered coin leaning against a crumbling wall", "gripped and squeezed in a fist", "cracked like the surface it sits on", "the hub of a ship's wheel", "spray-stencilled on a vault door", "sealed inside a glass jar". Pick one that fits the story. 3 to 12 words.
 - text_elements: 4 to 8 SHORT factual snippets pulled DIRECTLY and TRUTHFULLY from the article, each 1 to 6 words, to be rendered as torn clippings. Use only real figures, names, dates, percentages, dollar amounts, share counts, and short key phrases that ACTUALLY APPEAR in the article text. Set emphasis:true for the 1 to 3 most striking figures. Spell each exactly as it should appear on the cover.
 - accent1, accent2: two hex color strings (like "#c6ff00") that suit the story's mood; everything else in the art stays black and white.
 
@@ -697,6 +699,7 @@ async function deriveCoverConcept(a = {}) {
     // Sanitize: trim, cap counts, drop empties, keep text snippets short.
     const clip = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ');
     c.focal_subject = clip(c.focal_subject, 6);
+    c.logo_treatment = clip(c.logo_treatment, 14);
     c.supporting_subjects = (c.supporting_subjects || [])
       .map(s => clip(s, 4)).filter(Boolean).slice(0, 5);
     c.text_elements = (c.text_elements || [])
