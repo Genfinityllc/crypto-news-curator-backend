@@ -64,7 +64,8 @@ async function generateCoverForResult(result, opts = {}) {
     // opts.defaultStyle is used only when the caller did not pick a style (auto-cover).
     styleId: opts.styleId || opts.defaultStyle,
     useSubject: opts.useSubject,
-    subject: opts.subject, // optional user-typed 3D element (glass styles only)
+    subject: opts.subject, // typed 3D element (glass) or extra collage subject (flat)
+    buildings: opts.buildings, // picked buildings for the flat collage style
     xFormat: opts.xFormat || 'png',
     bgColor: '#000000' // article covers always use a black background
   }, { timeout: 240000, validateStatus: (s) => s < 500 });
@@ -165,8 +166,8 @@ router.post('/:jobId/cover', async (req, res) => {
     if (!job || !job.result || !job.result.article) {
       return res.status(404).json({ success: false, error: 'Completed rewrite not found' });
     }
-    const { styleId, useSubject, xFormat, subject } = req.body || {};
-    const cover = await generateCoverForResult(job.result, { styleId, useSubject, xFormat, subject });
+    const { styleId, useSubject, xFormat, subject, buildings } = req.body || {};
+    const cover = await generateCoverForResult(job.result, { styleId, useSubject, xFormat, subject, buildings });
     // Persist the cover onto the job result (getJob warmed the in-memory cache).
     jobService.updateJob(job.id, { result: { ...job.result, cover } });
     return res.json({ success: true, cover });

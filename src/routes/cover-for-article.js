@@ -215,7 +215,7 @@ async function uploadXReady(buffer, contentType, ext) {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -240,11 +240,12 @@ router.post('/for-article', async (req, res) => {
     // styleId, so only rotate a curated style when NOT using a reference.
     const chosenStyle = usingReference ? null : (styleId || await nextStyleId());
 
-    // Subject to fill the style's 3D-element slot (customSubject). Optional via
-    // useSubject (default on). A caller-supplied `subject` string takes priority;
-    // otherwise it is auto-derived from the article. Off falls back to the
-    // style's own default subject. (Flat styles ignore customSubject entirely.)
-    const wantSubject = useSubject !== false;
+    const isCollage = chosenStyle === '32_editorial_collage';
+
+    // Glass styles: fill the {{3D_ELEMENTS}} slot (customSubject). A caller
+    // `subject` wins, else auto-derive. The flat collage ignores customSubject,
+    // so we skip the derive call for it.
+    const wantSubject = useSubject !== false && !isCollage;
     let visualSubject = null;
     if (wantSubject && chosenStyle) {
       if (subject && typeof subject === 'string' && subject.trim()) {
@@ -253,6 +254,20 @@ router.post('/for-article', async (req, res) => {
         visualSubject = await deriveVisualSubject(title, content);
       }
     }
+
+    // Flat collage: imagery comes from optional picked buildings + optional typed
+    // subjects, plus the article theme (mandatory). Passed via customPrompt.
+    let collageDirective = '';
+    if (isCollage) {
+      const items = [];
+      if (Array.isArray(buildings)) items.push(...buildings.filter(b => typeof b === 'string' && b.trim()).slice(0, 4).map(b => b.trim()));
+      if (subject && typeof subject === 'string' && subject.trim()) items.push(subject.trim());
+      if (items.length) collageDirective += ` Build the collage imagery from these subjects, each shown at most once, varied, no repeats: ${items.join(', ')}.`;
+      if (title) collageDirective += ` Thematically reflect this specific news topic, without rendering any text or words: ${title}.`;
+      collageDirective = collageDirective.trim();
+    }
+
+    const coverCustomPrompt = [bgDirective, collageDirective].filter(Boolean).join(' ');
 
     let generated = null;
     let mode = null;
@@ -268,7 +283,7 @@ router.post('/for-article', async (req, res) => {
         ...(chosenStyle ? { styleId: chosenStyle } : {}),
         ...(visualSubject ? { customSubject: visualSubject } : {}),
         ...bgFields,
-        ...(bgDirective ? { customPrompt: bgDirective } : {})
+        ...(coverCustomPrompt ? { customPrompt: coverCustomPrompt } : {})
       };
       try {
         generated = await callGenerator(logoBody);
@@ -290,7 +305,7 @@ router.post('/for-article', async (req, res) => {
         title: title || '',
         referenceImageUrls: refUrls,
         referenceMode: 'style_reference',
-        customPrompt: [title ? `Editorial crypto news cover reflecting: ${title}` : '', bgDirective].filter(Boolean).join(' '),
+        customPrompt: [coverCustomPrompt, (!isCollage && title) ? `Editorial crypto news cover reflecting: ${title}` : ''].filter(Boolean).join(' '),
         ...(chosenStyle ? { styleId: chosenStyle } : {}),
         ...(visualSubject ? { customSubject: visualSubject } : {}),
         ...bgFields
