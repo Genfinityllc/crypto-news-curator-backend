@@ -175,4 +175,40 @@ function publicView(job) {
   };
 }
 
-module.exports = { createJob, updateJob, getJob, listJobs, publicView, summaryView };
+// Recover jobs orphaned by a server restart. A 'running' job lives in the
+// process; if the process restarts (deploy/crash) mid-run, the pipeline dies and
+// the job can never complete. Any 'running' job with no update for a while is
+// flipped to 'failed' with a clear message, instead of hanging at "running"
+// forever. A real run updates every stage, so a long silence means it died.
+const STALE_MS = 8 * 60 * 1000;
+const INTERRUPTED = 'Interrupted by a server restart. Please run the rewrite again.';
+
+async function sweepStaleJobs() {
+  const now = Date.now();
+  for (const job of jobs.values()) {
+    if (job.status === 'running' && (now - job.updatedAt) > STALE_MS) {
+      job.status = 'failed';
+      job.error = INTERRUPTED;
+      job.updatedAt = now;
+      persist(job, false);
+    }
+  }
+  const client = getSupabaseClient();
+  if (!client) return;
+  try {
+    const cutoff = new Date(now - STALE_MS).toISOString();
+    await client.from(TABLE)
+      .update({ status: 'failed', error: INTERRUPTED, updated_at: new Date(now).toISOString() })
+      .eq('status', 'running')
+      .lt('updated_at', cutoff);
+  } catch (e) {
+    logger.warn(`sweepStaleJobs failed: ${e.message}`);
+  }
+}
+
+// Sweep shortly after boot (clears jobs orphaned by the restart that just
+// happened) and periodically thereafter. Guarded so it never crashes the process.
+setTimeout(() => { sweepStaleJobs().catch(() => {}); }, 20000);
+setInterval(() => { sweepStaleJobs().catch(() => {}); }, 4 * 60 * 1000);
+
+module.exports = { createJob, updateJob, getJob, listJobs, publicView, summaryView, sweepStaleJobs };
