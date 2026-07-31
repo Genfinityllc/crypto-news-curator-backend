@@ -47,7 +47,9 @@ async function nextStyleId() {
       const resp = await axios.get(STYLE_CATALOG_URL, { timeout: 15000 });
       const data = resp.data || {};
       const list = Array.isArray(data) ? data : (data.styles || data.data || data.catalog || []);
-      STYLE_IDS = list.map(s => s && (s.id || s.styleId || s.slug)).filter(Boolean);
+      // Exclude internal styles (e.g. the text-enabled news collage) from the
+      // no-reference rotation; they render text and are only requested explicitly.
+      STYLE_IDS = list.filter(s => s && !s.internal).map(s => s.id || s.styleId || s.slug).filter(Boolean);
     }
     if (!STYLE_IDS || STYLE_IDS.length === 0) return null;
     const id = STYLE_IDS[styleRotationIndex % STYLE_IDS.length];
@@ -237,7 +239,7 @@ async function uploadXReady(buffer, contentType, ext) {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors, textElements, concept } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -262,11 +264,15 @@ router.post('/for-article', async (req, res) => {
     // styleId, so only rotate a curated style when NOT using a reference.
     const chosenStyle = usingReference ? null : (styleId || await nextStyleId());
 
-    const isCollage = chosenStyle === '32_editorial_collage';
+    // The Article-Studio news collage renders real factual text clippings; the
+    // plain collage (Cover Generator) never does. Both share the flat layout,
+    // palette and subject handling.
+    const isCollageNews = chosenStyle === '32b_editorial_collage_news';
+    const isCollage = chosenStyle === '32_editorial_collage' || isCollageNews;
 
     // Glass styles: fill the {{3D_ELEMENTS}} slot (customSubject). A caller
-    // `subject` wins, else auto-derive. The flat collage ignores customSubject,
-    // so we skip the derive call for it.
+    // `subject` wins, else auto-derive. The collage fills the same slot from its
+    // picked buildings + subjects instead (below), so skip the glass derive here.
     const wantSubject = useSubject !== false && !isCollage;
     let visualSubject = null;
     if (wantSubject && chosenStyle) {
@@ -277,15 +283,37 @@ router.post('/for-article', async (req, res) => {
       }
     }
 
-    // Flat collage: imagery comes from optional picked buildings + optional typed
-    // subjects, plus the article theme (mandatory). Passed via customPrompt.
+    // Flat collage: subjects (picked buildings + typed/focal subjects) fill the
+    // {{3D_ELEMENTS}} slot via customSubject, unified with the Cover Generator
+    // path. The article theme, the bespoke concept, and the truthful text
+    // clippings (news style only) go through customPrompt.
     let collageDirective = '';
     if (isCollage) {
       const items = [];
       if (Array.isArray(buildings)) items.push(...buildings.filter(b => typeof b === 'string' && b.trim()).slice(0, 4).map(b => b.trim()));
       if (subject && typeof subject === 'string' && subject.trim()) items.push(subject.trim());
-      if (items.length) collageDirective += ` Build the collage imagery using ONLY these subjects, exactly these and no other buildings, each shown once: ${items.join(', ')}.`;
-      if (title) collageDirective += ` Thematically reflect this specific news topic, without rendering any text or words: ${title}.`;
+      if (items.length) visualSubject = items.join(', ');
+
+      if (isCollageNews && concept && typeof concept === 'string' && concept.trim()) {
+        collageDirective += ` Overall visual concept for this cover: ${concept.trim()}.`;
+      }
+      if (title) {
+        collageDirective += isCollageNews
+          ? ` The story is: ${title}.`
+          : ` Thematically reflect this specific news topic, without rendering any text or words: ${title}.`;
+      }
+      if (isCollageNews && Array.isArray(textElements) && textElements.length) {
+        const norm = textElements
+          .map(e => (typeof e === 'string' ? { text: e, emphasis: false } : e))
+          .filter(e => e && e.text && String(e.text).trim())
+          .slice(0, 8);
+        if (norm.length) {
+          const phrases = norm.map(e => `"${String(e.text).trim()}"`).join(', ');
+          collageDirective += ` Render EXACTLY these short factual text clippings, each on its own torn paper scrap, spelled exactly as written and adding no other text: ${phrases}.`;
+          const emph = norm.filter(e => e.emphasis).map(e => `"${String(e.text).trim()}"`);
+          if (emph.length) collageDirective += ` Highlight or underline these key figures in an accent color: ${emph.join(', ')}.`;
+        }
+      }
       collageDirective = collageDirective.trim();
 
       // Two-accent-color palette: custom pair or a rotating preset. Black bg + 2 pops, rest B&W.

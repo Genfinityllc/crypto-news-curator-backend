@@ -3,8 +3,12 @@ const axios = require('axios');
 const router = express.Router();
 const logger = require('../utils/logger');
 const jobService = require('../services/rewriteJobService');
-const { runPipeline } = require('../services/articlePipelineService');
+const { runPipeline, deriveCoverConcept } = require('../services/articlePipelineService');
 const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite');
+
+// Article Studio covers default to the text-enabled news collage (real factual
+// clippings pulled from the article). The Cover Generator tab never uses it.
+const NEWS_COLLAGE_STYLE = '32b_editorial_collage_news';
 
 const FOR_ARTICLE_URL = `http://localhost:${process.env.PORT || 3001}/api/cover-generator/for-article`;
 
@@ -58,14 +62,44 @@ async function generateCoverForResult(result, opts = {}) {
   const a = result.article || {};
   const brief = result.visualBrief || {};
   const entities = (brief.primary_entities || []).join(', ');
+
+  // Resolve the style. Article Studio defaults to the text-enabled news collage.
+  const styleId = opts.styleId || opts.defaultStyle || NEWS_COLLAGE_STYLE;
+  const isNews = styleId === NEWS_COLLAGE_STYLE;
+
+  // For the news collage, derive a bespoke design concept + truthful text
+  // clippings from the verified article (unless the caller already supplied
+  // them, e.g. a re-render with edited overlays). This is what makes each
+  // Article Studio cover a unique graphic keyed to the story.
+  let concept = opts.concept || null;
+  let textElements = opts.textElements || null;
+  let subject = opts.subject;
+  let paletteColors = opts.paletteColors;
+  if (isNews && !concept && !textElements) {
+    const facts = (result.verification && result.verification.confirmed_facts) || [];
+    const c = await deriveCoverConcept({
+      title: a.headline || a.seo_title,
+      body: a.article_markdown || '',
+      facts
+    });
+    if (c) {
+      concept = c.concept;
+      textElements = c.text_elements;
+      if (!subject) subject = [c.focal_subject, ...(c.supporting_subjects || [])].filter(Boolean).join(', ');
+      if (!paletteColors && c.accent1 && c.accent2) paletteColors = [c.accent1, c.accent2];
+    }
+  }
+
   const resp = await axios.post(FOR_ARTICLE_URL, {
     title: a.headline,
     content: `${entities}. ${(a.article_markdown || '').slice(0, 500)}`,
-    // opts.defaultStyle is used only when the caller did not pick a style (auto-cover).
-    styleId: opts.styleId || opts.defaultStyle,
+    styleId,
     useSubject: opts.useSubject,
-    subject: opts.subject, // typed 3D element (glass) or extra collage subject (flat)
+    subject, // focal + supporting subjects (flat) or typed 3D element (glass)
     buildings: opts.buildings, // picked buildings for the flat collage style
+    concept, // bespoke visual concept (news collage only)
+    textElements, // truthful factual clippings (news collage only)
+    paletteColors, // [accent1, accent2] from the concept, or a caller preset
     xFormat: opts.xFormat || 'png',
     bgColor: '#000000' // article covers always use a black background
   }, { timeout: 240000, validateStatus: (s) => s < 500 });
@@ -73,7 +107,11 @@ async function generateCoverForResult(result, opts = {}) {
     throw new Error((resp.data && resp.data.error) || 'Cover generation failed');
   }
   const d = resp.data;
-  return { imageUrl: d.imageUrl, xReadyUrl: d.xReadyUrl, symbolUsed: d.symbolUsed, styleUsed: d.styleUsed, subjectUsed: d.subjectUsed, mode: d.mode };
+  return {
+    imageUrl: d.imageUrl, xReadyUrl: d.xReadyUrl, symbolUsed: d.symbolUsed,
+    styleUsed: d.styleUsed, subjectUsed: d.subjectUsed, mode: d.mode,
+    concept, textElements // surface what was rendered so the UI can show it
+  };
 }
 
 async function runJob(jobId, source) {
@@ -83,9 +121,9 @@ async function runJob(jobId, source) {
     });
     // Auto-generate the cover so every finished rewrite arrives with one.
     try {
-      jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 95 });
-      // Default rewrite covers to the flat Editorial Collage style.
-      result.cover = await generateCoverForResult(result, { defaultStyle: '32_editorial_collage' });
+      jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Designing concept and generating cover', progress: 95 });
+      // Rewrite covers use the text-enabled news collage with truthful clippings.
+      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE });
     } catch (ce) {
       logger.warn(`auto-cover failed (${jobId}): ${ce.message}`);
     }
@@ -109,6 +147,61 @@ async function runJob(jobId, source) {
     }
   }
 }
+
+/**
+ * Manual cover job: the user pastes their OWN title + article (not a rewrite),
+ * and we run only the cover process on it (concept + truthful text clippings +
+ * generate). No fact-check, no rewrite; the pasted text is treated as the final
+ * article. The job shows up in the shared Article Studio list like any other.
+ */
+async function runManualJob(jobId, source) {
+  const result = {
+    manual: true,
+    article: {
+      seo_title: source.title, headline: source.title, subheadline: '', slug: '',
+      meta_description: '', focus_keyphrase: '', secondary_keyphrases: [], categories: [], tags: [],
+      article_markdown: source.content, official_sources: [], image_alt_text: '', image_caption: ''
+    },
+    verification: null, audit: null, overallScore: null, mechanicalFailures: [],
+    requiresHumanReview: false, reviewReasons: [], visualBrief: null, sources: []
+  };
+  try {
+    jobService.updateJob(jobId, { step: 'concept', stepLabel: 'Designing the cover concept from your article', progress: 40 });
+    jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 70 });
+    try {
+      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE });
+    } catch (ce) {
+      logger.warn(`manual auto-cover failed (${jobId}): ${ce.message}`);
+    }
+    jobService.updateJob(jobId, { status: 'completed', progress: 100, step: 'done', stepLabel: 'Complete', result });
+  } catch (e) {
+    logger.error(`manual job failed (${jobId}): ${e.message}`);
+    jobService.updateJob(jobId, { status: 'failed', error: e.message, result });
+  }
+}
+
+/**
+ * POST /api/rewrite-pipeline/manual
+ * Body: { title, content }
+ * Runs the cover process on a pasted article (no rewrite). Returns { success, jobId }.
+ */
+router.post('/manual', async (req, res) => {
+  try {
+    const { title, content } = req.body || {};
+    if (!title || !content) {
+      return res.status(400).json({ success: false, error: 'title and content are required' });
+    }
+    const job = jobService.createJob({ title });
+    runManualJob(job.id, { title: String(title), content: String(content) }).catch((e) => {
+      logger.error(`manual job ${job.id} crashed: ${e.message}`);
+      jobService.updateJob(job.id, { status: 'failed', error: e.message });
+    });
+    return res.json({ success: true, jobId: job.id });
+  } catch (error) {
+    logger.error(`rewrite-pipeline manual failed: ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * POST /api/rewrite-pipeline/start

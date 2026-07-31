@@ -631,9 +631,92 @@ async function deriveVisualSubject(title, content = '') {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Cover concept: a bespoke, per-article art-direction pass for the Article
+// Studio covers. Unlike deriveVisualSubject (one glass object), this produces a
+// full investigative-collage concept AND short factual text clippings pulled
+// truthfully from the article, to be rendered onto the cover as torn-paper
+// snippets (like the CleanCore / DOGE example). This is Article-Studio-only; the
+// Cover Generator tab never runs it and stays textless.
+// ---------------------------------------------------------------------------
+
+const CONCEPT_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    concept: { type: 'string' },
+    focal_subject: { type: 'string' },
+    supporting_subjects: { type: 'array', items: { type: 'string' } },
+    text_elements: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: false,
+        properties: { text: { type: 'string' }, emphasis: { type: 'boolean' } },
+        required: ['text', 'emphasis']
+      }
+    },
+    accent1: { type: 'string' },
+    accent2: { type: 'string' }
+  },
+  required: ['concept', 'focal_subject', 'supporting_subjects', 'text_elements', 'accent1', 'accent2']
+};
+
+const CONCEPT_INSTRUCTIONS = `You are the art director for a crypto and finance news publication. Design ONE editorial torn-paper collage cover concept for the specific article provided, in the style of investigative newspaper and legal-document clippings pinned to a black board.
+
+Return, as JSON:
+- concept: one sentence describing the single strongest visual metaphor for THIS story (for example, a Shiba Inu behind bars made of stock certificates for a story about a Dogecoin treasury firm's pledged-away shares).
+- focal_subject: the one hero subject rendered as a black-and-white photographic cutout (an animal, person, object, or building central to the story). 2 to 5 words.
+- supporting_subjects: 2 to 5 supporting photographic cutout objects that reinforce the story (a padlock, a chain, a torn SEC filing, a stock certificate, a rubber stamp, a downward chart). Concrete physical objects only, each 1 to 4 words.
+- text_elements: 4 to 8 SHORT factual snippets pulled DIRECTLY and TRUTHFULLY from the article, each 1 to 6 words, to be rendered as torn clippings. Use only real figures, names, dates, percentages, dollar amounts, share counts, and short key phrases that ACTUALLY APPEAR in the article text. Set emphasis:true for the 1 to 3 most striking figures. Spell each exactly as it should appear on the cover.
+- accent1, accent2: two hex color strings (like "#c6ff00") that suit the story's mood; everything else in the art stays black and white.
+
+TRUTH RULES (critical): every text_element must be verifiable from the article text provided. If you are not certain a figure or name appears in the article, do NOT include it. Never invent, round, or estimate a number. No hashtags, no editorial labels that are not in the story, no author or publication names. Keep each snippet short enough to read on a small torn scrap.`;
+
+/**
+ * Derive a bespoke cover concept + truthful text clippings from an article.
+ * @param {object} a { title, body, facts? } facts is an optional array of
+ *        already-verified confirmed facts (from the rewrite verification report)
+ *        to anchor truthfulness; for manual entries only title+body are used.
+ * @returns {Promise<object|null>} concept object or null on failure
+ */
+async function deriveCoverConcept(a = {}) {
+  try {
+    const factLines = Array.isArray(a.facts) && a.facts.length
+      ? `\n\nCONFIRMED FACTS (safe to quote figures/names from):\n- ${a.facts.slice(0, 25).join('\n- ')}`
+      : '';
+    const input = `TITLE: ${a.title || ''}\n\nARTICLE:\n${(a.body || '').slice(0, 7000)}${factLines}`;
+    const r = await callResponses({
+      model: MODELS.brief,
+      instructions: CONCEPT_INSTRUCTIONS,
+      input,
+      schema: CONCEPT_SCHEMA,
+      schemaName: 'cover_concept',
+      maxOutputTokens: 1800
+    });
+    const c = r.parsed;
+    if (!c) return null;
+    // Sanitize: trim, cap counts, drop empties, keep text snippets short.
+    const clip = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ');
+    c.focal_subject = clip(c.focal_subject, 6);
+    c.supporting_subjects = (c.supporting_subjects || [])
+      .map(s => clip(s, 4)).filter(Boolean).slice(0, 5);
+    c.text_elements = (c.text_elements || [])
+      .map(t => ({ text: clip(t && t.text, 6), emphasis: !!(t && t.emphasis) }))
+      .filter(t => t.text).slice(0, 8);
+    const hex = v => (typeof v === 'string' && /^#?[0-9a-f]{3,8}$/i.test(v.trim()))
+      ? (v.trim().startsWith('#') ? v.trim() : `#${v.trim()}`) : null;
+    c.accent1 = hex(c.accent1) || '#c6ff00';
+    c.accent2 = hex(c.accent2) || '#ff3b30';
+    return c;
+  } catch (e) {
+    logger.warn(`deriveCoverConcept failed: ${e.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   runPipeline,
   deriveVisualSubject,
+  deriveCoverConcept,
   // exported for testing
   articleChecks,
   hasSharedNgram,
