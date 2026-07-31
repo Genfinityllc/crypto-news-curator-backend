@@ -512,7 +512,7 @@ class StyleCatalogService {
       description: style.description,
       category: style.category,
       internal: style.internal || false,
-      sampleImageUrl: `${this.baseUrl}/api/style-catalog/image/${style.id}?v=2`,
+      sampleImageUrl: `${this.baseUrl}/api/style-catalog/image/${style.id}?v=3`,
       // Supabase URL as backup when manually uploaded
       supabaseUrl: `${this.supabaseStorageUrl}/${style.filename}`,
       filename: style.filename,
