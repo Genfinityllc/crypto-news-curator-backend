@@ -96,7 +96,7 @@ class StyleCatalogService {
         category: 'flat',
         customSubject: { enabled: true, placeholder: 'e.g. Federal Reserve, gavel, cash', defaultSubject: 'imagery relevant to the news topic' },
         defaultColors: { bgColor: '#000000', elementColor: '#dbff03', accentLightColor: '#ff2d9b', lightingColor: '#00e5ff' },
-        prompt: (logoSymbol) => `A bold editorial COLLAGE cover in a gritty torn-paper mixed-media style, like clipped newspaper and document scraps. The collage sheets, backgrounds and textures are FLAT 2D print, not glossy CGI, not glass, no bokeh; the focal element MAY carry limited dimensional rendering (for example embossed on a coin or shown as an object) but the overall look stays a distressed print collage, never a slick 3D product render. High-contrast black-and-white photographic cutouts of {{3D_ELEMENTS}} (use ONLY these named subjects, exactly as many as are named, and do NOT add any other buildings or extra subjects), plus a FEW torn documents and abstract paper textures relevant to the news topic in the additional instructions, arranged as ripped-paper fragments with rough torn white edges over a solid background, with generous black negative space and a low number of fragments. Each distinct subject appears AT MOST ONCE, never repeat the same element. If no subjects are named, choose imagery that fits the news topic (this is not always about government buildings). The ${logoSymbol} cryptocurrency logo appears exactly ONCE and stays clearly recognizable with its real shape and mark; its placement, size and treatment follow the COMPOSITION and LOGO TREATMENT directives below, so do NOT default to a large dead-center flat logo. Collage textures (halftone, photocopy grain, grunge, ink, spray paint) and connective elements (torn edges, tape, paperclips, staples, seals) are used SELECTIVELY exactly as the COMPOSITION directive specifies, never all at once and never the same combination twice; do NOT treat paperclips or tape as a standard element in every image. TWO-COLOR RULE: use ONLY the two accent colors provided as FLAT color pops (torn color-blocks, painted shapes, halftone fields, spray marks); every other part of the image is BLACK AND WHITE / grayscale, with no other hues. The collage must thematically TELL the specific news story described in the additional instructions. Gritty investigative magazine energy, strong ASYMMETRIC composition, dramatic contrast. Absolutely NO text, NO typography, NO words, NO numbers, NO letters, NO headlines anywhere in the image. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
+        prompt: (logoSymbol) => `A bold editorial COLLAGE cover in a gritty torn-paper mixed-media style, like clipped newspaper and document scraps. The collage sheets, backgrounds and textures are FLAT 2D print, not glossy CGI, not glass, no bokeh; the focal element MAY carry limited dimensional rendering (for example embossed on a coin or shown as an object) but the overall look stays a distressed print collage, never a slick 3D product render. High-contrast black-and-white photographic cutouts of {{3D_ELEMENTS}} (use ONLY these named subjects, exactly as many as are named, and do NOT add any other buildings or extra subjects), plus a FEW torn documents and abstract paper textures relevant to the news topic in the additional instructions, arranged as ripped-paper fragments with rough torn white edges over a solid background, with generous black negative space and a low number of fragments. Each distinct subject appears AT MOST ONCE, never repeat the same element. If no subjects are named, choose imagery that fits the news topic (this is not always about government buildings). The ${logoSymbol} cryptocurrency logo appears exactly ONCE and stays clearly recognizable with its real shape and mark; its placement, size and treatment follow the COMPOSITION and LOGO TREATMENT directives below, so do NOT default to a large dead-center flat logo. Collage textures (halftone, photocopy grain, grunge, ink, spray paint) and connective elements (torn edges, tape, paperclips, staples, seals) are used SELECTIVELY exactly as the COMPOSITION directive specifies, never all at once and never the same combination twice; do NOT treat paperclips or tape as a standard element in every image. TWO-COLOR RULE: use ONLY the two accent colors provided as FLAT color pops (torn color-blocks, painted shapes, halftone fields, spray marks); every other part of the image is BLACK AND WHITE / grayscale, with no other hues. The collage must thematically TELL the specific news story described in the additional instructions. Gritty investigative magazine energy, strong ASYMMETRIC composition, dramatic contrast. Absolutely NO text, NO typography, NO words, NO numbers, NO letters, NO headlines anywhere in the image; all documents, papers, receipts, and screens must be BLANK or carry only abstract lines, halftone dots and marks, never fake paragraphs, printed body text, or gibberish AI writing. Only ONE ${logoSymbol} logo, do not duplicate it. 8k, ultra-detailed, sharp print texture.`
       },
 
       // INTERNAL (hidden from the Cover Generator picker): the Article Studio
@@ -605,6 +605,15 @@ class StyleCatalogService {
 
     let prompt = style.prompt(logoSymbol);
 
+    // Cover Generator "logo as main centered subject" toggle for the collage.
+    // Signalled by a sentinel prefix on customSubject so the live /generate
+    // handler stays untouched. Strip it and remember the choice.
+    let centeredLogo = false;
+    if (typeof customSubject === 'string' && /^\s*CENTERED_LOGO\|/.test(customSubject)) {
+      centeredLogo = true;
+      customSubject = customSubject.replace(/^\s*CENTERED_LOGO\|\s*/, '').trim();
+    }
+
     if (style.patternOptions?.enabled) {
       const patternId = patternOverrides?.patternId || style.patternOptions.defaultPattern;
       const patternColor = patternOverrides?.patternColor || style.patternOptions.defaultColor;
@@ -640,9 +649,15 @@ class StyleCatalogService {
     // any story-specific treatment described in the additional instructions
     // (the Article Studio concept), so bespoke story art wins over the rotation.
     if (COLLAGE_STYLE_IDS.has(styleId)) {
-      prompt += ` CRITICAL COMPOSITION OVERRIDE — this is the single most important instruction and DEFINES the layout of this specific image; follow it exactly and do NOT fall back to a symmetrical or centered arrangement, freely reposition and resize the logo away from the center as described: ${nextFlatComposition()}`;
+      prompt += ` SUBJECT QUALITY: render each named subject as a rich, detailed, stylized finance graphic, never plain clip-art — a chart is a detailed candlestick trading chart with distinct up and down candles, wicks and gridlines (not a simple line graph), a briefcase is a styled executive leather briefcase, a building is specific and architectural; keep subjects within the two-color-plus-grayscale palette and vary the styling.`;
+      if (centeredLogo) {
+        // User asked for the logo as the big centered hero (like the other styles).
+        prompt += ` CENTERED HERO LOGO: make the ${logoSymbol} logo LARGE, bold and CENTERED as the clear main subject of the composition, like a hero product shot; arrange the collage subjects, color blocks and textures around it in a balanced way; the logo dominates and is the unmistakable focal point.`;
+      } else {
+        prompt += ` CRITICAL COMPOSITION OVERRIDE — this is the single most important instruction and DEFINES the layout of this specific image; follow it exactly and do NOT fall back to a symmetrical or centered arrangement, freely reposition and resize the logo away from the center as described: ${nextFlatComposition()}`;
+        prompt += ` ${nextLogoTreatment()} (If the additional instructions describe a specific logo treatment or visual concept, follow THAT instead of this default.)`;
+      }
       prompt += ` ANTI-CLUTTER RULE: keep the total number of elements LOW; commit to ONE strong focal idea with generous black negative space and clear hierarchy; do NOT fill every area, do NOT scatter many small scraps, and do NOT crowd the frame. A clean, bold, high-impact composition beats a busy one.`;
-      prompt += ` ${nextLogoTreatment()} (If the additional instructions describe a specific logo treatment or visual concept, follow THAT instead of this default.)`;
     }
 
     // LOGO OVERRIDES: Apply logo-specific changes BEFORE scene color overrides
