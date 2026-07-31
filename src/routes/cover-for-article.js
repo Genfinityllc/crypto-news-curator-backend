@@ -91,6 +91,28 @@ async function matchLibrarySymbol(text) {
   return hits[0].symbol;
 }
 
+// Two-accent-color palettes for the Editorial Collage style, drawn from the
+// reference examples. The collage uses exactly two colors that pair well; the
+// rest of the image is black and white. Palettes rotate by default; the caller
+// can pass paletteColors [c1, c2] to pick a preset or custom pair.
+const COLLAGE_PALETTES = [
+  ['#ff2d9b', '#c6ff00'], // magenta + lime
+  ['#ffd400', '#ff3b30'], // yellow + red
+  ['#00e5ff', '#ff2d9b'], // cyan + magenta
+  ['#00e676', '#2979ff'], // green + blue
+  ['#2979ff', '#ff4fa3'], // blue + pink
+  ['#ff7a00', '#00e5ff']  // orange + teal
+];
+let collagePaletteIndex = 0;
+function nextCollagePalette() {
+  const p = COLLAGE_PALETTES[collagePaletteIndex % COLLAGE_PALETTES.length];
+  collagePaletteIndex = (collagePaletteIndex + 1) % COLLAGE_PALETTES.length;
+  return p;
+}
+function isHexColor(v) {
+  return typeof v === 'string' && /^#?[0-9a-f]{3,8}$/i.test(v.trim());
+}
+
 /**
  * Resolve a logo symbol from an explicit network tag, the full logo library, or
  * the crypto detector (in that order). Returns an uppercase symbol or null.
@@ -215,7 +237,7 @@ async function uploadXReady(buffer, contentType, ext) {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -225,7 +247,7 @@ router.post('/for-article', async (req, res) => {
     // with a hardcoded colored background come out black.
     const blackBg = typeof bgColor === 'string' && /(^#?0{3,6}$)|black/i.test(bgColor.trim());
     const bgDirective = blackBg ? 'The background must be solid pure black, ignore any other background color.' : '';
-    const bgFields = bgColor ? { bgColor } : {};
+    let bgFields = bgColor ? { bgColor } : {};
 
     const symbol = await resolveSymbol(network, title, content);
     // Source referencing is OFF by default: it pulled too much from the source
@@ -265,6 +287,12 @@ router.post('/for-article', async (req, res) => {
       if (items.length) collageDirective += ` Build the collage imagery from these subjects, each shown at most once, varied, no repeats: ${items.join(', ')}.`;
       if (title) collageDirective += ` Thematically reflect this specific news topic, without rendering any text or words: ${title}.`;
       collageDirective = collageDirective.trim();
+
+      // Two-accent-color palette: custom pair or a rotating preset. Black bg + 2 pops, rest B&W.
+      const pal = (Array.isArray(paletteColors) && paletteColors.length === 2 && paletteColors.every(isHexColor))
+        ? paletteColors
+        : nextCollagePalette();
+      bgFields = { bgColor: '#000000', elementColor: pal[0], accentLightColor: pal[1] };
     }
 
     const coverCustomPrompt = [bgDirective, collageDirective].filter(Boolean).join(' ');
