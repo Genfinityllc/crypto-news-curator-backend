@@ -307,7 +307,7 @@ router.post('/for-article', async (req, res) => {
         const norm = textElements
           .map(e => (typeof e === 'string' ? { text: e, emphasis: false } : e))
           .filter(e => e && e.text && String(e.text).trim())
-          .slice(0, 8);
+          .slice(0, 5);
         if (norm.length) {
           const phrases = norm.map(e => `"${String(e.text).trim()}"`).join(', ');
           collageDirective += ` Render EXACTLY these short factual text clippings, each on its own torn paper scrap, spelled exactly as written and adding no other text: ${phrases}.`;

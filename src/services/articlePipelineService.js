@@ -762,14 +762,14 @@ const CONCEPT_SCHEMA = {
   required: ['concept', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements', 'accent1', 'accent2']
 };
 
-const CONCEPT_INSTRUCTIONS = `You are the art director for a crypto and finance news publication. Design ONE editorial torn-paper collage cover concept for the specific article provided, in the style of investigative newspaper and legal-document clippings pinned to a black board.
+const CONCEPT_INSTRUCTIONS = `You are the art director for a crypto and finance news publication. Design ONE bold editorial collage cover for the specific article provided. The strongest covers use a SINGLE striking, often surreal, visual metaphor that captures the whole story in one clean image, with one clear hero and generous negative space. Think: a whale sealed inside a glass jar, a money-printing press spewing certificates, a Shiba Inu behind bars made of stock certificates, a coin leaning against a crumbling wall, a token as the hub of a ship's wheel. ONE strong idea, NOT a cluttered board of many objects.
 
 Return, as JSON:
-- concept: one sentence describing the single strongest visual metaphor for THIS story (for example, a Shiba Inu behind bars made of stock certificates for a story about a Dogecoin treasury firm's pledged-away shares).
-- focal_subject: the one hero subject rendered as a black-and-white photographic cutout (an animal, person, object, or building central to the story). 2 to 5 words.
-- supporting_subjects: 2 to 5 supporting photographic cutout objects that reinforce the story (a padlock, a chain, a torn SEC filing, a stock certificate, a rubber stamp, a downward chart). Concrete physical objects only, each 1 to 4 words.
+- concept: one vivid sentence describing the SINGLE dominant visual metaphor for THIS story. It must read as one clean, high-impact scene with a clear hero and lots of breathing room, never a busy pile of items.
+- focal_subject: the ONE hero of that metaphor, as a bold photographic cutout (an animal, person, object, or building). 2 to 5 words.
+- supporting_subjects: only 1 to 2 small supporting cutouts that reinforce the SAME single scene (return an empty list if the hero alone tells it). Concrete physical objects, each 1 to 4 words. Fewer is better; never list props just to fill space.
 - logo_treatment: one short phrase describing a CREATIVE way the crypto logo itself is used to tell THIS story, not just a flat stamp. Examples: "minted on a weathered coin leaning against a crumbling wall", "gripped and squeezed in a fist", "cracked like the surface it sits on", "the hub of a ship's wheel", "spray-stencilled on a vault door", "sealed inside a glass jar". Pick one that fits the story. 3 to 12 words.
-- text_elements: 4 to 8 SHORT factual snippets pulled DIRECTLY and TRUTHFULLY from the article, each 1 to 6 words, to be rendered as torn clippings. Use only real figures, names, dates, percentages, dollar amounts, share counts, and short key phrases that ACTUALLY APPEAR in the article text. Set emphasis:true for the 1 to 3 most striking figures. Spell each exactly as it should appear on the cover.
+- text_elements: only 3 to 5 SHORT factual snippets pulled DIRECTLY and TRUTHFULLY from the article, each 1 to 6 words, the most striking facts only. Use real figures, names, dates, percentages, dollar amounts, share counts, and short key phrases that ACTUALLY APPEAR in the article text. Set emphasis:true for the 1 to 2 most important. Spell each exactly. Fewer, stronger clippings beat many small ones.
 - accent1, accent2: two hex color strings (like "#c6ff00") that suit the story's mood; everything else in the art stays black and white.
 
 TRUTH RULES (critical): every text_element must be verifiable from the article text provided. If you are not certain a figure or name appears in the article, do NOT include it. Never invent, round, or estimate a number. No hashtags, no editorial labels that are not in the story, no author or publication names. Keep each snippet short enough to read on a small torn scrap.`;
@@ -801,11 +801,12 @@ async function deriveCoverConcept(a = {}) {
     const clip = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ');
     c.focal_subject = clip(c.focal_subject, 6);
     c.logo_treatment = clip(c.logo_treatment, 14);
+    // Keep the element count low so covers stay clean, not cluttered.
     c.supporting_subjects = (c.supporting_subjects || [])
-      .map(s => clip(s, 4)).filter(Boolean).slice(0, 5);
+      .map(s => clip(s, 4)).filter(Boolean).slice(0, 2);
     c.text_elements = (c.text_elements || [])
       .map(t => ({ text: clip(t && t.text, 6), emphasis: !!(t && t.emphasis) }))
-      .filter(t => t.text).slice(0, 8);
+      .filter(t => t.text).slice(0, 5);
     const hex = v => (typeof v === 'string' && /^#?[0-9a-f]{3,8}$/i.test(v.trim()))
       ? (v.trim().startsWith('#') ? v.trim() : `#${v.trim()}`) : null;
     c.accent1 = hex(c.accent1) || '#c6ff00';
