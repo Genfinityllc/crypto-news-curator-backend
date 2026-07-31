@@ -633,7 +633,7 @@ class StyleCatalogService {
     // any story-specific treatment described in the additional instructions
     // (the Article Studio concept), so bespoke story art wins over the rotation.
     if (style.category === 'flat') {
-      prompt += ` ${nextFlatComposition()}`;
+      prompt += ` CRITICAL COMPOSITION OVERRIDE — this is the single most important instruction and DEFINES the layout of this specific image; follow it exactly and do NOT fall back to a symmetrical or centered arrangement, freely reposition and resize the logo away from the center as described: ${nextFlatComposition()}`;
       prompt += ` ${nextLogoTreatment()} (If the additional instructions describe a specific logo treatment or visual concept, follow THAT instead of this default.)`;
     }
 

@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const { detectCryptocurrency, networkToSymbol } = require('../services/cryptoDetectionService');
 const { deriveVisualSubject } = require('../services/articlePipelineService');
 const { getSupabaseClient } = require('../config/supabase');
+const coverJobService = require('../services/coverJobService');
 
 /**
  * COVER FOR ARTICLE
@@ -401,6 +402,61 @@ router.post('/for-article', async (req, res) => {
     logger.error(`for-article failed: ${error.message}`);
     return res.status(500).json({ success: false, error: error.message });
   }
+});
+
+/**
+ * ASYNC COVER GENERATION (persistence for the Cover Generator tab)
+ *
+ * These wrap the LIVE /generate path as a background job so a generation is
+ * never lost when the user refreshes or leaves the page. The generator itself is
+ * unchanged; we forward the exact same body over localhost and store the result
+ * on a job the client can poll.
+ */
+async function runCoverJob(jobId, body) {
+  try {
+    coverJobService.updateJob(jobId, { progress: 25, stepLabel: 'Generating' });
+    const data = await callGenerator(body); // throws on failure (incl. 422)
+    coverJobService.updateJob(jobId, {
+      status: 'completed', progress: 100, stepLabel: 'Complete', result: data
+    });
+  } catch (e) {
+    // Surface the strict-logo-guard case in a friendly way; otherwise the error.
+    const msg = e.status === 422
+      ? 'No uploaded logo for the selected network. Upload the logo first, or pick another.'
+      : (e.message || 'Generation failed');
+    logger.warn(`cover job failed (${jobId}): ${msg}`);
+    coverJobService.updateJob(jobId, { status: 'failed', error: msg });
+  }
+}
+
+/**
+ * POST /api/cover-generator/generate-async
+ * Body: identical to /generate. Returns { success, jobId } immediately.
+ */
+router.post('/generate-async', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const title = body.title || (Array.isArray(body.networks) ? body.networks.join(', ') : body.network) || 'Cover';
+    const job = coverJobService.createJob({ title });
+    runCoverJob(job.id, body).catch((e) => {
+      logger.error(`cover job ${job.id} crashed: ${e.message}`);
+      coverJobService.updateJob(job.id, { status: 'failed', error: e.message });
+    });
+    return res.json({ success: true, jobId: job.id });
+  } catch (error) {
+    logger.error(`generate-async failed: ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/cover-generator/job/:jobId
+ * Returns the job status and, when completed, the full generate result.
+ */
+router.get('/job/:jobId', async (req, res) => {
+  const job = await coverJobService.getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ success: false, error: 'job not found' });
+  return res.json({ success: true, ...coverJobService.publicView(job) });
 });
 
 module.exports = router;
