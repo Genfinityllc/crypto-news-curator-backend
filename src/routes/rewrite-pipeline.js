@@ -277,11 +277,46 @@ router.post('/:jobId/cover', async (req, res) => {
     if (!job || !job.result || !job.result.article) {
       return res.status(404).json({ success: false, error: 'Completed rewrite not found' });
     }
-    const { styleId, useSubject, xFormat, subject, buildings } = req.body || {};
-    const cover = await generateCoverForResult(job.result, { styleId, useSubject, xFormat, subject, buildings });
-    // Persist the cover onto the job result (getJob warmed the in-memory cache).
-    jobService.updateJob(job.id, { result: { ...job.result, cover } });
-    return res.json({ success: true, cover });
+    const opts = req.body || {};
+    // Mark the cover as regenerating and persist immediately so the in-progress
+    // state survives the user leaving and returning to the page.
+    jobService.updateJob(job.id, { result: { ...job.result, coverStatus: 'running', coverError: null } });
+    // Run in the background; persist the cover (and, for manual jobs, backfill any
+    // missing SEO metadata) onto the job when done. This is a fire-and-forget
+    // async task so the request returns immediately and the client polls.
+    (async () => {
+      try {
+        const base = (await jobService.getJob(job.id)) || job;
+        const patch = {};
+        // Backfill SEO metadata for a manual job that never got it.
+        if (base.result.manual && base.result.article && !base.result.article.meta_description) {
+          try {
+            const a = base.result.article;
+            const seo = await deriveSeoMetadata({ title: a.headline || a.seo_title, body: a.article_markdown || '' });
+            if (seo) patch.article = {
+              ...a,
+              seo_title: a.seo_title || seo.seo_title,
+              meta_description: seo.meta_description || '',
+              focus_keyphrase: seo.focus_keyphrase || '',
+              secondary_keyphrases: Array.isArray(seo.secondary_keyphrases) ? seo.secondary_keyphrases : [],
+              categories: Array.isArray(seo.categories) ? seo.categories : [],
+              tags: Array.isArray(seo.tags) ? seo.tags : [],
+              slug: seo.slug || '',
+              image_alt_text: seo.image_alt_text || '',
+              image_caption: seo.image_caption || ''
+            };
+          } catch (se) { logger.warn(`cover-SEO backfill failed (${job.id}): ${se.message}`); }
+        }
+        const cover = await generateCoverForResult(base.result, opts);
+        const fresh = (await jobService.getJob(job.id)) || base;
+        jobService.updateJob(job.id, { result: { ...fresh.result, ...patch, cover, coverStatus: 'done' } });
+      } catch (e) {
+        logger.error(`job cover failed (${job.id}): ${e.message}`);
+        const fresh = (await jobService.getJob(job.id)) || job;
+        jobService.updateJob(job.id, { result: { ...fresh.result, coverStatus: 'failed', coverError: e.message } });
+      }
+    })();
+    return res.json({ success: true, started: true });
   } catch (error) {
     logger.error(`job cover failed (${req.params.jobId}): ${error.message}`);
     return res.status(500).json({ success: false, error: error.message });
