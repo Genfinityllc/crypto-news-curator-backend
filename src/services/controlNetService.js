@@ -1160,7 +1160,7 @@ class ControlNetService {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${wavespeedApiKey}`
       },
-      timeout: 120000
+      timeout: 240000
     });
     
     logger.info(`📬 API Response: ${JSON.stringify(response.data).substring(0, 300)}`);
@@ -2242,7 +2242,7 @@ class ControlNetService {
         'Authorization': `Bearer ${wavespeedApiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 120000
+      timeout: 240000
     });
     
     const responseData = response.data.data || response.data;
@@ -2419,7 +2419,7 @@ class ControlNetService {
         'Authorization': `Bearer ${wavespeedApiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 120000
+      timeout: 240000
     });
     
     const responseData = response.data.data || response.data;
@@ -2455,7 +2455,7 @@ class ControlNetService {
     
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
-      timeout: 120000
+      timeout: 240000
     });
     
     const bgPath = path.join(this.imageStorePath, `${imageId}_bg.png`);
@@ -2766,7 +2766,7 @@ class ControlNetService {
             'Content-Type': 'application/json'
           },
           responseType: 'arraybuffer',
-          timeout: 120000
+          timeout: 240000
         }
       );
       
@@ -3802,7 +3802,7 @@ class ControlNetService {
           'Authorization': `Bearer ${wavespeedApiKey}`,
           'Content-Type': 'application/json'
         },
-        timeout: 120000
+        timeout: 240000
       });
 
       // Wavespeed API returns nested data structure: { code, message, data: { id, status, ... } }
@@ -3897,7 +3897,7 @@ class ControlNetService {
           'Authorization': `Bearer ${wavespeedApiKey}`,
           'Content-Type': 'application/json'
         },
-        timeout: 120000 // 2 minutes for ControlNet generation
+        timeout: 240000 // 2 minutes for ControlNet generation
       });
 
       // Wavespeed API returns nested data structure: { code, message, data: { id, status, ... } }
