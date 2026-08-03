@@ -29,7 +29,8 @@ const MODELS = {
   rewrite: 'gpt-5.5',
   normalize: 'gpt-5.4-mini',
   audit: 'gpt-5.4-mini',
-  brief: 'gpt-5.4-mini'
+  brief: 'gpt-5.4-mini',
+  artDirect: 'gpt-5.5' // strong model for the cover composition (the creative bottleneck)
 };
 
 const ARTICLE_TARGETS = {
@@ -924,12 +925,112 @@ async function deriveSeoMetadata(a = {}) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// ART DIRECTOR (the "composition skill"). A strong model reads the story,
+// chooses ONE interacting metaphor, DESIGNS an explicit composition, and writes
+// a single coherent image_prompt in the house style. Used by BOTH the Article
+// Studio news collage (withText) and the Cover Generator collage (title only).
+// ---------------------------------------------------------------------------
+
+const ART_DIRECT_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    image_prompt: { type: 'string' },
+    focal_subject: { type: 'string' },
+    supporting_subjects: { type: 'array', items: { type: 'string' } },
+    logo_treatment: { type: 'string' },
+    text_elements: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: false,
+        properties: { text: { type: 'string' }, emphasis: { type: 'boolean' } },
+        required: ['text', 'emphasis']
+      }
+    },
+    accent1: { type: 'string' },
+    accent2: { type: 'string' }
+  },
+  required: ['image_prompt', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements', 'accent1', 'accent2']
+};
+
+function buildArtDirectSystem(withText) {
+  const textBlock = withText
+    ? `- A small set of FACTUAL TEXT CLIPPINGS (3 to 5) pulled truthfully from the article, grouped in ONE tidy zone (a clean column or a single corner stack) on torn white or aged-newsprint scraps. Use a VARIED mix of editorial typography (bold display serif for the key figures, typewriter and rubber-stamped serif for labels, occasional bold condensed sans), title-and-subtext pairings, and an accent-colour marker underline on the 1 to 2 most important. Spell each EXACTLY; no other text anywhere.`
+    : `- NO text at all anywhere in the image. Any seal or stamp shows emblem imagery only (eagle, crest, rings), never lettering.`;
+  const textZone = withText ? 'where the grouped text-clipping zone sits,' : '';
+  const textElementsNote = withText
+    ? '3 to 5 short truthful snippets that ACTUALLY appear in the article (real figures, names, dates); mark the 1 to 2 most striking with emphasis:true; spell exactly'
+    : 'return an EMPTY list';
+
+  return `You are the art director for a crypto and finance publication. Design ONE cover as a gritty FLAT torn-paper PHOTO collage in a specific house style, and write a complete image prompt a text-to-image model can render.
+
+THE HOUSE STYLE (study it, every rule matters):
+- ONE bold, often surreal, PHYSICAL metaphor that captures the whole story, where the elements physically INTERACT (a whale sealed inside a glass jar; a Shiba Inu behind bars made of stock certificates; a printing press stamping paper ledgers; a coin leaning against a crumbling wall; a hand squeezing coins until they crack). NEVER a board of separate cut-outs placed side by side.
+- Real BLACK-AND-WHITE PHOTOGRAPHIC cut-outs (as if scissored from a magazine) with heavy halftone and photocopy grain and rough torn white edges, over a solid BLACK background. NOT a clean illustration, NOT a 3D render, and absolutely NO neon, glow, holographic, wireframe, circuit, flowing-code, data-stream, or sci-fi look.
+- ONE clear hero with strong focal hierarchy and generous negative space. Never cluttered.
+- The crypto logo is a PROMINENT, clearly visible part of the hero, integrated INTO the metaphor (minted large on the coin, stamped on the press, the vault's lock), at substantial size, never tiny, never omitted, never a floating glowing wordmark.
+- EXACTLY TWO bold, saturated accent colours as FLAT printed inks (torn colour-blocks, painted marks, marker underlines); everything else is grayscale. No third colour; no muddy, tan, beige, or earth tones.
+- Every distinct element appears EXACTLY ONCE; no duplicates or mirrors.
+- No fake or gibberish text; seals and stamps show emblem imagery only, no lettering.
+${textBlock}
+
+Translate any abstract or digital idea into a concrete PHYSICAL metaphor (for example, "onchain data feeds" becomes a printing press stamping ledgers, not glowing data).
+
+COMPOSE DELIBERATELY, like a real art director: choose the hero and its exact placement and size, 1 to 2 supporting cut-outs and where they sit, how the logo integrates and stays prominent, ${textZone} the two accent colours, and the negative space. THEN write image_prompt as ONE flowing, vivid paragraph that fully describes that exact composition and the full house style, ready to render.
+
+Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), supporting_subjects (0 to 2 concrete objects), logo_treatment (how the logo integrates, prominent), text_elements (${textElementsNote}), and accent1, accent2 (two bold saturated hex colours).`;
+}
+
+/**
+ * The composition skill. Returns { image_prompt, focal_subject,
+ * supporting_subjects, logo_treatment, text_elements, accent1, accent2 } or null.
+ * @param {object} a { title, body?, subjects?, logoSymbol?, withText?, facts? }
+ */
+async function artDirect(a = {}) {
+  const wantText = !!a.withText;
+  try {
+    const factLines = Array.isArray(a.facts) && a.facts.length
+      ? `\n\nCONFIRMED FACTS (safe to quote figures/names from):\n- ${a.facts.slice(0, 25).join('\n- ')}` : '';
+    const subj = (a.subjects && String(a.subjects).trim())
+      ? `\n\nUser-requested subjects to weave into the SAME single scene: ${a.subjects}` : '';
+    const logo = a.logoSymbol ? `\n\nCrypto logo/brand present in the scene: ${a.logoSymbol}` : '';
+    const src = a.body ? `TITLE: ${a.title || ''}\n\nARTICLE:\n${String(a.body).slice(0, 7000)}` : `HEADLINE: ${a.title || ''}`;
+    const r = await callResponses({
+      model: MODELS.artDirect,
+      instructions: buildArtDirectSystem(wantText),
+      input: `${src}${subj}${logo}${factLines}`,
+      schema: ART_DIRECT_SCHEMA,
+      schemaName: 'art_direction',
+      effort: 'medium',
+      maxOutputTokens: 3500
+    });
+    const c = r.parsed;
+    if (!c || !c.image_prompt) return null;
+    const clip = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ');
+    c.image_prompt = String(c.image_prompt).trim().slice(0, 2200);
+    c.focal_subject = clip(c.focal_subject, 6);
+    c.logo_treatment = clip(c.logo_treatment, 16);
+    c.supporting_subjects = (c.supporting_subjects || []).map(s => clip(s, 4)).filter(Boolean).slice(0, 2);
+    c.text_elements = wantText
+      ? (c.text_elements || []).map(t => ({ text: clip(t && t.text, 6), emphasis: !!(t && t.emphasis) })).filter(t => t.text).slice(0, 5)
+      : [];
+    const hex = v => (typeof v === 'string' && /^#?[0-9a-f]{3,8}$/i.test(v.trim())) ? (v.trim().startsWith('#') ? v.trim() : `#${v.trim()}`) : null;
+    c.accent1 = hex(c.accent1) || '#ff2d9b';
+    c.accent2 = hex(c.accent2) || '#00e5ff';
+    return c;
+  } catch (e) {
+    logger.warn(`artDirect failed: ${e.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   runPipeline,
   deriveVisualSubject,
   deriveCoverConcept,
   deriveVisualConcept,
   deriveSeoMetadata,
+  artDirect,
   // exported for testing
   articleChecks,
   hasSharedNgram,

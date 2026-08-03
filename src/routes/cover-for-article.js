@@ -4,7 +4,7 @@ const axios = require('axios');
 const sharp = require('sharp');
 const logger = require('../utils/logger');
 const { detectCryptocurrency, networkToSymbol } = require('../services/cryptoDetectionService');
-const { deriveVisualSubject, deriveVisualConcept } = require('../services/articlePipelineService');
+const { deriveVisualSubject, artDirect } = require('../services/articlePipelineService');
 const { getSupabaseClient } = require('../config/supabase');
 const coverJobService = require('../services/coverJobService');
 
@@ -296,9 +296,12 @@ router.post('/for-article', async (req, res) => {
       if (Array.isArray(buildings)) items.push(...buildings.filter(b => typeof b === 'string' && b.trim()).slice(0, 4).map(b => b.trim()));
       if (subject && typeof subject === 'string' && subject.trim()) items.push(subject.trim());
       if (items.length) visualSubject = items.join(', ');
+      // News collage is fully art-directed: signal CONCEPT mode so getStylePrompt
+      // defers the layout to the scene below instead of a random template.
+      if (isCollageNews) visualSubject = `CONCEPT|${visualSubject || ''}`;
 
       if (isCollageNews && concept && typeof concept === 'string' && concept.trim()) {
-        collageDirective += ` Overall visual concept for this cover: ${concept.trim()}.`;
+        collageDirective += ` SCENE (build the entire composition exactly from this): ${concept.trim()}.`;
       }
       if (title) {
         collageDirective += isCollageNews
@@ -422,19 +425,18 @@ async function runCoverJob(jobId, body) {
     const centeredRequested = /^\s*CENTERED_LOGO\|/.test(String((body && body.customSubject) || ''));
     if (body && body.styleId === '32_editorial_collage' && body.title && String(body.title).trim() && !centeredRequested) {
       try {
-        coverJobService.updateJob(jobId, { progress: 15, stepLabel: 'Designing concept' });
+        coverJobService.updateJob(jobId, { progress: 15, stepLabel: 'Art-directing the composition' });
         const rawSubj = String(body.customSubject || '').replace(/^(?:\s*[A-Z_]+\|)+/, '').trim();
-        const concept = await deriveVisualConcept({ title: body.title, subjects: rawSubj, logoSymbol: body.network });
-        if (concept && concept.concept) {
-          const conceptText = `VISUAL CONCEPT (build the entire composition from this; the elements must physically INTERACT to tell the story, not sit side by side): ${concept.concept}${concept.logo_treatment ? ` Logo treatment: ${concept.logo_treatment}.` : ''}`;
-          body.customPrompt = [body.customPrompt, conceptText].filter(Boolean).join(' ');
-          // Prepend the CONCEPT sentinel so getStylePrompt defers layout to it.
-          const existing = String(body.customSubject || '');
-          body.customSubject = existing.startsWith('CENTERED_LOGO|')
-            ? existing.replace(/^CENTERED_LOGO\|/, 'CENTERED_LOGO|CONCEPT|')
-            : `CONCEPT|${existing}`;
+        const ad = await artDirect({ title: body.title, subjects: rawSubj, logoSymbol: body.network, withText: false });
+        if (ad && ad.image_prompt) {
+          const sceneText = `SCENE (build the entire composition exactly from this): ${ad.image_prompt}${ad.logo_treatment ? ` The ${body.network || 'brand'} logo: ${ad.logo_treatment}.` : ''}`;
+          body.customPrompt = [body.customPrompt, sceneText].filter(Boolean).join(' ');
+          // Subjects fill {{3D_ELEMENTS}}: user-typed subjects win, else the art-director's.
+          const subjParts = [ad.focal_subject, ...(ad.supporting_subjects || [])].filter(Boolean).join(', ');
+          // CONCEPT sentinel makes getStylePrompt defer the layout to this scene.
+          body.customSubject = `CONCEPT|${rawSubj || subjParts}`;
         }
-      } catch (ce) { logger.warn(`concept derive failed (${jobId}): ${ce.message}`); }
+      } catch (ce) { logger.warn(`art-direction failed (${jobId}): ${ce.message}`); }
     }
     coverJobService.updateJob(jobId, { progress: 30, stepLabel: 'Generating' });
     const data = await callGenerator(body); // throws on failure (incl. 422)

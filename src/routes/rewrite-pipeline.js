@@ -3,7 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 const logger = require('../utils/logger');
 const jobService = require('../services/rewriteJobService');
-const { runPipeline, deriveCoverConcept, deriveSeoMetadata } = require('../services/articlePipelineService');
+const { runPipeline, artDirect, deriveSeoMetadata } = require('../services/articlePipelineService');
 const { generateFullLengthRewrite } = require('../services/enhanced-ai-rewrite');
 
 // Article Studio covers default to the text-enabled news collage (real factual
@@ -77,13 +77,15 @@ async function generateCoverForResult(result, opts = {}) {
   let paletteColors = opts.paletteColors;
   if (isNews && !concept && !textElements) {
     const facts = (result.verification && result.verification.confirmed_facts) || [];
-    const c = await deriveCoverConcept({
+    const c = await artDirect({
       title: a.headline || a.seo_title,
       body: a.article_markdown || '',
+      logoSymbol: (brief.primary_entities || [])[0],
+      withText: true,
       facts
     });
     if (c) {
-      concept = [c.concept, c.logo_treatment ? `Logo treatment: ${c.logo_treatment}.` : ''].filter(Boolean).join(' ');
+      concept = c.image_prompt + (c.logo_treatment ? ` Logo: ${c.logo_treatment}.` : '');
       textElements = c.text_elements;
       if (!subject) subject = [c.focal_subject, ...(c.supporting_subjects || [])].filter(Boolean).join(', ');
       if (!paletteColors && c.accent1 && c.accent2) paletteColors = [c.accent1, c.accent2];
