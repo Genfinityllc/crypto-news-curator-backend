@@ -951,11 +951,17 @@ const ART_DIRECT_SCHEMA = {
   required: ['image_prompt', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements']
 };
 
-function buildArtDirectSystem(textMode) {
+function buildArtDirectSystem(textMode, allowCircle, allowUnderline) {
   // textMode: 'none' (no text), 'title' (headline only), 'subtext' (labels only),
   // 'full' (headline + labels). Controlled by the With title / With subtext boxes.
   const hasText = textMode && textMode !== 'none';
-  const commonType = `CAPITALIZE the first letter of each phrase (sentence case), never all-lowercase. Use MOSTLY bold SANS-SERIF type (heavy, condensed, black/extra-bold weights, modern magazine or protest-poster feel) with only an OCCASIONAL serif or typewriter accent. On a data clip pair a big bold figure with a smaller label. On the most important figure add an accent-colour marker UNDERLINE, a solid HIGHLIGHT BLOCK, or a hand-drawn CIRCLE. Render text on clean WHITE or light-grey paper — NEVER beige, tan, cream, or manila — each clip showing ONLY its exact phrase, spelled EXACTLY (no body text, no gibberish, no extra words).`;
+  const underlineRule = allowUnderline
+    ? 'You MAY underline or highlight ONE key figure in an accent colour.'
+    : 'Do NOT underline or highlight the text in an accent colour; keep the type clean (a small solid highlight block is fine only if it reads as part of the design, not a marker stroke).';
+  const circleRule = allowCircle
+    ? 'You MAY draw ONE subtle hand-drawn coloured circle around a single key element.'
+    : 'Do NOT draw any coloured marker circles, rings, ovals, or scribbles around objects, figures, or text.';
+  const commonType = `CAPITALIZE the first letter of each phrase (sentence case), never all-lowercase. Use MOSTLY bold SANS-SERIF type (heavy, condensed, black/extra-bold weights, modern magazine or protest-poster feel) with only an OCCASIONAL serif or typewriter accent. On a data clip pair a big bold figure with a smaller label. ${underlineRule} Render text on clean WHITE or light-grey paper — NEVER beige, tan, cream, or manila — each clip showing ONLY its exact phrase, spelled EXACTLY (no body text, no gibberish, no extra words).`;
   let textBlock;
   if (!hasText) {
     textBlock = `- NO text at all anywhere in the image. Any seal or stamp shows emblem imagery only (eagle, crest, rings), never lettering.`;
@@ -985,7 +991,7 @@ THE HOUSE STYLE (study it, every rule matters):
 - THE COLLAGE IS MADE OF TORN-EDGED PHOTOGRAPHS, NOT BLANK PAPER. Build the cover from torn / ripped-edged PHOTOGRAPHIC FRAGMENTS — each fragment a real photographic image directly RELEVANT to THIS story (a building, a road, a server room, a crowd, a machine, a coin, a chart, a portrait, a document, a hand) with a rough torn edge — layered into ONE cohesive scene around the dominant hero, together with the two bold accent-colour fields. The ripped edges are edges of PHOTOS. Do NOT use blank, empty, or plain paper scraps as background filler; every torn fragment shows a meaningful, story-relevant image.
 - FILL THE FRAME with textured, meaningful layers — the hero, torn photographic fragments, and textured colour reach edge to edge so the whole image has something in it; there are no empty, flat, or blank regions. Vary how dense it is (some covers a bolder single scene, some a richer multi-fragment collage), but keep it cohesive around the ONE hero with strong contrast so it reads clearly — never a cluttered jumble, and never blank-paper wallpaper or empty flat colour.
 - The logo is PROMINENT and integrated into the scene, and its treatment can VARY: EITHER (a) the COMPLETE lockup (icon plus full wordmark, exactly as provided) rendered CLEAN, CRISP and fully LEGIBLE on a sign, nameplate, banner, or panel facing the viewer — not cropped, warped, or misspelled; OR (b) a LARGE TEXTURED mark integrated into the material with meaning (painted on a road or wall, stamped on a crate, cast in metal, screen-printed on a surface) — gritty and part of the scene. The logo MAY appear in one or two meaningful placements. Whenever the full WORDMARK is shown it must be clean and spelled exactly. Never tiny, never omitted, never glowing.
-- Everything is grayscale EXCEPT exactly TWO bold accent colours (chosen SEPARATELY by the palette system — refer to them GENERICALLY as "the two bold accent colours", do NOT name specific colours or hex values, and do not tie the colours to the story, e.g. no defaulting to red-white-blue for a US story). Apply the two colours WITH TEXTURE AND MEANING, NEVER as a clean flat blank coloured sheet: as gritty HALFTONE-dot colour fields, SPRAY-PAINT splatters and streaks, distressed grungy torn colour-blocks that show visible paper grain and wear, hand-drawn MARKER highlights, underlines and circles, DUOTONE tints over a photographic fragment, and as a literal coloured object where it fits (water, paint on a road, a chart, a warning sign). Use each colour in a few DIFFERENT textured ways across the image. No third colour; no muddy, tan, or beige tones.
+- Everything is grayscale EXCEPT exactly TWO bold accent colours (chosen SEPARATELY by the palette system — refer to them GENERICALLY as "the two bold accent colours", do NOT name specific colours or hex values, and do not tie the colours to the story, e.g. no defaulting to red-white-blue for a US story). Apply the two colours WITH TEXTURE AND MEANING, NEVER as a clean flat blank coloured sheet: as gritty HALFTONE-dot colour fields, SPRAY-PAINT splatters and streaks, distressed grungy torn colour-blocks that show visible paper grain and wear, DUOTONE tints over a photographic fragment, and as a literal coloured object where it fits (water, paint on a road, a chart, a warning sign). Use each colour in a few DIFFERENT textured ways across the image. No third colour; no muddy, tan, or beige tones. ${circleRule}
 - TEXTURE ON EVERY LAYER — nothing is clean or smoothly flat. Torn paper shows visible fibre and grain; photographs carry halftone and film grain; colour areas carry halftone, grunge, or spray; dark ground carries subtle grain, grunge, and fine scratches. There are NO empty, blank, or flat regions anywhere — the whole frame has textured, meaningful content in it.
 - Every distinct SUBJECT appears once; no duplicate or mirrored subjects (the logo/mark is the exception — it may recur in one or two meaningful, textured placements).
 - No fake or gibberish text anywhere. Prefer recognizable photographic BUILDINGS or entities over text-bearing seals. If a seal, stamp, or emblem shows a name, it MUST be the EXACT, correctly spelled real institution name (for example FEDERAL RESERVE, U.S. DEPARTMENT OF COMMERCE, SECURITIES AND EXCHANGE COMMISSION), never invented, garbled, or misspelled; otherwise show emblem imagery only.
@@ -1013,6 +1019,10 @@ async function artDirect(a = {}) {
       : withTitle ? 'title'
         : withSubtext ? 'subtext' : 'none';
   const textCap = { none: 0, title: 1, subtext: 2, full: 3 }[textMode] || 0;
+  // Marker circles around objects and coloured text underlines should be RARE,
+  // not on every cover. Roll per render: ~5% get a circle, ~10% an underline.
+  const allowCircle = Math.random() < 0.05;
+  const allowUnderline = Math.random() < 0.10;
   try {
     const factLines = Array.isArray(a.facts) && a.facts.length
       ? `\n\nCONFIRMED FACTS (safe to quote figures/names from):\n- ${a.facts.slice(0, 25).join('\n- ')}` : '';
@@ -1022,7 +1032,7 @@ async function artDirect(a = {}) {
     const src = a.body ? `TITLE: ${a.title || ''}\n\nARTICLE:\n${String(a.body).slice(0, 7000)}` : `HEADLINE: ${a.title || ''}`;
     const r = await callResponses({
       model: MODELS.artDirect,
-      instructions: buildArtDirectSystem(textMode),
+      instructions: buildArtDirectSystem(textMode, allowCircle, allowUnderline),
       input: `${src}${subj}${logo}${factLines}`,
       schema: ART_DIRECT_SCHEMA,
       schemaName: 'art_direction',
