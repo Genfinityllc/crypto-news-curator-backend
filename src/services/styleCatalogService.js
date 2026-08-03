@@ -610,7 +610,8 @@ class StyleCatalogService {
     // = big centered hero logo; CONCEPT = a bespoke story concept in the
     // additional instructions drives the layout (skip the random rotation).
     let centeredLogo = false, conceptMode = false;
-    if (typeof customSubject === 'string') {
+    // Only the collage styles use these sentinels; never touch other styles.
+    if (typeof customSubject === 'string' && COLLAGE_STYLE_IDS.has(styleId)) {
       let s = customSubject, m;
       while ((m = s.match(/^\s*([A-Z_]+)\|/))) {
         if (m[1] === 'CENTERED_LOGO') centeredLogo = true;
