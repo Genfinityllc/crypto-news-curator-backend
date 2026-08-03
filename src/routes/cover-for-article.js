@@ -254,7 +254,7 @@ router.post('/for-article', async (req, res) => {
     const bgDirective = blackBg ? 'The background must be solid pure black, ignore any other background color.' : '';
     let bgFields = bgColor ? { bgColor } : {};
 
-    const symbol = await resolveSymbol(network, title, content);
+    let symbol = await resolveSymbol(network, title, content);
     // Source referencing is OFF by default: it pulled too much from the source
     // image and produced derivative covers. Covers now rotate through the
     // curated styles instead. A caller must explicitly pass useReference: true
@@ -272,6 +272,21 @@ router.post('/for-article', async (req, res) => {
     // palette and subject handling.
     const isCollageNews = chosenStyle === '32b_editorial_collage_news';
     const isCollage = chosenStyle === '32_editorial_collage' || isCollageNews;
+
+    // For the collage, prefer the MARK-ONLY logo (drop a "_FULL" wordmark variant)
+    // so an embossed/stamped logo on an object never renders a misspelled wordmark
+    // (for example "hainlink"). The brand NAME is already spelled correctly in the
+    // text clippings. Only downgrade when the mark-only symbol actually has a logo.
+    if (isCollage && symbol && /_FULL$/i.test(symbol)) {
+      const base = symbol.replace(/_FULL$/i, '');
+      try {
+        const lib = await getLibrary();
+        if (lib.some(e => e.symbol === base && e.hasLogo)) {
+          logger.info(`for-article: using mark-only ${base} instead of ${symbol} for the collage`);
+          symbol = base;
+        }
+      } catch (e) { /* keep the full symbol on any lookup issue */ }
+    }
 
     // Glass styles: fill the {{3D_ELEMENTS}} slot (customSubject). A caller
     // `subject` wins, else auto-derive. The collage fills the same slot from its
