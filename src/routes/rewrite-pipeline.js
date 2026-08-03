@@ -88,7 +88,8 @@ async function generateCoverForResult(result, opts = {}) {
       concept = c.image_prompt + (c.logo_treatment ? ` Logo: ${c.logo_treatment}.` : '');
       textElements = c.text_elements;
       if (!subject) subject = [c.focal_subject, ...(c.supporting_subjects || [])].filter(Boolean).join(', ');
-      if (!paletteColors && c.accent1 && c.accent2) paletteColors = [c.accent1, c.accent2];
+      // Colours are NOT set here: leaving paletteColors undefined makes
+      // /for-article pick a RANDOM pairing from the existing palettes each time.
     }
   }
 

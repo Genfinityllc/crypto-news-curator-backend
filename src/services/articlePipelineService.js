@@ -946,11 +946,9 @@ const ART_DIRECT_SCHEMA = {
         properties: { text: { type: 'string' }, emphasis: { type: 'boolean' } },
         required: ['text', 'emphasis']
       }
-    },
-    accent1: { type: 'string' },
-    accent2: { type: 'string' }
+    }
   },
-  required: ['image_prompt', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements', 'accent1', 'accent2']
+  required: ['image_prompt', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements']
 };
 
 function buildArtDirectSystem(withText) {
@@ -972,7 +970,7 @@ THE HOUSE STYLE (study it, every rule matters):
 - VARY THE OVERALL TREATMENT too. Torn-paper cut-outs are OPTIONAL and used in VARYING amounts — do NOT make every cover a torn-white-paper collage. Some covers should be a FULL CINEMATIC SCENE (like a dramatic movie poster: the coin against a crumbling wall, the money printer, the whale in the jar) with only subtle torn edges; others a heavier torn-paper collage. Decide the treatment fresh for THIS story.
 - KEEP THE BACKGROUND CLEAN. The area behind and around the hero is mostly solid BLACK (or a single bold colour field) with generous negative space. Do NOT wallpaper the background with scattered paper scraps, stock certificates, ledgers, forms, receipts, or document fragments. Use paper SPARINGLY and purposefully — the text clippings and at most one or two intentional accent pieces — never as background filler. The hero and the negative space must breathe.
 - The crypto logo appears as the COMPLETE lockup — BOTH the icon AND the full wordmark together, exactly as in the provided logo image — PROMINENT and part of the hero at substantial size, rendered CLEAN, CRISP, and fully LEGIBLE. Place it flat and FACING the viewer on a surface WIDE enough to fit the whole logo including the wordmark (a banner, sign, nameplate, panel, or poster). Do NOT crop to just the icon, do NOT drop the wordmark, and do NOT warp, curve, or emboss it around a rounded or angled 3D surface where the wordmark would distort. Never tiny, never omitted, never glowing.
-- EXACTLY TWO bold, saturated accent colours used BOLDLY as large colour FIELDS and torn colour-blocks (not timid little scraps); everything else grayscale. No third colour; no muddy, tan, beige, or earth tones.
+- Everything is grayscale EXCEPT exactly TWO bold accent colours used BOLDLY as large colour FIELDS and blocks (not timid little scraps). The two specific colours are chosen SEPARATELY by the palette system and applied to the image, so in your prompt refer to them GENERICALLY as "the two bold accent colours" — do NOT name specific colours or hex values, and do not tie the colours to the story's subject (no defaulting to red-white-blue for a US story). No third colour; no muddy, tan, beige, or earth tones.
 - Every distinct element appears EXACTLY ONCE; no duplicates or mirrors.
 - No fake or gibberish text anywhere. Prefer recognizable photographic BUILDINGS or entities over text-bearing seals. If a seal, stamp, or emblem shows a name, it MUST be the EXACT, correctly spelled real institution name (for example FEDERAL RESERVE, U.S. DEPARTMENT OF COMMERCE, SECURITIES AND EXCHANGE COMMISSION), never invented, garbled, or misspelled; otherwise show emblem imagery only.
 ${textBlock}
@@ -981,7 +979,7 @@ Translate any abstract or digital idea into a concrete PHYSICAL metaphor (for ex
 
 First, READ and fully understand the ENTIRE article: identify the central subject, event, or tension, then build ONE metaphor with a single dominant hero subject around it. COMPOSE DELIBERATELY, like a real art director: choose the hero and its exact placement and size, 1 to 2 supporting cut-outs, how the logo integrates and stays prominent, ${textZone} which VARIED materials fit this story, the two bold accent colours, and the dramatic lighting and depth. THEN write image_prompt as ONE flowing, vivid paragraph that fully describes that exact composition, the dimensional cinematic hero, the specific materials, and the full house style, ready to render.
 
-Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), supporting_subjects (0 to 2 concrete objects), logo_treatment (how the FULL logo lockup with its wordmark integrates, prominent, clean and flat on a wide viewer-facing surface, never cropped to the icon or warped), text_elements (${textElementsNote}), and accent1, accent2 (two bold saturated hex colours).`;
+Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), supporting_subjects (0 to 2 concrete objects), logo_treatment (how the FULL logo lockup with its wordmark integrates, prominent, clean and flat on a wide viewer-facing surface, never cropped to the icon or warped), and text_elements (${textElementsNote}).`;
 }
 
 /**
@@ -1017,9 +1015,9 @@ async function artDirect(a = {}) {
     c.text_elements = wantText
       ? (c.text_elements || []).map(t => ({ text: clip(t && t.text, 6), emphasis: !!(t && t.emphasis) })).filter(t => t.text).slice(0, 5)
       : [];
-    const hex = v => (typeof v === 'string' && /^#?[0-9a-f]{3,8}$/i.test(v.trim())) ? (v.trim().startsWith('#') ? v.trim() : `#${v.trim()}`) : null;
-    c.accent1 = hex(c.accent1) || '#ff2d9b';
-    c.accent2 = hex(c.accent2) || '#00e5ff';
+    // Colours are NOT chosen by the art director — they come from the palette
+    // system (random pairing for Article Studio, user selection on the Cover
+    // Generator), so the same story does not always get the same colours.
     return c;
   } catch (e) {
     logger.warn(`artDirect failed: ${e.message}`);

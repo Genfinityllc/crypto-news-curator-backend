@@ -106,11 +106,11 @@ const COLLAGE_PALETTES = [
   ['#2979ff', '#ff4fa3'], // blue + pink
   ['#ff7a00', '#00e5ff']  // orange + teal
 ];
-let collagePaletteIndex = 0;
+// Pick a RANDOM pairing each time so consecutive Article Studio covers get
+// different colours (the palette is not tied to the story). The Cover Generator
+// passes explicit paletteColors from the user's selector, which wins over this.
 function nextCollagePalette() {
-  const p = COLLAGE_PALETTES[collagePaletteIndex % COLLAGE_PALETTES.length];
-  collagePaletteIndex = (collagePaletteIndex + 1) % COLLAGE_PALETTES.length;
-  return p;
+  return COLLAGE_PALETTES[Math.floor(Math.random() * COLLAGE_PALETTES.length)];
 }
 function isHexColor(v) {
   return typeof v === 'string' && /^#?[0-9a-f]{3,8}$/i.test(v.trim());
