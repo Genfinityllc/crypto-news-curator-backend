@@ -305,20 +305,22 @@ router.post('/for-article', async (req, res) => {
       }
       if (title) {
         collageDirective += isCollageNews
-          ? ` The story is: ${title}.`
+          ? ` Story context, do NOT render this sentence as visible text in the image: ${title}.`
           : ` Thematically reflect this specific news topic, without rendering any text or words: ${title}.`;
       }
-      if (isCollageNews && Array.isArray(textElements) && textElements.length) {
-        const norm = textElements
-          .map(e => (typeof e === 'string' ? { text: e, emphasis: false } : e))
-          .filter(e => e && e.text && String(e.text).trim())
-          .slice(0, 5);
-        if (norm.length) {
-          const phrases = norm.map(e => `"${String(e.text).trim()}"`).join(', ');
-          collageDirective += ` Render EXACTLY these short factual text clippings, each on its own torn paper scrap, spelled exactly as written and adding no other text: ${phrases}.`;
-          const emph = norm.filter(e => e.emphasis).map(e => `"${String(e.text).trim()}"`);
-          if (emph.length) collageDirective += ` Highlight or underline these key figures in an accent color: ${emph.join(', ')}.`;
-        }
+      // Text clippings for the news collage. When none are supplied (text off),
+      // force a purely visual cover so the title never leaks in as text.
+      const textList = (isCollageNews && Array.isArray(textElements))
+        ? textElements.map(e => (typeof e === 'string' ? { text: e, emphasis: false } : e))
+            .filter(e => e && e.text && String(e.text).trim()).slice(0, 5)
+        : [];
+      if (isCollageNews && textList.length) {
+        const phrases = textList.map(e => `"${String(e.text).trim()}"`).join(', ');
+        collageDirective += ` Render EXACTLY these short factual text clippings, each on its own torn paper scrap, spelled exactly as written and adding no other text: ${phrases}.`;
+        const emph = textList.filter(e => e.emphasis).map(e => `"${String(e.text).trim()}"`);
+        if (emph.length) collageDirective += ` Highlight or underline these key figures in an accent color: ${emph.join(', ')}.`;
+      } else if (isCollageNews) {
+        collageDirective += ` This is a PURELY VISUAL cover: render NO text, NO words, NO letters, NO numbers, and NO headlines anywhere in the image.`;
       }
       collageDirective = collageDirective.trim();
 
