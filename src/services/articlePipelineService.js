@@ -951,14 +951,29 @@ const ART_DIRECT_SCHEMA = {
   required: ['image_prompt', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements']
 };
 
-function buildArtDirectSystem(withText) {
-  const textBlock = withText
-    ? `- FACTUAL TEXT CLIPPINGS: only 2 to 4 total (FEWER is better — a clean cover with minimal text reads best; do not overload with many small subtexts). Make ONE the dominant HEADLINE, dramatically LARGER and bolder than the rest; the other 1 to 3 are small supporting clips. CAPITALIZE the first letter of each phrase (sentence case) — do NOT set phrases in all-lowercase. Use MOSTLY bold SANS-SERIF type (heavy, condensed, black/extra-bold weights, like a modern magazine or protest poster), with only an OCCASIONAL serif or typewriter accent — never serif-dominant, and never a uniform stack of same-size same-font clips. Vary the size and weight so there is a clear headline and clearly smaller labels; on a data clip pair a big bold figure with a smaller label (title-and-subtext), e.g. "Roughly $18B" large over "Robinhood volume" small. On the 1 to 2 most important figures add an accent-colour marker UNDERLINE, a solid HIGHLIGHT BLOCK, or a hand-drawn CIRCLE. Render the clips on clean WHITE or light-grey paper — NEVER beige, tan, cream, or manila — each showing ONLY its exact phrase on otherwise-BLANK paper (no body text, no gibberish, no extra words). Spell every phrase EXACTLY; no other text anywhere in the image.`
-    : `- NO text at all anywhere in the image. Any seal or stamp shows emblem imagery only (eagle, crest, rings), never lettering.`;
-  const textZone = withText ? 'where the grouped text-clipping zone sits,' : '';
-  const textElementsNote = withText
-    ? '2 to 4 short truthful snippets that ACTUALLY appear in the article (real figures, names, dates), FEWER is better; capitalize the first letter of each; mark the single most striking with emphasis:true; spell exactly'
-    : 'return an EMPTY list';
+function buildArtDirectSystem(textMode) {
+  // textMode: 'none' (no text), 'title' (headline only), 'subtext' (labels only),
+  // 'full' (headline + labels). Controlled by the With title / With subtext boxes.
+  const hasText = textMode && textMode !== 'none';
+  const commonType = `CAPITALIZE the first letter of each phrase (sentence case), never all-lowercase. Use MOSTLY bold SANS-SERIF type (heavy, condensed, black/extra-bold weights, modern magazine or protest-poster feel) with only an OCCASIONAL serif or typewriter accent. On a data clip pair a big bold figure with a smaller label. On the most important figure add an accent-colour marker UNDERLINE, a solid HIGHLIGHT BLOCK, or a hand-drawn CIRCLE. Render text on clean WHITE or light-grey paper — NEVER beige, tan, cream, or manila — each clip showing ONLY its exact phrase, spelled EXACTLY (no body text, no gibberish, no extra words).`;
+  let textBlock;
+  if (!hasText) {
+    textBlock = `- NO text at all anywhere in the image. Any seal or stamp shows emblem imagery only (eagle, crest, rings), never lettering.`;
+  } else if (textMode === 'title') {
+    textBlock = `- TEXT: include EXACTLY ONE text clip — the single dominant HEADLINE only, no supporting labels or subtext. ${commonType}`;
+  } else if (textMode === 'subtext') {
+    textBlock = `- TEXT: include ONE or TWO small LABEL clips only (short factual snippets), and NO big dominant headline. ${commonType}`;
+  } else {
+    textBlock = `- TEXT: keep it minimal — one dominant HEADLINE plus at most one or two small labels, never a stack of subtexts. Vary size and weight (clear headline, smaller labels). ${commonType}`;
+  }
+  const textZone = hasText ? 'where the small text zone sits,' : '';
+  const textElementsNote = !hasText
+    ? 'return an EMPTY list'
+    : textMode === 'title'
+      ? 'exactly 1 short truthful HEADLINE snippet that ACTUALLY appears in the article; capitalize the first letter; spell exactly'
+      : textMode === 'subtext'
+        ? '1 to 2 short truthful label snippets that ACTUALLY appear in the article; capitalize the first letter; spell exactly'
+        : '1 to 3 short truthful snippets that ACTUALLY appear in the article (one headline plus up to 2 labels); capitalize the first letter; mark the most striking with emphasis:true; spell exactly';
 
   return `You are the art director for a crypto and finance publication. Design ONE striking cover as a CINEMATIC photo collage in a bold editorial house style, and write a complete image prompt a text-to-image model can render.
 
@@ -966,9 +981,8 @@ THE HOUSE STYLE (study it, every rule matters):
 - ONE bold, often surreal, PHYSICAL metaphor built around a single dominant HERO SUBJECT that the whole cover is about: a character, animal, person, object, coin, or machine placed in one symbolic situation. This can be an ACTION (a hand squeezing coins until they crack; a printing press stamping paper ledgers) OR a striking STATIC scene (a coin as the hub of a ship's wheel; a whale sealed inside a glass jar; a coin leaning against a crumbling wall; a Shiba Inu behind bars; a lone weathered portrait). The point is ONE clear hero the whole cover is about, NEVER a board of separate cut-outs placed side by side.
 - VARY THE HERO TYPE AND RENDERING STYLE across covers — do NOT always use the same photographic object. Choose whichever best fits THIS story: (1) a PHOTOGRAPHIC realistic subject (an animal, a person, a machine, a building) in a surreal situation; (2) a WEATHERED, textured symbolic OBJECT (a coin, a vault, a wheel, a book) with real depth; (3) a metallic or crystal RENDER of a coin or emblem; (4) a bold FLAT high-contrast GRAPHIC or heavy-HALFTONE icon (a cracked circle, a stark symbol) that is graphic, not photographic; (5) a black SILHOUETTE with graphic or halftone imagery inside it (a head in profile with a chart inside). Types 1 to 3 are DIMENSIONAL with dramatic directional lighting, strong shadows and rich texture (weathered metal, cracked stone, glass, fur, skin); types 4 to 5 are bold, stark, high-contrast flat graphics. Whatever the type, make it striking and dramatic — NEVER a weak, flat, evenly-lit generic illustration, and absolutely NO neon, glow, holographic, wireframe, circuit, flowing-code, data-stream, or digital sci-fi look.
 - DYNAMIC composition: dramatic angles, strong diagonal energy, foreground-to-background depth layering, high contrast and drama. FILL the frame with rich, layered texture that all serves this ONE scene — full and dramatic, never sparse-and-empty, and never a jumble of unrelated cut-outs.
-- VARY THE MATERIALS every time. Choose collage papers, textures, and surfaces that FIT THIS specific story, and do NOT default to plain torn white note-paper. Draw from a WIDE palette and use a DIFFERENT mix than a typical cover: aged newspaper, engraved stock certificates, ledger and graph paper, index cards, manila folders, currency and banknote textures, kraft paper, blueprints, old maps, film strips, cardboard, halftone magazine scraps, stamped legal filings, photocopied documents, painted cardboard. Pick materials the story evokes.
-- VARY THE OVERALL TREATMENT too. Torn-paper cut-outs are OPTIONAL and used in VARYING amounts — do NOT make every cover a torn-white-paper collage. Some covers should be a FULL CINEMATIC SCENE (like a dramatic movie poster: the coin against a crumbling wall, the money printer, the whale in the jar) with only subtle torn edges; others a heavier torn-paper collage. Decide the treatment fresh for THIS story.
-- KEEP THE BACKGROUND CLEAN. The area behind and around the hero is mostly solid BLACK (or a single bold colour field) with generous negative space. Do NOT wallpaper the background with scattered paper scraps, stock certificates, ledgers, forms, receipts, or document fragments. Use paper SPARINGLY and purposefully — the text clippings and at most one or two intentional accent pieces — never as background filler. The hero and the negative space must breathe.
+- THE COLLAGE IS MADE OF TORN-EDGED PHOTOGRAPHS, NOT BLANK PAPER. Build the cover from torn / ripped-edged PHOTOGRAPHIC FRAGMENTS — each fragment a real photographic image directly RELEVANT to THIS story (a building, a road, a server room, a crowd, a machine, a coin, a chart, a portrait, a document, a hand) with a rough torn edge — layered into ONE cohesive scene around the dominant hero, together with the two bold accent-colour fields. The ripped edges are edges of PHOTOS. Do NOT use blank, empty, or plain paper scraps as background filler; every torn fragment shows a meaningful, story-relevant image.
+- VARY HOW FULL THE FRAME IS. Some covers are a FULL CINEMATIC SCENE (a single dramatic photographic moment, movie-poster style) with only a few torn edges; others are a richer collage of several torn-photo fragments. Either way keep it cohesive around the ONE hero, with the two colour fields and enough contrast and breathing room that it reads clearly — never a cluttered jumble, and never blank-paper wallpaper.
 - The crypto logo appears as the COMPLETE lockup — BOTH the icon AND the full wordmark together, exactly as in the provided logo image — PROMINENT and part of the hero at substantial size, rendered CLEAN, CRISP, and fully LEGIBLE. Place it flat and FACING the viewer on a surface WIDE enough to fit the whole logo including the wordmark (a banner, sign, nameplate, panel, or poster). Do NOT crop to just the icon, do NOT drop the wordmark, and do NOT warp, curve, or emboss it around a rounded or angled 3D surface where the wordmark would distort. Never tiny, never omitted, never glowing.
 - Everything is grayscale EXCEPT exactly TWO bold accent colours used BOLDLY as large colour FIELDS and blocks (not timid little scraps). The two specific colours are chosen SEPARATELY by the palette system and applied to the image, so in your prompt refer to them GENERICALLY as "the two bold accent colours" — do NOT name specific colours or hex values, and do not tie the colours to the story's subject (no defaulting to red-white-blue for a US story). No third colour; no muddy, tan, beige, or earth tones.
 - Every distinct element appears EXACTLY ONCE; no duplicates or mirrors.
@@ -977,7 +991,7 @@ ${textBlock}
 
 Translate any abstract or digital idea into a concrete PHYSICAL metaphor (for example, "onchain data feeds" becomes a printing press stamping ledgers, not glowing data).
 
-First, READ and fully understand the ENTIRE article: identify the central subject, event, or tension, then build ONE metaphor with a single dominant hero subject around it. COMPOSE DELIBERATELY, like a real art director: choose the hero and its exact placement and size, 1 to 2 supporting cut-outs, how the logo integrates and stays prominent, ${textZone} which VARIED materials fit this story, the two bold accent colours, and the dramatic lighting and depth. THEN write image_prompt as ONE flowing, vivid paragraph that fully describes that exact composition, the dimensional cinematic hero, the specific materials, and the full house style, ready to render.
+First, READ and fully understand the ENTIRE article: identify the central subject, event, or tension, then build ONE metaphor with a single dominant hero subject around it. COMPOSE DELIBERATELY, like a real art director: choose the hero and its exact placement and size, 1 to 2 supporting torn-photo fragments and what each one shows, how the logo integrates and stays prominent, ${textZone} the two bold accent colours, and the dramatic lighting and depth. THEN write image_prompt as ONE flowing, vivid paragraph that fully describes that exact composition, the hero, the specific story-relevant torn photographic fragments, and the full house style, ready to render.
 
 Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), supporting_subjects (0 to 2 concrete objects), logo_treatment (how the FULL logo lockup with its wordmark integrates, prominent, clean and flat on a wide viewer-facing surface, never cropped to the icon or warped), and text_elements (${textElementsNote}).`;
 }
@@ -989,6 +1003,14 @@ Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), 
  */
 async function artDirect(a = {}) {
   const wantText = !!a.withText;
+  // With title / With subtext checkboxes (default both on when text is enabled).
+  const withTitle = a.withTitle !== false;
+  const withSubtext = a.withSubtext !== false;
+  const textMode = !wantText ? 'none'
+    : (withTitle && withSubtext) ? 'full'
+      : withTitle ? 'title'
+        : withSubtext ? 'subtext' : 'none';
+  const textCap = { none: 0, title: 1, subtext: 2, full: 3 }[textMode] || 0;
   try {
     const factLines = Array.isArray(a.facts) && a.facts.length
       ? `\n\nCONFIRMED FACTS (safe to quote figures/names from):\n- ${a.facts.slice(0, 25).join('\n- ')}` : '';
@@ -998,7 +1020,7 @@ async function artDirect(a = {}) {
     const src = a.body ? `TITLE: ${a.title || ''}\n\nARTICLE:\n${String(a.body).slice(0, 7000)}` : `HEADLINE: ${a.title || ''}`;
     const r = await callResponses({
       model: MODELS.artDirect,
-      instructions: buildArtDirectSystem(wantText),
+      instructions: buildArtDirectSystem(textMode),
       input: `${src}${subj}${logo}${factLines}`,
       schema: ART_DIRECT_SCHEMA,
       schemaName: 'art_direction',
@@ -1012,8 +1034,8 @@ async function artDirect(a = {}) {
     c.focal_subject = clip(c.focal_subject, 6);
     c.logo_treatment = clip(c.logo_treatment, 16);
     c.supporting_subjects = (c.supporting_subjects || []).map(s => clip(s, 4)).filter(Boolean).slice(0, 2);
-    c.text_elements = wantText
-      ? (c.text_elements || []).map(t => ({ text: clip(t && t.text, 6), emphasis: !!(t && t.emphasis) })).filter(t => t.text).slice(0, 4)
+    c.text_elements = textCap
+      ? (c.text_elements || []).map(t => ({ text: clip(t && t.text, 6), emphasis: !!(t && t.emphasis) })).filter(t => t.text).slice(0, textCap)
       : [];
     // Colours are NOT chosen by the art director — they come from the palette
     // system (random pairing for Article Studio, user selection on the Cover

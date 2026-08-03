@@ -82,6 +82,8 @@ async function generateCoverForResult(result, opts = {}) {
       body: a.article_markdown || '',
       logoSymbol: (brief.primary_entities || [])[0],
       withText: true,
+      withTitle: opts.withTitle,
+      withSubtext: opts.withSubtext,
       facts
     });
     if (c) {
@@ -126,7 +128,7 @@ async function runJob(jobId, source) {
     try {
       jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Designing concept and generating cover', progress: 95 });
       // Rewrite covers use the text-enabled news collage with truthful clippings.
-      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE });
+      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE, withTitle: source.withTitle, withSubtext: source.withSubtext });
     } catch (ce) {
       logger.warn(`auto-cover failed (${jobId}): ${ce.message}`);
     }
@@ -190,7 +192,7 @@ async function runManualJob(jobId, source) {
     jobService.updateJob(jobId, { step: 'concept', stepLabel: 'Designing the cover concept from your article', progress: 45 });
     jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 70 });
     try {
-      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE });
+      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE, withTitle: source.withTitle, withSubtext: source.withSubtext });
     } catch (ce) {
       logger.warn(`manual auto-cover failed (${jobId}): ${ce.message}`);
     }
@@ -208,12 +210,12 @@ async function runManualJob(jobId, source) {
  */
 router.post('/manual', async (req, res) => {
   try {
-    const { title, content } = req.body || {};
+    const { title, content, withTitle, withSubtext } = req.body || {};
     if (!title || !content) {
       return res.status(400).json({ success: false, error: 'title and content are required' });
     }
     const job = jobService.createJob({ title });
-    runManualJob(job.id, { title: String(title), content: String(content) }).catch((e) => {
+    runManualJob(job.id, { title: String(title), content: String(content), withTitle, withSubtext }).catch((e) => {
       logger.error(`manual job ${job.id} crashed: ${e.message}`);
       jobService.updateJob(job.id, { status: 'failed', error: e.message });
     });
@@ -231,13 +233,13 @@ router.post('/manual', async (req, res) => {
  */
 router.post('/start', async (req, res) => {
   try {
-    const { title, content, url } = req.body || {};
+    const { title, content, url, withTitle, withSubtext } = req.body || {};
     if (!title || !content) {
       return res.status(400).json({ success: false, error: 'title and content are required' });
     }
     const job = jobService.createJob({ title });
     // Fire and forget; the handler is fully guarded so it never rejects here.
-    runJob(job.id, { title, content, url }).catch((e) => {
+    runJob(job.id, { title, content, url, withTitle, withSubtext }).catch((e) => {
       logger.error(`rewrite job ${job.id} crashed: ${e.message}`);
       jobService.updateJob(job.id, { status: 'failed', error: e.message });
     });
