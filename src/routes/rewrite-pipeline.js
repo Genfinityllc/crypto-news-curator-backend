@@ -102,7 +102,7 @@ async function generateCoverForResult(result, opts = {}) {
     paletteColors, // [accent1, accent2] from the concept, or a caller preset
     xFormat: opts.xFormat || 'png',
     bgColor: '#000000' // article covers always use a black background
-  }, { timeout: 240000, validateStatus: (s) => s < 500 });
+  }, { timeout: 330000, validateStatus: (s) => s < 500 });
   if (resp.status !== 200 || !resp.data || !resp.data.success) {
     throw new Error((resp.data && resp.data.error) || 'Cover generation failed');
   }

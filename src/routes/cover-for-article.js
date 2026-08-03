@@ -141,7 +141,9 @@ async function resolveSymbol(network, title, content) {
 async function callGenerator(body) {
   try {
     const resp = await axios.post(GENERATE_URL, body, {
-      timeout: 180000,
+      // Generous: the news collage (concept + text + Wavespeed + watermark +
+      // upload) can be slow; a short timeout was dropping finished images.
+      timeout: 300000,
       headers: { 'Content-Type': 'application/json' },
       // Do not throw on 4xx so we can inspect a 422 ourselves.
       validateStatus: (s) => s < 500
