@@ -951,7 +951,22 @@ const ART_DIRECT_SCHEMA = {
   required: ['image_prompt', 'focal_subject', 'supporting_subjects', 'logo_treatment', 'text_elements']
 };
 
-function buildArtDirectSystem(textMode, allowCircle, allowUnderline) {
+// Rotating logo-treatment suggestions so the logo is incorporated differently
+// each render instead of always landing on a metal nameplate.
+const LOGO_SURFACES = [
+  'stencilled or spray-painted onto a wall, road, or crate',
+  'carved, embossed, or moulded INTO the hero\'s own material (stone, wood, glass, clay)',
+  'printed on a torn paper banner, poster, or sticker',
+  'stamped like an ink stamp or wax seal onto a document or surface',
+  'formed or woven FROM the scene\'s own material (cash, rope, cables, paper)',
+  'screen-printed on fabric, a flag, or a worn t-shirt',
+  'etched or frosted into glass',
+  'painted on a hanging cloth banner or pennant',
+  'branded or burned into wood or leather',
+  'tiled or set into a mosaic or pavement'
+];
+
+function buildArtDirectSystem(textMode, allowCircle, allowUnderline, logoHint) {
   // textMode: 'none' (no text), 'title' (headline only), 'subtext' (labels only),
   // 'full' (headline + labels). Controlled by the With title / With subtext boxes.
   const hasText = textMode && textMode !== 'none';
@@ -990,9 +1005,10 @@ THE HOUSE STYLE (study it, every rule matters):
 - VARY THE HERO'S MATERIAL AND SURFACE — do NOT default to a grey metal machine, vault, press, or metal object. Range WIDELY across covers: living animals with FUR, feathers or scales; PEOPLE with skin and hair; WOOD, brass, and leather; STONE, concrete, and clay; GLASS, ceramic, and wax; PAPER, cloth, and rope; cracked, rusted, mossy, or hand-painted surfaces. Favor organic, tactile, warmly-lit subjects with rich surface detail (fur strands, skin pores, wood grain, stone cracks, paper fibre, paint wear). Cold grey metal is only ONE option among many and should be the exception, not the default.
 - DYNAMIC composition: dramatic angles, strong diagonal energy, foreground-to-background depth layering, high contrast and drama. FILL the frame with rich, layered texture that all serves this ONE scene — full and dramatic, never sparse-and-empty, and never a jumble of unrelated cut-outs.
 - THE COLLAGE IS MADE OF TORN-EDGED PHOTOGRAPHS, NOT BLANK PAPER. Build the cover from torn / ripped-edged PHOTOGRAPHIC FRAGMENTS — each fragment a real photographic image directly RELEVANT to THIS story (a building, a road, a server room, a crowd, a machine, a coin, a chart, a portrait, a document, a hand) with a rough torn edge — layered into ONE cohesive scene around the dominant hero, together with the two bold accent-colour fields. The ripped edges are edges of PHOTOS. Do NOT use blank, empty, or plain paper scraps as background filler; every torn fragment shows a meaningful, story-relevant image.
-- FILL THE FRAME with textured, meaningful layers — the hero, torn photographic fragments, and textured colour reach edge to edge so the whole image has something in it; there are no empty, flat, or blank regions. Vary how dense it is (some covers a bolder single scene, some a richer multi-fragment collage), but keep it cohesive around the ONE hero with strong contrast so it reads clearly — never a cluttered jumble, and never blank-paper wallpaper or empty flat colour.
-- The logo is PROMINENT and integrated into the scene, and its treatment can VARY: EITHER (a) the COMPLETE lockup (icon plus full wordmark, exactly as provided) rendered CLEAN, CRISP and fully LEGIBLE on a sign, nameplate, banner, or panel facing the viewer — not cropped, warped, or misspelled; OR (b) a LARGE TEXTURED mark integrated into the material with meaning (painted on a road or wall, stamped on a crate, cast in metal, screen-printed on a surface) — gritty and part of the scene. The logo MAY appear in one or two meaningful placements. Whenever the full WORDMARK is shown it must be clean and spelled exactly. Never tiny, never omitted, never glowing.
+- FILL THE FRAME edge to edge and into all four corners — the hero, torn photographic fragments, textured colour, and grain cover the whole canvas. There must be NO large empty BLACK areas or blank gaps; if any region would be empty, extend a textured photographic fragment, a colour field, or heavy grain/halftone into it. A little dark textured ground is fine, but never big empty black. Vary how dense it is (some covers a bolder single scene, some a richer multi-fragment collage), keep it cohesive around the ONE hero with strong contrast — never a cluttered jumble, and never blank-paper wallpaper.
+- The logo is PROMINENT and integrated, and its treatment MUST VARY every cover — do NOT default to a metal nameplate or sign. Incorporate it a DIFFERENT way each render, fitting the hero's material and the story: painted or stencilled on a wall, road, crate, or flag; carved, embossed, or moulded INTO the hero's own material (stone, wood, glass, cash, clay); printed on a torn paper banner, a sticker, or a stamp; woven or formed FROM the scene's material; screen-printed on fabric; etched into glass. Use the treatment suggested below as a starting point. It may be the clean COMPLETE lockup (icon plus full wordmark, exactly as provided, crisp and legible) OR a large textured mark — but whenever the full WORDMARK is shown it must be spelled EXACTLY and not warped. The logo may appear in one or two meaningful placements. Never a generic metal nameplate as the default; never tiny, never glowing.
 - Everything is grayscale EXCEPT exactly TWO bold accent colours (chosen SEPARATELY by the palette system — refer to them GENERICALLY as "the two bold accent colours", do NOT name specific colours or hex values, and do not tie the colours to the story, e.g. no defaulting to red-white-blue for a US story). Apply the two colours WITH TEXTURE AND MEANING, NEVER as a clean flat blank coloured sheet: as gritty HALFTONE-dot colour fields, SPRAY-PAINT splatters and streaks, distressed grungy torn colour-blocks that show visible paper grain and wear, DUOTONE tints over a photographic fragment, and as a literal coloured object where it fits (water, paint on a road, a chart, a warning sign). Use each colour in a few DIFFERENT textured ways across the image. No third colour; no muddy, tan, or beige tones. ${circleRule}
+- THE HERO ITSELF CARRIES COLOUR — the main subject, or a major part of it, is rendered IN one of the two accent colours, not left pure grayscale: for example tinted or coloured GLASS, a COLOURED coin or object, coloured LIQUID, a bright coloured surface, or a duotone of the hero in the accent colour. Make the main subject COLOURFUL and eye-catching while everything else stays black-and-white plus the two colours. The hero should CARRY colour, never just be surrounded by it.
 - TEXTURE ON EVERY LAYER — nothing is clean or smoothly flat. Torn paper shows visible fibre and grain; photographs carry halftone and film grain; colour areas carry halftone, grunge, or spray; dark ground carries subtle grain, grunge, and fine scratches. There are NO empty, blank, or flat regions anywhere — the whole frame has textured, meaningful content in it.
 - Every distinct SUBJECT appears once; no duplicate or mirrored subjects (the logo/mark is the exception — it may recur in one or two meaningful, textured placements).
 - No fake or gibberish text anywhere. Prefer recognizable photographic BUILDINGS or entities over text-bearing seals. If a seal, stamp, or emblem shows a name, it MUST be the EXACT, correctly spelled real institution name (for example FEDERAL RESERVE, U.S. DEPARTMENT OF COMMERCE, SECURITIES AND EXCHANGE COMMISSION), never invented, garbled, or misspelled; otherwise show emblem imagery only.
@@ -1002,7 +1018,9 @@ Translate any abstract or digital idea into a concrete PHYSICAL metaphor (for ex
 
 First, READ and fully understand the ENTIRE article: identify the central subject, event, or tension, then build ONE metaphor with a single dominant hero subject around it, and decide what MEANINGFUL MATERIALS its parts are constructed from. COMPOSE DELIBERATELY, like a real art director: choose the hero and its exact placement and size, 1 to 2 supporting torn-photo fragments and what each one shows, how the logo integrates and stays prominent, ${textZone} the two bold accent colours, and the dramatic lighting and depth. THEN write image_prompt as ONE flowing, vivid paragraph that fully describes that exact composition, the hero, the specific story-relevant torn photographic fragments, and the full house style, ready to render.
 
-Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), supporting_subjects (0 to 2 concrete objects), logo_treatment (how the FULL logo lockup with its wordmark integrates, prominent, clean and flat on a wide viewer-facing surface, never cropped to the icon or warped), and text_elements (${textElementsNote}).`;
+SUGGESTED LOGO TREATMENT for this cover (a starting point to break the metal-nameplate habit; adapt it to the hero's material and the story, and swap it if it clashes): the logo ${logoHint || 'integrated into the scene\'s material'}.
+
+Return: image_prompt (the full paragraph), focal_subject (the hero, 2-5 words), supporting_subjects (0 to 2 concrete objects), logo_treatment (a CREATIVE, story-specific way the logo is incorporated — NOT a generic metal nameplate; vary it every time), and text_elements (${textElementsNote}).`;
 }
 
 /**
@@ -1024,6 +1042,7 @@ async function artDirect(a = {}) {
   // not on every cover. Roll per render: ~5% get a circle, ~10% an underline.
   const allowCircle = Math.random() < 0.05;
   const allowUnderline = Math.random() < 0.10;
+  const logoHint = LOGO_SURFACES[Math.floor(Math.random() * LOGO_SURFACES.length)];
   try {
     const factLines = Array.isArray(a.facts) && a.facts.length
       ? `\n\nCONFIRMED FACTS (safe to quote figures/names from):\n- ${a.facts.slice(0, 25).join('\n- ')}` : '';
@@ -1033,7 +1052,7 @@ async function artDirect(a = {}) {
     const src = a.body ? `TITLE: ${a.title || ''}\n\nARTICLE:\n${String(a.body).slice(0, 7000)}` : `HEADLINE: ${a.title || ''}`;
     const r = await callResponses({
       model: MODELS.artDirect,
-      instructions: buildArtDirectSystem(textMode, allowCircle, allowUnderline),
+      instructions: buildArtDirectSystem(textMode, allowCircle, allowUnderline, logoHint),
       input: `${src}${subj}${logo}${factLines}`,
       schema: ART_DIRECT_SCHEMA,
       schemaName: 'art_direction',
