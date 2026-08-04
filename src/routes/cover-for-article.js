@@ -233,6 +233,24 @@ async function uploadXReady(buffer, contentType, ext) {
 }
 
 /**
+ * GET /api/cover-generator/seals
+ * Returns the government/regulatory seal registry for the "seal in background"
+ * dropdown: [{ slug, name, region, description, grounded, imageUrl }].
+ * Grounded entries have a real seal image stored in our own Supabase storage;
+ * the description (read off the real seal) is what drives an accurate faded
+ * background watermark on ANY style. Additive: touches nothing in /generate.
+ */
+router.get('/seals', (req, res) => {
+  try {
+    const { listSeals } = require('../data/sealRegistry');
+    return res.json({ success: true, seals: listSeals() });
+  } catch (e) {
+    logger.warn(`/seals failed: ${e.message}`);
+    return res.status(500).json({ success: false, error: e.message, seals: [] });
+  }
+});
+
+/**
  * POST /api/cover-generator/for-article
  * Body: { title, content, sourceImageUrl?, network?, xFormat?, styleId?, useReference? }
  *   - useReference: false skips the source image even if provided (poor source images)
