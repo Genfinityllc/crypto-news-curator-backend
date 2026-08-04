@@ -976,7 +976,7 @@ function buildArtDirectSystem(textMode, allowCircle, allowUnderline, logoHint) {
   const circleRule = allowCircle
     ? 'You MAY draw ONE subtle hand-drawn coloured circle around a single key element.'
     : 'Do NOT draw any coloured marker circles, rings, ovals, or scribbles around objects, figures, or text.';
-  const commonType = `CAPITALIZE the first letter of each phrase (sentence case), never all-lowercase. Use MOSTLY bold SANS-SERIF type (heavy, condensed, black/extra-bold weights, modern magazine or protest-poster feel) with only an OCCASIONAL serif or typewriter accent. On a data clip pair a big bold figure with a smaller label. ${underlineRule} Render text on clean WHITE or light-grey paper — NEVER beige, tan, cream, or manila — each clip showing ONLY its exact phrase, spelled EXACTLY (no body text, no gibberish, no extra words).`;
+  const commonType = `CAPITALIZE the first letter of each phrase (sentence case), never all-lowercase. Use MOSTLY bold SANS-SERIF type (heavy, condensed, black/extra-bold weights, modern magazine or protest-poster feel) with only an OCCASIONAL serif or typewriter accent. On a data clip pair a big bold figure with a smaller label. ${underlineRule} Render text on clean WHITE or light-grey paper — NEVER beige, tan, cream, or manila — each clip showing ONLY its exact phrase, spelled EXACTLY (no body text, no gibberish, no extra words). Each phrase appears EXACTLY ONCE — NEVER render the same headline, label, figure, or phrase twice anywhere in the image.`;
   let textBlock;
   if (!hasText) {
     textBlock = `- NO text at all anywhere in the image. Any seal or stamp shows emblem imagery only (eagle, crest, rings), never lettering.`;

@@ -316,7 +316,7 @@ router.post('/for-article', async (req, res) => {
         : [];
       if (isCollageNews && textList.length) {
         const phrases = textList.map(e => `"${String(e.text).trim()}"`).join(', ');
-        collageDirective += ` Render EXACTLY these short factual text clippings, each on its own torn paper scrap, spelled exactly as written and adding no other text: ${phrases}.`;
+        collageDirective += ` Render EXACTLY these short factual text clippings, each on its own torn paper scrap, spelled exactly as written and adding no other text: ${phrases}. Each phrase appears ONCE only — never duplicate or repeat any clipping, headline, or phrase anywhere in the image.`;
         const emph = textList.filter(e => e.emphasis).map(e => `"${String(e.text).trim()}"`);
         if (emph.length) collageDirective += ` Highlight or underline these key figures in an accent color: ${emph.join(', ')}.`;
       } else if (isCollageNews) {
