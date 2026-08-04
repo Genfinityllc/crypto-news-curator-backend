@@ -463,6 +463,61 @@ class StyleCatalogService {
         customSubject: { enabled: true, placeholder: 'e.g., pipes, cables, circuits...', defaultSubject: 'industrial metal accent pieces and glowing particles' },
         defaultColors: { bgColor: '#1a1a1a', elementColor: '#ff3300', accentLightColor: '#ff6600', lightingColor: '#331111' },
         prompt: (logoSymbol) => `dark industrial concrete wall background with subtle metal panel texture and small rivets, moody cinematic lighting, photorealistic 3D environment, the provided ${logoSymbol} cryptocurrency logo symbol where each individual letter and icon element is rendered as its own thick 3D piece with a dark matte rounded bezel housing that follows the exact contour of the logo shape — like a padded channel letter sign casing, the front face of each piece is covered in subtly frosted diffused glass with a slight haze texture, behind the frosted glass front a brilliant intense neon red-orange (#ff3300) light glows from inside illuminating through the diffused surface creating a warm backlit effect, the dark rounded bezel wraps around the edges like a deep frame in the shape of each character, multiple concentric rounded ridges visible on the bezel edges adding depth, the neon light bleeds and scatters softly through the frosted glass front, strong neon light casting warm red-orange glow and reflections onto the concrete wall behind and the glossy floor beneath, floating {{3D_ELEMENTS}} in matching dark housing with inner glow scattered around, dramatic contrast between the dark environment and the intense neon core behind frosted glass, the housing follows the logo shape exactly — it IS the logo shape not a separate addition around it, absolutely NO rectangular frame NO box NO square border NO glass pane behind or around the logo — the bezel follows only the contour of each letter and icon piece, cinematic composition, 8k resolution, ultra-detailed, Octane render, Cinema 4D quality, premium 3D CGI product render, no text`
+      },
+
+      // === NEW FLAT-BACKGROUND STYLES (category 'graphic') ===
+      // Black backgrounds, flat 2D graphic backdrops, minimal 3D scene clutter.
+      // The logo still renders in 3D by default (existing ability preserved) and
+      // can be flattened per generation via the "Flat logo" toggle (customPrompt).
+      '40_flat_halftone': {
+        id: '40_flat_halftone',
+        name: 'Flat Halftone',
+        description: 'Flat black bg with a bold halftone-dot burst behind the logo (no 3D scene)',
+        filename: '40_flat_halftone.png',
+        category: 'graphic',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#00e5ff', accentLightColor: '#ff2d9b', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure solid BLACK background, a large FLAT 2D halftone-dot burst radiating in a bold accent color directly behind the logo like a modern screen-print poster, completely FLAT graphic design with NO 3D scene, NO floating objects, NO depth-of-field, NO environment. The single prominent ${logoSymbol} cryptocurrency logo is the clear hero, rendered in clean glossy 3D with soft studio lighting, floating freely with NO frame NO box NO panel behind it. A few flat halftone dots and simple flat geometric accent marks in the accent colours sit flat around the logo. Minimal, bold, high-contrast graphic-design aesthetic, crisp print feel, 8k, ultra-detailed, no text.`
+      },
+      '41_flat_color_blocks': {
+        id: '41_flat_color_blocks',
+        name: 'Bold Color Blocks',
+        description: 'Flat black bg with bold Bauhaus-style color blocks behind a 3D logo',
+        filename: '41_flat_color_blocks.png',
+        category: 'graphic',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#ff2d9b', accentLightColor: '#c6ff00', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure solid BLACK background, large FLAT overlapping geometric colour blocks (rectangles, circles, arcs, half-circles) in two bold accent colours arranged in a clean Swiss / Bauhaus poster layout behind the logo, completely FLAT 2D graphic design, NO 3D scene, NO floating objects, NO depth, NO environment. The single prominent ${logoSymbol} cryptocurrency logo is the hero, rendered in glossy 3D chrome, floating freely with NO frame NO box NO panel. The flat colour blocks sit flat behind the logo as a bold graphic backdrop. Modern editorial poster aesthetic, strong composition, high-contrast, 8k, ultra-detailed, no text.`
+      },
+      '42_flat_neon_lines': {
+        id: '42_flat_neon_lines',
+        name: 'Neon Line Frame',
+        description: 'Flat black bg with thin flat neon-line geometry framing a 3D glass logo',
+        filename: '42_flat_neon_lines.png',
+        category: 'graphic',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#00e5ff', accentLightColor: '#ff00ff', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure solid BLACK background, thin FLAT glowing neon outline lines in accent colours drawn as flat 2D geometric strokes forming clean frames, angles, and paths behind the logo — flat neon line GRAPHICS, NOT 3D tubes, NO depth, NO environment, NO floating objects. The single prominent ${logoSymbol} cryptocurrency logo is the hero, rendered in 3D frosted glass, floating freely with NO frame NO box NO panel. Minimal flat neon line accents surround it. Dark, moody, minimal, high-contrast, 8k, ultra-detailed, no text.`
+      },
+      '43_flat_radial_glow': {
+        id: '43_flat_radial_glow',
+        name: 'Radial Glow',
+        description: 'Flat black bg with a single soft radial glow behind a 3D logo — very minimal',
+        filename: '43_flat_radial_glow.png',
+        category: 'graphic',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#7b5cff', accentLightColor: '#00e5ff', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure solid BLACK background, a single soft FLAT radial gradient glow in one bold accent colour centered directly behind the logo like a spotlight bloom, completely flat and minimal with NO 3D scene, NO floating objects, NO clutter, NO environment. The single prominent ${logoSymbol} cryptocurrency logo is the clear hero, rendered in glossy 3D, floating freely with NO frame NO box NO panel. Very clean, minimal, premium, high-contrast, 8k, ultra-detailed, no text.`
+      },
+      '44_flat_shapes': {
+        id: '44_flat_shapes',
+        name: 'Flat Shapes',
+        description: 'Flat black bg with scattered flat geometric shapes behind a 3D logo',
+        filename: '44_flat_shapes.png',
+        category: 'graphic',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#c6ff00', accentLightColor: '#2979ff', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure solid BLACK background, scattered FLAT 2D geometric shapes (circles, triangles, plus signs, arcs, dots, thin lines) in two bold accent colours arranged as a modern flat graphic-design composition behind the logo, completely FLAT with NO 3D scene, NO depth, NO environment. The single prominent ${logoSymbol} cryptocurrency logo is the hero, rendered in glossy 3D, floating freely with NO frame NO box NO panel. The flat shapes sit flat behind and around the logo in a playful modern editorial layout, high-contrast, 8k, ultra-detailed, no text.`
       }
     };
 
