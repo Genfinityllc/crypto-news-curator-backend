@@ -582,6 +582,30 @@ class StyleCatalogService {
         customSubject: { enabled: false },
         defaultColors: { bgColor: '#000000', elementColor: '#2979ff', accentLightColor: '#00e5ff', lightingColor: '#000000' },
         prompt: (logoSymbol) => `deep black background with subtle atmospheric depth. A clean NODE NETWORK lattice fills the scene — glowing connection lines and small luminous nodes forming an elegant constellation/graph in two accent colours, with gentle depth-of-field so nearer nodes are crisp and distant ones soften, thin bright edges linking the points, and a few subtle data-pulse dots travelling along the lines. The provided ${logoSymbol} cryptocurrency logo is the clear hero at the CENTRAL HUB of the network, rendered as a glossy dimensional 3D object with the finest connection lines radiating outward to the surrounding nodes as if it is the core of the graph, catching soft coloured rim light, NO frame NO box NO panel behind it. Clean, premium, modern tech-network aesthetic with real dimensional depth (not flat), high-contrast, 8k, ultra-detailed, no text.`
+      },
+
+      // === GRAINY GRADIENT family (user reference: noisy colour blobs on black
+      // with film-grain falloff into the dark). Also available as a reusable
+      // background toggle on any style via the frontend "Grainy gradient" option.
+      '51_grain_gradient_glow': {
+        id: '51_grain_gradient_glow',
+        name: 'Grain Gradient Glow',
+        description: 'A single soft colour bloom falling off to black under heavy analog film grain',
+        filename: '51_grain_gradient_glow.png',
+        category: 'grain',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#8b2fff', accentLightColor: '#c77dff', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure deep BLACK background with a single soft, out-of-focus GRADIENT GLOW blooming from one corner or edge in a bold accent colour — a large blurred radial bloom of colour that transitions with a smooth seamless gradient falloff into pure black. The entire image is covered in a heavy fine ANALOG FILM GRAIN / photographic noise texture (35mm grain, grainy-gradient wallpaper aesthetic) with a beautiful soft grain falloff where the colour fades into the dark — organic, tactile, absolutely no banding. Generous dark negative space, moody premium feel. The provided ${logoSymbol} cryptocurrency logo is the clear hero, kept crisp and clean with subtle dimensional depth, floating in the composition with lots of dark space around it, NO frame NO box NO panel behind it. Minimal, sophisticated, high-end brand-cover aesthetic with a prominent grainy gradient. 8k base render with authentic film-grain overlay, no text.`
+      },
+      '52_grain_gradient_aurora': {
+        id: '52_grain_gradient_aurora',
+        name: 'Grain Gradient Aurora',
+        description: 'Several soft grainy colour blobs blooming and blending into black with film-grain falloff',
+        filename: '52_grain_gradient_aurora.png',
+        category: 'grain',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#000000', elementColor: '#3a2fff', accentLightColor: '#00d68f', lightingColor: '#000000' },
+        prompt: (logoSymbol) => `pure deep BLACK background filled with several soft, out-of-focus blurred GRADIENT BLOBS of colour in two or three bold accent colours (deep blues, purples, teals and greens) blooming and gently blending into one another, each transitioning with a smooth gradient falloff into deep black. The whole frame carries a heavy fine ANALOG FILM GRAIN / photographic noise (grainy-gradient aesthetic) with a soft beautiful grain falloff between the colours and into the darkness — organic and tactile, absolutely no banding. Dreamy, moody, premium. The provided ${logoSymbol} cryptocurrency logo is the clear hero, kept crisp and in focus with subtle dimensional depth, floating amid the soft grainy colour blooms surrounded by dark negative space, NO frame NO box NO panel behind it. Sophisticated modern brand-cover look with prominent grainy colour gradients. 8k with authentic film-grain overlay, no text.`
       }
     };
 
