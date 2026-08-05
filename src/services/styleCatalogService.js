@@ -471,16 +471,6 @@ class StyleCatalogService {
       // glass, sculpture) — richer than pure-flat, no halftone, no bare glow.
       // The logo still renders in 3D by default (existing ability preserved) and
       // can be flattened per generation via the "Flat logo" toggle (customPrompt).
-      '40_layered_papercut': {
-        id: '40_layered_papercut',
-        name: 'Layered Paper Cut',
-        description: 'Stacked matte paper-cut layers with real cast-shadow depth behind a 3D logo',
-        filename: '40_layered_papercut.png',
-        category: 'hybrid',
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#ff5a3c', accentLightColor: '#ffd23f', lightingColor: '#000000' },
-        prompt: (logoSymbol) => `deep matte BLACK background, a bold editorial composition built from multiple LAYERS of flat matte paper-cut shapes stacked at varying depths — clean cut geometric forms, bold arcs and organic curves in two bold accent colours, each layer physically offset in front of the next with soft realistic drop shadows and subtle ambient occlusion between layers, creating genuine dimensional depth like a kirigami paper-cut diorama; the colour planes stay flat and matte and graphic while the layering and cast shadows give real 3D depth. The provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as a glossy dimensional 3D object floating in front of the layered paper scene with soft studio lighting, crisp reflections, and a soft contact shadow on the nearest paper layer, NO frame NO box NO panel behind it. A few small folded-paper accent chips and thin cut strips float at shallow depth around the logo. Sophisticated modern editorial paper-craft aesthetic, tactile matte-paper texture on every layer, strong high-contrast composition, cinematic layered depth, 8k, ultra-detailed, no text.`
-      },
       '41_iso_blocks': {
         id: '41_iso_blocks',
         name: 'Isometric Blocks',
