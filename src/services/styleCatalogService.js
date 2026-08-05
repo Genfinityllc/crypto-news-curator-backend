@@ -778,14 +778,21 @@ class StyleCatalogService {
    * @param {object|null} logoOverrides - Optional logo overrides: { logoMaterial, logoBaseColor, logoAccentLight }
    */
   getStylePrompt(styleId, logoSymbol, colorOverrides = null, customSubject = null, logoOverrides = null, patternOverrides = null, palettesBySymbol = null) {
+    // Clean label for PROMPT TEXT ONLY (never for file or palette lookup): strip
+    // the "_FULL" full-logo suffix and underscores so internal filename/ticker
+    // conventions like "CHAINLINK_FULL" are never printed as literal text on the
+    // cover. The original `logoSymbol` is still used for palette lookups below.
+    const displaySymbol = (typeof logoSymbol === 'string')
+      ? logoSymbol.replace(/_FULL$/i, '').replace(/_/g, ' ').trim()
+      : logoSymbol;
     const style = this.styles[styleId];
     if (!style) {
       logger.warn(`Style not found: ${styleId}, using default`);
       const firstStyle = Object.values(this.styles)[0];
-      return firstStyle.prompt(logoSymbol);
+      return firstStyle.prompt(displaySymbol);
     }
 
-    let prompt = style.prompt(logoSymbol);
+    let prompt = style.prompt(displaySymbol);
 
     // Cover Generator collage flags, signalled by sentinel prefixes on
     // customSubject so the live /generate handler stays untouched. CENTERED_LOGO
@@ -841,7 +848,7 @@ class StyleCatalogService {
     // (the Article Studio concept), so bespoke story art wins over the rotation.
     if (COLLAGE_STYLE_IDS.has(styleId)) {
       if (centeredLogo) {
-        prompt += ` The ${logoSymbol} logo is LARGE and CENTERED as the clear main subject, integrated into the scene with matte texture and no glow.`;
+        prompt += ` The ${displaySymbol} logo is LARGE and CENTERED as the clear main subject, integrated into the scene with matte texture and no glow.`;
       } else if (!conceptMode) {
         // No article scene provided (e.g. a textless collage with no title): add
         // one light varied layout hint. When a scene IS provided (conceptMode),
@@ -944,6 +951,9 @@ class StyleCatalogService {
       logoOverrides.forEach((lo) => {
         const parts = [];
         const sym = lo.symbol || 'logo';
+        // Clean label for PROMPT TEXT ONLY (keep `sym` for palette lookup): never
+        // print internal filename/ticker conventions like "CHAINLINK_FULL".
+        const symLabel = (typeof sym === 'string') ? sym.replace(/_FULL$/i, '').replace(/_/g, ' ').trim() : sym;
         const isOg = lo.logoMaterial === 'og_color';
         if (isOg) {
           parts.push(`CRITICAL: preserve the EXACT original brand colors from the input image — the logo must use its real brand colors not any material color described in this prompt. Match the precise color distribution where each part of the logo keeps its original color (if the icon has a gradient but the text is white, keep that exact split). Do NOT apply any color uniformly across the whole logo. Do NOT recolor the logo to match the scene material. Render as 3D with depth and lighting but the color of every pixel must match the original input`);
@@ -951,7 +961,7 @@ class StyleCatalogService {
           const pal = palettesBySymbol && palettesBySymbol[(sym || '').toUpperCase()];
           if (pal && pal.length > 0) {
             const colorList = pal.map(p => `${p.name} ${p.hex}`).join(', ');
-            parts.push(`the actual brand colors for ${sym} are: ${colorList} — every pixel must match one of these exact colors, do not invent new colors and do not shift any hues`);
+            parts.push(`the actual brand colors for ${symLabel} are: ${colorList} — every pixel must match one of these exact colors, do not invent new colors and do not shift any hues`);
           }
           if (lo.logoAccentLight === 'none') {
             parts.push('NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo on this logo — render with flat lighting only');
@@ -973,7 +983,7 @@ class StyleCatalogService {
           }
         }
         if (parts.length > 0) {
-          logoDirectives.push(`${sym}: ${parts.join(', ')}`);
+          logoDirectives.push(`${symLabel}: ${parts.join(', ')}`);
           logger.info(`🎨 Per-logo override for ${sym}: ${parts.join(', ')}`);
         }
       });
@@ -985,7 +995,7 @@ class StyleCatalogService {
         const singlePal = palettesBySymbol && palettesBySymbol[(logoSymbol || '').toUpperCase()];
         if (singlePal && singlePal.length > 0) {
           const colorList = singlePal.map(p => `${p.name} ${p.hex}`).join(', ');
-          logoDirectives.push(`The actual brand colors for ${logoSymbol} are: ${colorList} — every pixel of the logo must match one of these exact colors, do not invent new colors and do not shift any hues`);
+          logoDirectives.push(`The actual brand colors for ${displaySymbol} are: ${colorList} — every pixel of the logo must match one of these exact colors, do not invent new colors and do not shift any hues`);
         }
         if (logoOverrides.logoAccentLight === 'none') {
           logoDirectives.push('OVERRIDE: NO glow, NO inner glow, NO rim light, NO edge light, NO neon halo, NO specular highlights on the logo — render with flat lighting only');
