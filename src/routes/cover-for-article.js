@@ -450,9 +450,12 @@ async function runCoverJob(jobId, body) {
       try {
         coverJobService.updateJob(jobId, { progress: 15, stepLabel: 'Art-directing the composition' });
         const rawSubj = String(body.customSubject || '').replace(/^(?:\s*[A-Z_]+\|)+/, '').trim();
-        const ad = await artDirect({ title: body.title, subjects: rawSubj, logoSymbol: body.network, withText: false });
+        // Clean label for prompt TEXT only (keep body.network for logo-file lookup):
+        // never let "CHAINLINK_FULL" reach the scene text and get printed.
+        const cleanSym = (s) => (typeof s === 'string' ? s.replace(/_FULL$/i, '').replace(/_/g, ' ').trim() : s);
+        const ad = await artDirect({ title: body.title, subjects: rawSubj, logoSymbol: cleanSym(body.network), withText: false });
         if (ad && ad.image_prompt) {
-          const sceneText = `SCENE (build the entire composition exactly from this): ${ad.image_prompt}${ad.logo_treatment ? ` The ${body.network || 'brand'} logo: ${ad.logo_treatment}.` : ''}`;
+          const sceneText = `SCENE (build the entire composition exactly from this): ${ad.image_prompt}${ad.logo_treatment ? ` The ${cleanSym(body.network) || 'brand'} logo: ${ad.logo_treatment}.` : ''}`;
           body.customPrompt = [body.customPrompt, sceneText].filter(Boolean).join(' ');
           // Subjects fill {{3D_ELEMENTS}}: user-typed subjects win, else the art-director's.
           const subjParts = [ad.focal_subject, ...(ad.supporting_subjects || [])].filter(Boolean).join(', ');
