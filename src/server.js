@@ -1558,7 +1558,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceImageUrls, referenceMode, customPrompt } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceImageUrls, referenceMode, customPrompt, sealImageUrl } = req.body;
 
   // Phase 4-ext3: normalize ref images to a single array (max 14 — Wavespeed
   // Nano-Banana-Pro cap). Accept both new `referenceImageUrls` array and
@@ -1849,7 +1849,7 @@ app.post('/api/cover-generator/generate', async (req, res) => {
       articleTitle,
       isBackgroundOnly ? null : network.toUpperCase(),
       style || 'professional',
-      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true, referenceImageUrl: useReferenceMode ? primaryRefUrl : null, referenceImageUrls: useReferenceMode ? refUrls : null, referenceMode: useReferenceMode ? (referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference') : null }
+      { content: '', customKeyword: customKeyword || null, userId, userEmail, additionalNetworks: isBackgroundOnly ? [] : allNetworks.slice(1), stylePrompt, logoTextMode: resolvedLogoTextMode, backgroundOnly: isBackgroundOnly, skipWatermark: skipWatermark === true, referenceImageUrl: useReferenceMode ? primaryRefUrl : null, referenceImageUrls: useReferenceMode ? refUrls : null, referenceMode: useReferenceMode ? (referenceMode === 'composition_restyle' ? 'composition_restyle' : 'style_reference') : null, sealImageUrl: (sealImageUrl && typeof sealImageUrl === 'string') ? sealImageUrl : null }
     );
     
     const duration = Math.round((Date.now() - startTime) / 1000);

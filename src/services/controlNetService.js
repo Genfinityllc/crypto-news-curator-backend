@@ -867,7 +867,8 @@ class ControlNetService {
         backgroundOnly: backgroundOnly,
         referenceImageUrl: options.referenceImageUrl || null,
         referenceImageUrls: options.referenceImageUrls || null,
-        referenceMode: options.referenceMode || null
+        referenceMode: options.referenceMode || null,
+        sealImageUrl: options.sealImageUrl || null
       });
           
       imagePath = result.imagePath;
@@ -1006,7 +1007,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceImageUrls = null, referenceMode = null }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceImageUrls = null, referenceMode = null, sealImageUrl = null }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -1141,6 +1142,18 @@ class ControlNetService {
         cappedRefs.forEach(u => imagesArray.push(u));
         logger.info(`📎 Adding ${cappedRefs.length} reference image(s) after logo (mode=${referenceMode || 'style_reference'})`);
       }
+    }
+
+    // ADDITIVE (guarded): an official government/regulatory seal image, layered
+    // into the FAR BACKGROUND as a faded watermark. Kept SEPARATE from
+    // referenceImageUrls so the chosen style prompt is fully preserved (this
+    // path does not touch style-vs-ref-mode logic). When sealImageUrl is absent
+    // the images array and prompt are byte-identical to before.
+    if (!backgroundOnly && sealImageUrl && typeof sealImageUrl === 'string' && imagesArray.length < NANOBANANA_MAX_IMAGES) {
+      imagesArray.push(sealImageUrl);
+      const sealPos = imagesArray.length; // 1-based index of the seal image
+      prompt += ` OFFICIAL SEAL REFERENCE: the LAST input image (image ${sealPos}) is an official government/regulatory seal. Reproduce THAT EXACT seal from the image — its real emblem, ring text, and layout — but render it as a faint, low-opacity, desaturated single-tone WHITE embossed watermark set into the FAR BACKGROUND, behind everything, partially obscured. Do NOT invent, redesign, or restyle the seal; copy the provided seal image faithfully. It must NOT be a focal element, must NOT be brightly coloured, and must stay well behind the logo and all scene elements.`;
+      logger.info(`🏛️ Seal image added as faded background watermark (image ${sealPos})`);
     }
     const payload = {
       enable_base64_output: false,
