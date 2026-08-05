@@ -511,17 +511,6 @@ class StyleCatalogService {
         defaultColors: { bgColor: '#000000', elementColor: '#7b5cff', accentLightColor: '#00e5ff', lightingColor: '#000000' },
         prompt: (logoSymbol) => `deep matte BLACK background, a bold flat editorial colour-field graphic composition (clean Swiss shapes and bold accent blocks in two accent colours) as the backdrop, layered with several semi-transparent frosted GLASS panels floating at different depths in front of it — the glass planes are dimensional with real thickness, bevelled edges, soft refraction and blur of the flat graphics seen through them, gentle specular streaks, and soft shadows cast onto the flat backdrop, blending flat graphic design with layered 3D glass depth. The provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as a glossy dimensional 3D object floating in front of the glass panels with clean reflections and a soft contact shadow, NO frame NO box NO panel behind it. Modern premium editorial aesthetic, crisp flat colour against soft layered glass depth, high-contrast, 8k, ultra-detailed, no text.`
       },
-      '44_ribbon_sculpture': {
-        id: '44_ribbon_sculpture',
-        name: 'Ribbon Sculpture',
-        description: 'A sweeping extruded 3D ribbon winding through flat graphic accents behind a 3D logo',
-        filename: '44_ribbon_sculpture.png',
-        category: 'hybrid',
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#00d68f', accentLightColor: '#ff8a00', lightingColor: '#000000' },
-        prompt: (logoSymbol) => `deep matte BLACK background, a large sweeping 3D EXTRUDED ribbon that winds and folds through the scene behind the logo — a smooth dimensional band with matte flat-colour surfaces in two bold accent colours, twisting with real depth, soft self-shadowing, and clean edges, set against a few FLAT 2D graphic accent shapes and thin lines that echo its motion, blending sculptural 3D form with flat editorial graphics. The provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as a glossy dimensional 3D object nested within the curve of the ribbon with soft studio lighting, crisp reflections, and a soft contact shadow, NO frame NO box NO panel behind it. A few flat dots and arcs float around it. Bold, dynamic, modern editorial-motion aesthetic, strong sense of flow and depth, high-contrast matte surfaces, 8k, ultra-detailed, no text.`
-      },
-
       // === CONCEPT BATCH 2 (user-picked: 1,2,3,20,27,28) ===
       '45_liquid_chrome': {
         id: '45_liquid_chrome',
@@ -553,16 +542,6 @@ class StyleCatalogService {
         defaultColors: { bgColor: '#0a0a0c', elementColor: '#ff7a1a', accentLightColor: '#ffd23f', lightingColor: '#2a1405' },
         prompt: (logoSymbol) => `dark moody glassblowing-studio atmosphere with warm ambient falloff, photorealistic and cinematic. The scene is MOLTEN GLASS — the provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as if freshly blown and shaped from hot glass: a thick dimensional 3D form of clear-to-coloured glass with GLOWING HOT edges where the glass is still molten (soft incandescent orange-to-accent glow bleeding along the rims and thinner sections), smooth flowing surfaces, teardrop drips, subtle internal bubbles and swirls, brilliant specular highlights and refraction. Wisps of heat-shimmer and a few glowing molten-glass droplets float nearby. The logo floats freely with NO frame NO box NO panel behind it, soft warm reflections on a dark glossy surface below. Rich glowing-glass material, dramatic hot-cold contrast, premium craft aesthetic, high-contrast, 8k, ultra-detailed, Octane render, no text.`
       },
-      '48_light_trails': {
-        id: '48_light_trails',
-        name: 'Long-Exposure Trails',
-        description: 'Dimensional motion-light ribbons wrapping the logo like long-exposure photography',
-        filename: '48_light_trails.png',
-        category: 'dynamic',
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#00e5ff', accentLightColor: '#ff2d9b', lightingColor: '#000000' },
-        prompt: (logoSymbol) => `pure deep-black background, a long-exposure light-painting scene. Sweeping ribbons of LIGHT TRAILS in two bold accent colours arc and wrap around the logo — smooth continuous streaks of motion-blurred light like long-exposure photography, curving through 3D space with real depth, bright cores and soft falloff, a few crisp sparks and bokeh points scattered along the paths. The provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as a glossy dimensional 3D object at the centre with the light trails orbiting behind and in front of it, catching coloured reflections and rim light from the streaks, NO frame NO box NO panel behind it. Dynamic sense of speed and motion, dark cinematic atmosphere, high-contrast, premium. This is NOT a flat graphic and NOT a simple background glow — the trails are real dimensional motion-light ribbons with depth and parallax. 8k, ultra-detailed, no text.`
-      },
       '49_sticker_sheet': {
         id: '49_sticker_sheet',
         name: 'Sticker Sheet',
@@ -573,15 +552,15 @@ class StyleCatalogService {
         defaultColors: { bgColor: '#12131a', elementColor: '#ff2d9b', accentLightColor: '#c6ff00', lightingColor: '#12131a' },
         prompt: (logoSymbol) => `a deep dark background panel, modern playful sticker-art aesthetic. The scene is a set of glossy PUFFY 3D STICKERS — chunky rounded die-cut sticker shapes with thick clean white borders, soft glossy highlights, and subtle drop shadows lifting them off the surface, in two bold accent colours: little stars, sparkles, arrows, blobs, plus-signs and rounded geometric icons scattered in a fun modern layout. The provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as the largest glossy PUFFY 3D sticker with a thick clean white die-cut border and a soft drop shadow, sitting proud of the surface, NO frame NO box NO panel behind it. Cheerful, tactile, contemporary sticker-sheet vibe, crisp glossy highlights, bold and clean composition, high-contrast, 8k, ultra-detailed, no text.`
       },
-      '50_node_network': {
-        id: '50_node_network',
-        name: 'Grid & Node Network',
-        description: 'Logo as the central hub of a glowing dimensional node-network lattice',
-        filename: '50_node_network.png',
+      '50_server_leds': {
+        id: '50_server_leds',
+        name: 'Server Rack LEDs',
+        description: 'Logo formed from glowing LED status lights across a dark data-center server wall',
+        filename: '50_server_leds.png',
         category: 'tech',
         customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#2979ff', accentLightColor: '#00e5ff', lightingColor: '#000000' },
-        prompt: (logoSymbol) => `deep black background with subtle atmospheric depth. A clean NODE NETWORK lattice fills the scene — glowing connection lines and small luminous nodes forming an elegant constellation/graph in two accent colours, with gentle depth-of-field so nearer nodes are crisp and distant ones soften, thin bright edges linking the points, and a few subtle data-pulse dots travelling along the lines. The provided ${logoSymbol} cryptocurrency logo is the clear hero at the CENTRAL HUB of the network, rendered as a glossy dimensional 3D object with the finest connection lines radiating outward to the surrounding nodes as if it is the core of the graph, catching soft coloured rim light, NO frame NO box NO panel behind it. Clean, premium, modern tech-network aesthetic with real dimensional depth (not flat), high-contrast, 8k, ultra-detailed, no text.`
+        defaultColors: { bgColor: '#0a0e14', elementColor: '#00e5ff', accentLightColor: '#b14cff', lightingColor: '#0a0e14' },
+        prompt: (logoSymbol) => `a moody photorealistic DATA-CENTER scene: a dark wall of server racks fills the entire frame, packed with equipment panels, ports and a dense field of tiny glowing LED status lights in blues, greens, ambers and purples, with black data cables draping and curving across the racks. The provided ${logoSymbol} cryptocurrency logo is the clear hero, rendered as if FORMED FROM GLOWING LED INDICATOR LIGHTS embedded in the centre of the server wall — the logo shape spelled out precisely by a cluster of bright illuminated LEDs following its exact contours, glowing in the logo's own brand colours, standing out clearly and brightly against the darker scattered status lights around it, with a soft light bloom and gentle reflections on the rack surfaces. Cinematic low-key lighting, deep shadows, shallow depth of field, atmospheric high-tech ambience, the logo integrated into the server wall AS light with NO frame NO box NO panel. Highly detailed, photorealistic, 8k, no text.`
       },
 
       // === GRAINY GRADIENT family (user reference: noisy colour blobs on black
