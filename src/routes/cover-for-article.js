@@ -442,8 +442,11 @@ async function runCoverJob(jobId, body) {
     // Editorial Collage with a title: derive a bespoke interacting-metaphor
     // concept from the title so the elements tell a story instead of being
     // placed side by side. Scoped to the collage; other styles are untouched.
+    // Derive the bespoke story concept for the collage whenever there's a title —
+    // INCLUDING when the centered-logo box is checked. Centering only changes the
+    // logo's placement; it must NOT drop the article's story from the scene.
     const centeredRequested = /^\s*CENTERED_LOGO\|/.test(String((body && body.customSubject) || ''));
-    if (body && body.styleId === '32_editorial_collage' && body.title && String(body.title).trim() && !centeredRequested) {
+    if (body && body.styleId === '32_editorial_collage' && body.title && String(body.title).trim()) {
       try {
         coverJobService.updateJob(jobId, { progress: 15, stepLabel: 'Art-directing the composition' });
         const rawSubj = String(body.customSubject || '').replace(/^(?:\s*[A-Z_]+\|)+/, '').trim();
@@ -453,8 +456,10 @@ async function runCoverJob(jobId, body) {
           body.customPrompt = [body.customPrompt, sceneText].filter(Boolean).join(' ');
           // Subjects fill {{3D_ELEMENTS}}: user-typed subjects win, else the art-director's.
           const subjParts = [ad.focal_subject, ...(ad.supporting_subjects || [])].filter(Boolean).join(', ');
-          // CONCEPT sentinel makes getStylePrompt defer the layout to this scene.
-          body.customSubject = `CONCEPT|${rawSubj || subjParts}`;
+          // Keep the CENTERED_LOGO sentinel (if requested) in front of CONCEPT so
+          // getStylePrompt applies BOTH: the story scene drives the layout AND the
+          // logo is centered within it. getStylePrompt parses stacked sentinels.
+          body.customSubject = `${centeredRequested ? 'CENTERED_LOGO|' : ''}CONCEPT|${rawSubj || subjParts}`;
         }
       } catch (ce) { logger.warn(`art-direction failed (${jobId}): ${ce.message}`); }
     }
