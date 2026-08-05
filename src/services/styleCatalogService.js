@@ -848,7 +848,7 @@ class StyleCatalogService {
     // (the Article Studio concept), so bespoke story art wins over the rotation.
     if (COLLAGE_STYLE_IDS.has(styleId)) {
       if (centeredLogo) {
-        prompt += ` The ${displaySymbol} logo is LARGE and CENTERED as the clear main subject, integrated into the scene with matte texture and no glow.`;
+        prompt += ` COMPOSITION: keep the FULL rich torn-paper photographic collage exactly in the signature style — layered ripped fragments, tactile textures, halftone and editorial elements, and bold accent colours filling the entire frame — but arrange the scene so the ${displaySymbol} logo sits CENTERED as the clear focal hero, prominent and unobstructed in the middle while the collage surrounds and frames it. The logo is integrated INTO the collage at the centre (not a plain logo on an empty background, and never flattening or replacing the collage) and keeps a clean crisp treatment as the focal point.`;
       } else if (!conceptMode) {
         // No article scene provided (e.g. a textless collage with no title): add
         // one light varied layout hint. When a scene IS provided (conceptMode),
