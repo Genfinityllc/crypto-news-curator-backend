@@ -606,6 +606,70 @@ class StyleCatalogService {
         customSubject: { enabled: false },
         defaultColors: { bgColor: '#000000', elementColor: '#3a2fff', accentLightColor: '#00d68f', lightingColor: '#000000' },
         prompt: (logoSymbol) => `pure deep BLACK background filled with several soft, out-of-focus blurred GRADIENT BLOBS of colour in two or three bold accent colours (deep blues, purples, teals and greens) blooming and gently blending into one another, each transitioning with a smooth gradient falloff into deep black. The whole frame carries a heavy fine ANALOG FILM GRAIN / photographic noise (grainy-gradient aesthetic) with a soft beautiful grain falloff between the colours and into the darkness — organic and tactile, absolutely no banding. Dreamy, moody, premium. The provided ${logoSymbol} cryptocurrency logo is the clear hero, kept crisp and in focus with subtle dimensional depth, floating amid the soft grainy colour blooms surrounded by dark negative space, NO frame NO box NO panel behind it. Sophisticated modern brand-cover look with prominent grainy colour gradients. 8k with authentic film-grain overlay, no text.`
+      },
+
+      // === CONCEPT BATCH 3 (user-picked: 36,37,39,43,45,50) ===
+      // Colour-flexible: background + ink/element + accent are all driven by the
+      // Scene Colors pickers (buildColorDirectives overrides the inline defaults).
+      '53_y2k_chrome': {
+        id: '53_y2k_chrome',
+        name: 'Y2K Chrome',
+        description: 'Bubbly early-2000s liquid-chrome logo with lens flares and rainbow sheen',
+        filename: '53_y2k_chrome.png',
+        category: 'retro',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#0a0f1a', elementColor: '#c8ccd0', accentLightColor: '#3aa0ff', lightingColor: '#0a0f1a' },
+        prompt: (logoSymbol) => `a glossy early-2000s Y2K aesthetic on a deep blue-black (#0a0f1a) background with a smooth vertical gradient tinted by the accent colour. The provided ${logoSymbol} cryptocurrency logo is the hero, rendered as bubbly liquid CHROME — soft rounded inflated 3D chrome forms with a bright mirror finish, candy-gloss reflections, a subtle chromatic-aberration rainbow sheen along the edges, and blooming lens flares and star sparkles catching the highlights. A few floating chrome bubbles and soft motion streaks in the accent colour drift around it. Nostalgic 2000s tech-optimism vibe, high-gloss, playful yet premium, NO frame NO box NO panel behind the logo, high-contrast, 8k, ultra-detailed, no text.`
+      },
+      '54_banknote_engraving': {
+        id: '54_banknote_engraving',
+        name: 'Banknote Engraving',
+        description: 'Fine guilloche currency-engraving line-work; recolourable ink on paper',
+        filename: '54_banknote_engraving.png',
+        category: 'engraving',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#f4efe2', elementColor: '#14532d', accentLightColor: '#b8962e', lightingColor: '#f4efe2' },
+        prompt: (logoSymbol) => `an intricate BANKNOTE ENGRAVING aesthetic — the whole scene is drawn as fine guilloche currency engraving: dense concentric line-work, spirograph rosettes, cross-hatching and ornate filigree borders rendered as thin precise lines in a deep green ink (#14532d), the primary element colour, on a flat warm paper-cream (#f4efe2) background, like the engraving on a banknote or stock certificate. The provided ${logoSymbol} cryptocurrency logo is the hero, rendered in the same fine engraved line-work (built from crisp parallel and contour lines) at the centre with a subtle raised intaglio relief for a hint of depth, framed by ornate guilloche patterning and a decorative engraved border with small accent-gold flourishes. Secure, official, intricate vintage-financial aesthetic; the ink colour and paper colour are fully recolourable. Absolutely NO lettering, NO numbers, NO words anywhere. High-contrast, extremely detailed line-work, 8k, no text.`
+      },
+      '55_pixel_to_3d': {
+        id: '55_pixel_to_3d',
+        name: 'Pixel to 3D',
+        description: 'Retro voxel/pixel fragments assembling into the solid 3D logo',
+        filename: '55_pixel_to_3d.png',
+        category: 'retro',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#0b0b16', elementColor: '#00e5ff', accentLightColor: '#ff2d9b', lightingColor: '#0b0b16' },
+        prompt: (logoSymbol) => `a retro-gaming PIXEL-TO-3D scene on a deep indigo-black (#0b0b16) background. On one side, blocky low-res PIXEL ART and voxel cubes in the element colour (#00e5ff) and accent colour (#ff2d9b) — 8-bit / 16-bit style squares, dithered edges, chunky pixels — progressively ASSEMBLE and resolve from one side into the crisp solid 3D form of the provided ${logoSymbol} cryptocurrency logo. The logo is the hero, rendered as a clean glossy dimensional 3D object, with a trail of flying voxel cubes and pixel fragments transitioning into its smooth surface. Playful retro-arcade-meets-modern aesthetic, strong contrast between chunky pixels and the smooth 3D logo, NO frame NO box NO panel behind it, high-contrast, 8k, ultra-detailed, no text.`
+      },
+      '56_perfume_minimal': {
+        id: '56_perfume_minimal',
+        name: 'Luxury Minimal',
+        description: 'Ultra-clean luxury product-ad look with soft gradients and vast negative space',
+        filename: '56_perfume_minimal.png',
+        category: 'minimal',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#ece7e1', elementColor: '#c8ccd0', accentLightColor: '#b08d57', lightingColor: '#ece7e1' },
+        prompt: (logoSymbol) => `an ultra-clean high-end LUXURY PRODUCT-AD aesthetic — a serene minimal composition with a smooth soft gradient background flowing from a warm off-white (#ece7e1) into a gentle tint of the accent colour, vast elegant negative space, and soft diffused studio lighting with a delicate soft shadow. The provided ${logoSymbol} cryptocurrency logo is the hero, rendered as a refined glossy dimensional 3D object, impeccably lit like a premium perfume or fine-jewellery advertisement, placed with generous breathing room, delicate reflections and a soft gradient sheen picking up the accent colour, NO frame NO box NO panel behind it. Sophisticated, expensive, restrained editorial-luxury feel, flawless gradients with no banding, high-contrast subject against a soft ground, 8k, ultra-detailed, no text.`
+      },
+      '57_circuit_etch': {
+        id: '57_circuit_etch',
+        name: 'Circuit Etch',
+        description: 'Logo fabricated into a glowing printed-circuit board with routed traces',
+        filename: '57_circuit_etch.png',
+        category: 'tech',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#07130d', elementColor: '#1b6b3a', accentLightColor: '#35ffa6', lightingColor: '#07130d' },
+        prompt: (logoSymbol) => `a detailed CIRCUIT-BOARD ETCH scene — the background is a printed circuit board in a dark green-black (#07130d), covered in fine etched copper pathways, solder pads, vias and tiny surface-mount components, with glowing conductive TRACES routed in the accent colour (#35ffa6) flowing across the board and converging toward the centre. The provided ${logoSymbol} cryptocurrency logo is the hero, rendered as if ETCHED and fabricated into the board — raised metallic PCB relief with the accent-colour circuit traces feeding into it and a soft accent glow along its edges, subtle 3D depth, NO frame NO box NO panel behind it. High-tech, precise, engineered aesthetic, macro detail on the board texture; the board colour and trace colour are fully recolourable. High-contrast, 8k, ultra-detailed, no text.`
+      },
+      '58_sumi_e': {
+        id: '58_sumi_e',
+        name: 'Sumi-e Ink Wash',
+        description: 'Elegant Japanese ink-wash brushwork; recolourable ink on rice paper',
+        filename: '58_sumi_e.png',
+        category: 'artistic',
+        customSubject: { enabled: false },
+        defaultColors: { bgColor: '#f2ede1', elementColor: '#111111', accentLightColor: '#b23b2e', lightingColor: '#f2ede1' },
+        prompt: (logoSymbol) => `an elegant Japanese SUMI-E INK WASH painting aesthetic — a minimal composition on a soft, subtly textured rice-paper cream (#f2ede1) background, with expressive flowing brushstrokes, soft ink washes, gradient bleeds and a few splattered droplets all painted in deep black ink (#111111), the element colour, with lots of tranquil negative space. The provided ${logoSymbol} cryptocurrency logo is the hero, rendered as a confident single-stroke ink-brush interpretation with organic bleeding edges and dry-brush texture, subtly raised so it reads as the focal point, surrounded by a few graceful minimal ink strokes and a small accent-colour (#b23b2e) hanko seal mark. Serene, refined, gestural, wabi-sabi aesthetic; the ink colour and paper colour are fully recolourable. High-contrast, 8k, ultra-detailed, no text.`
       }
     };
 
