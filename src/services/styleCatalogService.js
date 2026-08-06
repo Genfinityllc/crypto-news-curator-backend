@@ -45,7 +45,7 @@ const LOGO_TREATMENTS = [
   'LOGO TREATMENT: show the logo being USED IN AN ACTION that tells the story — gripped or squeezed by a hand, stamped down, chained, wrung out, or pushed — chosen to fit the article.',
   'LOGO TREATMENT: the logo is cracked, shattered, or crumbling like the surface it sits on, signalling the story tension.',
   'LOGO TREATMENT: the logo is spray-painted or stencilled onto a wall, crate, or torn poster inside the collage, with a few paint drips.',
-  'LOGO TREATMENT: the logo is the HUB or centerpiece of a relevant object (a wheel, vault door, gauge, seal, or jar), built into the scene rather than pasted on top.',
+  'LOGO TREATMENT: the logo is the HUB or centerpiece of a relevant object (a vault door, gauge, pressed wax seal, coin, or jar), built into the scene rather than pasted on top.',
   'LOGO TREATMENT: the logo rides a small flat sticker, stamp, or ticker label clipped among the document scraps, kept secondary to a larger hero subject.'
 ];
 let logoTreatmentIndex = Math.floor(Math.random() * LOGO_TREATMENTS.length);
