@@ -1083,13 +1083,13 @@ async function artDirect(a = {}) {
 // headline (for the collage auto-people feature). Returns [] on any failure or
 // when no real person is named. Deliberately conservative: people only, never
 // companies, tokens, agencies, or places.
-async function extractPersonNames(title) {
-  if (!title || typeof title !== 'string' || !title.trim()) return [];
+async function extractPersonNames(text) {
+  if (!text || typeof text !== 'string' || !text.trim()) return [];
   try {
     const { parsed } = await callResponses({
       model: MODELS.brief, // cheap tier is plenty for NER
-      instructions: 'You extract the full names of real, individual HUMAN PEOPLE explicitly named in a news headline. Return ONLY actual person names (a real human with a given name and surname, e.g. "Tim Scott", "Gary Gensler"). Do NOT return company names, organizations, protocols, tokens, products, government agencies, committees, or place names. If a surname alone or a title-only reference appears, include it only if it clearly identifies a specific well-known person. If no real person is named, return an empty list.',
-      input: `Headline: ${title}\n\nReturn the full names of the real people named in this headline.`,
+      instructions: 'You extract the full names of the real, individual HUMAN PEOPLE that a news story is ABOUT — the main people featured or driving the story, in order of prominence. Return ONLY actual person names (a real human with a given name and surname, e.g. "Tim Scott", "Gary Gensler"). Do NOT return company names, organizations, protocols, tokens, products, government agencies, committees, bills, or place names. Ignore people mentioned only in passing; focus on the 1-3 key people the story centers on. If a surname alone or a title-only reference appears, include it only if it clearly identifies a specific well-known person. If no real person is central to the story, return an empty list.',
+      input: `Headline + article context:\n${text.slice(0, 1200)}\n\nReturn the full names of the main real people this story is about.`,
       schema: {
         type: 'object',
         additionalProperties: false,

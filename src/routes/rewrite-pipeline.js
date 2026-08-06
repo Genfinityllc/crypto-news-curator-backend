@@ -97,6 +97,9 @@ async function generateCoverForResult(result, opts = {}) {
 
   const resp = await axios.post(FOR_ARTICLE_URL, {
     title: a.headline,
+    // The ORIGINAL, pre-rewrite title so person-name detection uses the name
+    // even when the rewrite dropped it from the headline.
+    originalTitle: opts.originalTitle || null,
     content: `${entities}. ${(a.article_markdown || '').slice(0, 500)}`,
     styleId,
     useSubject: opts.useSubject,
@@ -128,7 +131,7 @@ async function runJob(jobId, source) {
     try {
       jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Designing concept and generating cover', progress: 95 });
       // Rewrite covers use the text-enabled news collage with truthful clippings.
-      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE, withTitle: source.withTitle, withSubtext: source.withSubtext });
+      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE, withTitle: source.withTitle, withSubtext: source.withSubtext, originalTitle: source.title });
     } catch (ce) {
       logger.warn(`auto-cover failed (${jobId}): ${ce.message}`);
     }
@@ -192,7 +195,7 @@ async function runManualJob(jobId, source) {
     jobService.updateJob(jobId, { step: 'concept', stepLabel: 'Designing the cover concept from your article', progress: 45 });
     jobService.updateJob(jobId, { step: 'cover', stepLabel: 'Generating cover', progress: 70 });
     try {
-      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE, withTitle: source.withTitle, withSubtext: source.withSubtext });
+      result.cover = await generateCoverForResult(result, { defaultStyle: NEWS_COLLAGE_STYLE, withTitle: source.withTitle, withSubtext: source.withSubtext, originalTitle: source.title });
     } catch (ce) {
       logger.warn(`manual auto-cover failed (${jobId}): ${ce.message}`);
     }

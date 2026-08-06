@@ -281,7 +281,7 @@ router.get('/people', async (req, res) => {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors, textElements, concept, subjectImageUrls } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors, textElements, concept, subjectImageUrls, originalTitle } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -383,7 +383,10 @@ router.post('/for-article', async (req, res) => {
     if (isCollage && title) {
       try {
         const { resolvePeople } = require('../services/peopleAutoFetchService');
-        const r = await resolvePeople(title);
+        // Detect from the ORIGINAL title first (rewrites often drop the person's
+        // name from the headline), then the working title + article context.
+        const detectText = `${originalTitle || ''}. ${title || ''}. ${content || ''}`.trim();
+        const r = await resolvePeople(detectText);
         const autoUrls = (r.subjectImageUrls || []).filter(u => u && !finalSubjectImageUrls.includes(u));
         if (autoUrls.length) {
           finalSubjectImageUrls = finalSubjectImageUrls.concat(autoUrls);
