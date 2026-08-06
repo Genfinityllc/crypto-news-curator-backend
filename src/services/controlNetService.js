@@ -868,7 +868,8 @@ class ControlNetService {
         referenceImageUrl: options.referenceImageUrl || null,
         referenceImageUrls: options.referenceImageUrls || null,
         referenceMode: options.referenceMode || null,
-        sealImageUrl: options.sealImageUrl || null
+        sealImageUrl: options.sealImageUrl || null,
+        subjectImageUrls: options.subjectImageUrls || null
       });
           
       imagePath = result.imagePath;
@@ -1007,7 +1008,7 @@ class ControlNetService {
    * This produces the BEST quality - crystal glass, liquid-filled, reflective surfaces
    * UPDATED: Using exact Wavespeed API format from official docs
    */
-  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceImageUrls = null, referenceMode = null, sealImageUrl = null }) {
+  async generateWithNanoBananaPro({ logoBuffer, logoSymbol, title, imageId, article = {}, stylePrompt = null, backgroundOnly = false, referenceImageUrl = null, referenceImageUrls = null, referenceMode = null, sealImageUrl = null, subjectImageUrls = null }) {
     const wavespeedApiKey = process.env.WAVESPEED_API_KEY;
     
     logger.info(`🌟 Nano-Banana-Pro: Creating 3D glass/liquid ${logoSymbol} logo...`);
@@ -1141,6 +1142,24 @@ class ControlNetService {
         const cappedRefs = refList.slice(0, NANOBANANA_MAX_IMAGES - 1);
         cappedRefs.forEach(u => imagesArray.push(u));
         logger.info(`📎 Adding ${cappedRefs.length} reference image(s) after logo (mode=${referenceMode || 'style_reference'})`);
+      }
+    }
+
+    // ADDITIVE (guarded): reference PORTRAITS of specific real people to depict
+    // as subjects in the scene (collage "People"). Appended BEFORE the seal so
+    // the seal stays the LAST image. No-op when subjectImageUrls is absent.
+    if (!backgroundOnly && Array.isArray(subjectImageUrls) && subjectImageUrls.length > 0) {
+      const startPos = imagesArray.length + 1; // 1-based index of first person
+      const added = [];
+      for (const u of subjectImageUrls) {
+        if (u && typeof u === 'string' && imagesArray.length < NANOBANANA_MAX_IMAGES) { imagesArray.push(u); added.push(u); }
+      }
+      if (added.length > 0) {
+        const endPos = imagesArray.length;
+        const range = added.length === 1 ? `input image ${startPos}` : `input images ${startPos} through ${endPos}`;
+        const isOne = added.length === 1;
+        prompt += ` REAL PERSON REFERENCE: ${range} ${isOne ? 'is a reference portrait' : 'are reference portraits'} of ${isOne ? 'a specific real person' : 'specific real people'} who must be DEPICTED in the scene. Render ${isOne ? 'that person' : 'each of those people'} as an accurate, clearly recognizable likeness of the person in the reference photo — correct face, hair, and distinctive features — woven in as a real subject of the collage. The collage's grit, halftone, torn-paper and duotone treatment may stylise them, but they MUST stay unmistakably recognizable as that specific real person; never invent a different face or swap identities.`;
+        logger.info(`🧑 Added ${added.length} person reference image(s) as subjects (images ${startPos}-${endPos})`);
       }
     }
 

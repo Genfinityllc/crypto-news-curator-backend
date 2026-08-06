@@ -251,6 +251,22 @@ router.get('/seals', (req, res) => {
 });
 
 /**
+ * GET /api/cover-generator/people
+ * Returns the public-figure registry for the collage "People" subject group:
+ * [{ slug, name, org, imageUrl }]. Each has a real stored reference portrait
+ * that the collage feeds in as a guarded reference image for accurate likeness.
+ */
+router.get('/people', (req, res) => {
+  try {
+    const { listPeople } = require('../data/peopleRegistry');
+    return res.json({ success: true, people: listPeople() });
+  } catch (e) {
+    logger.warn(`/people failed: ${e.message}`);
+    return res.status(500).json({ success: false, error: e.message, people: [] });
+  }
+});
+
+/**
  * POST /api/cover-generator/for-article
  * Body: { title, content, sourceImageUrl?, network?, xFormat?, styleId?, useReference? }
  *   - useReference: false skips the source image even if provided (poor source images)
