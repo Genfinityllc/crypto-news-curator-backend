@@ -256,13 +256,18 @@ router.get('/seals', (req, res) => {
  * [{ slug, name, org, imageUrl }]. Each has a real stored reference portrait
  * that the collage feeds in as a guarded reference image for accurate likeness.
  */
-router.get('/people', (req, res) => {
+router.get('/people', async (req, res) => {
   try {
-    const { listPeople } = require('../data/peopleRegistry');
-    return res.json({ success: true, people: listPeople() });
+    const people = await require('../data/peopleStore').listCombined();
+    return res.json({ success: true, people });
   } catch (e) {
     logger.warn(`/people failed: ${e.message}`);
-    return res.status(500).json({ success: false, error: e.message, people: [] });
+    try {
+      const { listPeople } = require('../data/peopleRegistry');
+      return res.json({ success: true, people: listPeople() });
+    } catch (_) {
+      return res.status(500).json({ success: false, error: e.message, people: [] });
+    }
   }
 });
 
@@ -276,7 +281,7 @@ router.get('/people', (req, res) => {
 router.post('/for-article', async (req, res) => {
   const started = Date.now();
   try {
-    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors, textElements, concept } = req.body || {};
+    const { title, content, sourceImageUrl, network, xFormat, styleId, useReference, useSubject, bgColor, subject, buildings, paletteColors, textElements, concept, subjectImageUrls } = req.body || {};
     if (!title && !sourceImageUrl && !network) {
       return res.status(400).json({ success: false, error: 'Provide at least a title, network, or sourceImageUrl' });
     }
@@ -367,6 +372,28 @@ router.post('/for-article', async (req, res) => {
 
     const coverCustomPrompt = [bgDirective, collageDirective].filter(Boolean).join(' ');
 
+    // AUTO-PEOPLE: for the collage, detect real people named in the title and
+    // resolve each to a stored reference portrait — fetching + storing + adding
+    // to the people dropdown when the person is new. We AWAIT this so the
+    // reference exists before we generate. Merges with any explicit
+    // subjectImageUrls the caller passed.
+    let finalSubjectImageUrls = Array.isArray(subjectImageUrls)
+      ? subjectImageUrls.filter(u => u && typeof u === 'string')
+      : [];
+    if (isCollage && title) {
+      try {
+        const { resolvePeople } = require('../services/peopleAutoFetchService');
+        const r = await resolvePeople(title);
+        const autoUrls = (r.subjectImageUrls || []).filter(u => u && !finalSubjectImageUrls.includes(u));
+        if (autoUrls.length) {
+          finalSubjectImageUrls = finalSubjectImageUrls.concat(autoUrls);
+          logger.info(`for-article: attached ${autoUrls.length} person reference(s) from title (${r.people.map(p => p.name).join(', ')})`);
+        }
+      } catch (e) { logger.warn(`auto-people resolve failed: ${e.message}`); }
+    }
+    finalSubjectImageUrls = finalSubjectImageUrls.slice(0, 3);
+    const subjFields = finalSubjectImageUrls.length ? { subjectImageUrls: finalSubjectImageUrls } : {};
+
     let generated = null;
     let mode = null;
     let symbolUsed = null;
@@ -381,6 +408,7 @@ router.post('/for-article', async (req, res) => {
         ...(chosenStyle ? { styleId: chosenStyle } : {}),
         ...(visualSubject ? { customSubject: visualSubject } : {}),
         ...bgFields,
+        ...subjFields,
         ...(coverCustomPrompt ? { customPrompt: coverCustomPrompt } : {})
       };
       try {
@@ -406,7 +434,8 @@ router.post('/for-article', async (req, res) => {
         customPrompt: [coverCustomPrompt, (!isCollage && title) ? `Editorial crypto news cover reflecting: ${title}` : ''].filter(Boolean).join(' '),
         ...(chosenStyle ? { styleId: chosenStyle } : {}),
         ...(visualSubject ? { customSubject: visualSubject } : {}),
-        ...bgFields
+        ...bgFields,
+        ...subjFields
       };
       generated = await callGenerator(bgBody);
       mode = 'background';

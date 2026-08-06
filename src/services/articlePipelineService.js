@@ -1079,8 +1079,37 @@ async function artDirect(a = {}) {
   }
 }
 
+// Extract the full names of real, individual PEOPLE explicitly named in a
+// headline (for the collage auto-people feature). Returns [] on any failure or
+// when no real person is named. Deliberately conservative: people only, never
+// companies, tokens, agencies, or places.
+async function extractPersonNames(title) {
+  if (!title || typeof title !== 'string' || !title.trim()) return [];
+  try {
+    const { parsed } = await callResponses({
+      model: MODELS.brief, // cheap tier is plenty for NER
+      instructions: 'You extract the full names of real, individual HUMAN PEOPLE explicitly named in a news headline. Return ONLY actual person names (a real human with a given name and surname, e.g. "Tim Scott", "Gary Gensler"). Do NOT return company names, organizations, protocols, tokens, products, government agencies, committees, or place names. If a surname alone or a title-only reference appears, include it only if it clearly identifies a specific well-known person. If no real person is named, return an empty list.',
+      input: `Headline: ${title}\n\nReturn the full names of the real people named in this headline.`,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { people: { type: 'array', items: { type: 'string' } } },
+        required: ['people']
+      },
+      schemaName: 'people',
+      maxOutputTokens: 300
+    });
+    const arr = (parsed && Array.isArray(parsed.people)) ? parsed.people : [];
+    return arr.map(s => String(s || '').trim()).filter(Boolean).slice(0, 5);
+  } catch (e) {
+    logger.warn(`extractPersonNames failed: ${e.message}`);
+    return [];
+  }
+}
+
 module.exports = {
   runPipeline,
+  extractPersonNames,
   deriveVisualSubject,
   deriveCoverConcept,
   deriveVisualConcept,
