@@ -1148,7 +1148,7 @@ class ControlNetService {
     // ADDITIVE (guarded): reference PORTRAITS of specific real people to depict
     // as subjects in the scene (collage "People"). Appended BEFORE the seal so
     // the seal stays the LAST image. No-op when subjectImageUrls is absent.
-    if (!backgroundOnly && Array.isArray(subjectImageUrls) && subjectImageUrls.length > 0) {
+    if (Array.isArray(subjectImageUrls) && subjectImageUrls.length > 0) {
       const startPos = imagesArray.length + 1; // 1-based index of first person
       const added = [];
       for (const u of subjectImageUrls) {
