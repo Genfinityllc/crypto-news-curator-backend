@@ -383,9 +383,11 @@ router.post('/for-article', async (req, res) => {
     if (isCollage && title) {
       try {
         const { resolvePeople } = require('../services/peopleAutoFetchService');
-        // Detect from the ORIGINAL title first (rewrites often drop the person's
-        // name from the headline), then the working title + article context.
-        const detectText = `${originalTitle || ''}. ${title || ''}. ${content || ''}`.trim();
+        // Detect ONLY from the TITLE — the ORIGINAL pre-rewrite title when present
+        // (rewrites often drop the name from the headline), else the working
+        // title (manual entries pass their entered title as the original). We do
+        // NOT scan the article body, to avoid pulling in minor people.
+        const detectText = (originalTitle || title || '').trim();
         const r = await resolvePeople(detectText);
         const autoUrls = (r.subjectImageUrls || []).filter(u => u && !finalSubjectImageUrls.includes(u));
         if (autoUrls.length) {

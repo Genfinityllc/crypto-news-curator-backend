@@ -1088,8 +1088,8 @@ async function extractPersonNames(text) {
   try {
     const { parsed } = await callResponses({
       model: MODELS.brief, // cheap tier is plenty for NER
-      instructions: 'You extract the full names of the real, individual HUMAN PEOPLE that a news story is ABOUT — the main people featured or driving the story, in order of prominence. Return ONLY actual person names (a real human with a given name and surname, e.g. "Tim Scott", "Gary Gensler"). Do NOT return company names, organizations, protocols, tokens, products, government agencies, committees, bills, or place names. Ignore people mentioned only in passing; focus on the 1-3 key people the story centers on. If a surname alone or a title-only reference appears, include it only if it clearly identifies a specific well-known person. If no real person is central to the story, return an empty list.',
-      input: `Headline + article context:\n${text.slice(0, 1200)}\n\nReturn the full names of the main real people this story is about.`,
+      instructions: 'You extract the full names of the real, individual HUMAN PEOPLE named in a news TITLE/HEADLINE. Look ONLY at the title text provided; do NOT infer people who are not named in it. Return ONLY actual person names (a real human with a given name and surname, e.g. "Tim Scott", "Gary Gensler"). Do NOT return company names, organizations, protocols, tokens, products, government agencies, committees, bills (e.g. "CLARITY Act"), or place names. If a surname alone or a title-only reference appears, include it only if it clearly identifies a specific well-known person. If no real person is named in the title, return an empty list.',
+      input: `Title: ${text.slice(0, 400)}\n\nReturn the full names of the real people named in this title.`,
       schema: {
         type: 'object',
         additionalProperties: false,
