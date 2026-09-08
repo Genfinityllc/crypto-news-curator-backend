@@ -1049,7 +1049,9 @@ async function artDirect(a = {}) {
     const subj = (a.subjects && String(a.subjects).trim())
       ? `\n\nUser-requested subjects to weave into the SAME single scene: ${a.subjects}` : '';
     const logo = a.logoSymbol ? `\n\nCrypto logo/brand present in the scene: ${a.logoSymbol}` : '';
-    const src = a.body ? `TITLE: ${a.title || ''}\n\nARTICLE:\n${String(a.body).slice(0, 7000)}` : `HEADLINE: ${a.title || ''}`;
+    const src = a.body
+      ? `TITLE: ${a.title || ''}\n\nARTICLE:\n${String(a.body).slice(0, 7000)}`
+      : `HEADLINE: ${a.title || ''}\n\nNOTE: No article body was provided — this is only a short topic line with little context. Build the scene from the brand's OWN identity and from crypto, finance, markets, and technology imagery relevant to the topic. Do NOT invent an unrelated animal, mascot, creature, character, or person as the hero unless the topic line is explicitly about one; a vague topic must NOT become a random animal.`;
     const r = await callResponses({
       model: MODELS.artDirect,
       instructions: buildArtDirectSystem(textMode, allowCircle, allowUnderline, logoHint),

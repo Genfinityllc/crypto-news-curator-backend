@@ -503,7 +503,10 @@ async function runCoverJob(jobId, body) {
         // Clean label for prompt TEXT only (keep body.network for logo-file lookup):
         // never let "CHAINLINK_FULL" reach the scene text and get printed.
         const cleanSym = (s) => (typeof s === 'string' ? s.replace(/_FULL$/i, '').replace(/_/g, ' ').trim() : s);
-        const ad = await artDirect({ title: body.title, subjects: rawSubj, logoSymbol: cleanSym(body.network), withText: false });
+        // Pasted full article (Cover Generator collage) grounds the concept in
+        // real content, exactly like Article Studio — no more random heroes.
+        const pastedArticle = (typeof body.article === 'string' && body.article.trim()) ? body.article.trim() : undefined;
+        const ad = await artDirect({ title: body.title, body: pastedArticle, subjects: rawSubj, logoSymbol: cleanSym(body.network), withText: false });
         if (ad && ad.image_prompt) {
           const sceneText = `SCENE (build the entire composition exactly from this): ${ad.image_prompt}${ad.logo_treatment ? ` The ${cleanSym(body.network) || 'brand'} logo: ${ad.logo_treatment}.` : ''}`;
           body.customPrompt = [body.customPrompt, sceneText].filter(Boolean).join(' ');
