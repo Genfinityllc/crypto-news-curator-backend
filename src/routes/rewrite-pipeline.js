@@ -109,7 +109,9 @@ async function generateCoverForResult(result, opts = {}) {
     textElements, // truthful factual clippings (news collage only)
     paletteColors, // [accent1, accent2] from the concept, or a caller preset
     xFormat: opts.xFormat || 'png',
-    bgColor: '#000000' // article covers always use a black background
+    // Article covers default to black, but the user can steer the background via
+    // the Article Studio colour pickers.
+    bgColor: (typeof opts.bgColor === 'string' && opts.bgColor.trim()) ? opts.bgColor.trim() : '#000000'
   }, { timeout: 330000, validateStatus: (s) => s < 500 });
   if (resp.status !== 200 || !resp.data || !resp.data.success) {
     throw new Error((resp.data && resp.data.error) || 'Cover generation failed');
