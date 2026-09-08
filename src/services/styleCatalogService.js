@@ -1035,7 +1035,13 @@ class StyleCatalogService {
     } else if (anyLogoGlowOff) {
       prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, volumetric fog, and edge lighting in the scene, but the logo itself must have NO glow, NO rim light, NO inner glow, NO edge light';
     } else {
-      prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, volumetric fog, and edge lighting';
+      prompt += ', absolutely no spotlights or directional spot lights of any kind - use only soft rim lighting, ambient glow, and edge lighting';
+    }
+    // CLEAN AIR: the user finds fog/haze/smoke around logos too prevalent. Strip
+    // it from every style except the ones that are intentionally atmospheric.
+    const ATMOSPHERIC_STYLES = new Set(['30_neon_smoke']);
+    if (!ATMOSPHERIC_STYLES.has(styleId)) {
+      prompt += ', CLEAN AIR: keep the atmosphere around the logo clean and crisp — do NOT add fog, haze, smoke, mist, or heavy atmospheric particles around the logo or subject; at most a faint hint of depth, nothing more';
     }
     prompt += ', CRITICAL: the logo must float freely in the scene as a 3D object - absolutely NO rectangular frames, NO bounding boxes, NO square borders, NO card shapes, NO plaques, NO panels, NO glass screens, NO glass cards, NO glass panes, NO rounded rectangle containers behind or around the logo, NO solid block behind the letters, NO unified slab or base connecting the letters, NO flat surface or sheet of glass behind the logo, NO monitor or screen shape - the logo letters and icon maintain their correct original positions and alignment reading as a cohesive word/brand but each character is its own 3D piece in the specified material WITHOUT a flat backing plate or any rectangular shape surrounding it';
     prompt += ', IMPORTANT: you MUST replicate the EXACT logo shape, letters, and icon from the provided input image — do NOT invent, modify, or replace any part of the logo with a different design — trace the precise contours and layout of the input image logo faithfully';
