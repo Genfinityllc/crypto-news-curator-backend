@@ -251,7 +251,7 @@ class StyleCatalogService {
         description: 'Beveled crystal glass logo with strong specular highlights on dark pattern',
         filename: '17_glass_bevel_dark_pattern.png',
         category: 'glass',
-        customSubject: { enabled: true, placeholder: 'e.g., gears, chains, wires...', defaultSubject: 'wireframe geometric shapes' },
+        customSubject: { enabled: true, placeholder: 'e.g., shards, prisms, rings...', defaultSubject: 'faceted crystal shards' },
         defaultColors: { bgColor: '#2c2c2c', elementColor: '#c0c0c0', accentLightColor: '#ffffff', lightingColor: '#555555' },
         prompt: (logoSymbol) => `sophisticated charcoal grey gradient with subtle texture, fine grain texture overlay, subtle depth layers, refined neutral lighting with silver-grey highlights, photorealistic 3D environment with cinematic depth and professional atmosphere, single prominent ${logoSymbol} cryptocurrency logo as the hero subject floating freely with NO frame NO box NO rectangular panel NO glass pane behind it, the ${logoSymbol} symbol rendered in beveled crystal glass with strong specular highlights, crisp bevel reflections, soft fill light, abstract {{3D_ELEMENTS}} as subtle accents, the logo casting realistic shadows and receiving environmental reflections, photorealistic surface properties and atmospheric depth, absolutely no flat overlays or 2D sticker effects, only ONE logo - do not repeat or duplicate the logo, cinematic composition with professional lighting, 8k resolution, ultra-detailed, professional product photography, no text or typography, Octane render, Cinema 4D quality, premium 3D CGI product render`
       },
