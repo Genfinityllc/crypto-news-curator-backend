@@ -9,7 +9,7 @@
     "postinstall": "echo 'Node.js dependencies installed'"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
