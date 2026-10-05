@@ -737,6 +737,7 @@ const NETWORKS_LIST = [
   { symbol: 'USDT', name: 'Tether', type: 'network' },
   { symbol: 'ZEC', name: 'Zcash', type: 'network' },
   { symbol: 'CANTON', name: 'Canton', type: 'network' },
+  { symbol: 'CANTONSIMPLE', name: 'Canton Simple', type: 'network' },
   { symbol: 'MONAD', name: 'Monad', type: 'network' },
   { symbol: 'AXELAR', name: 'Axelar', type: 'network' },
 ];
