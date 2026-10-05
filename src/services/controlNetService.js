@@ -775,11 +775,10 @@ class ControlNetService {
             const sharp = require('sharp');
             const meta = await sharp(logoData.buffer).metadata();
             if (meta.hasAlpha) {
-              logoData.buffer = await sharp(logoData.buffer)
-                .flatten({ background: { r: 0, g: 0, b: 0 } })
-                .png()
-                .toBuffer();
-              logger.info(`🔧 Flattened transparent logo ${symbol} onto black background`);
+              // PRESERVE TRANSPARENCY. Do NOT flatten onto black — Nano-Banana
+              // composites the real alpha silhouette and keeps logo geometry.
+              // Flattening to black was the root cause of garbled/guessed logos.
+              logger.info(`✨ Preserving transparent logo ${symbol} (no black flatten)`);
             } else {
               const { data: rawPixels, info } = await sharp(logoData.buffer).raw().toBuffer({ resolveWithObject: true });
               let darkPixels = 0;

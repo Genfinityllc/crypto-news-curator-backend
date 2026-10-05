@@ -1009,14 +1009,11 @@ app.post('/api/cover-generator/upload-logo', logoUpload.single('logo'), async (r
     try {
       const sharp = require('sharp');
       let fileBuffer = req.file.buffer;
-      const meta = await sharp(fileBuffer).metadata();
-      if (meta.hasAlpha) {
-        fileBuffer = await sharp(fileBuffer)
-          .flatten({ background: { r: 0, g: 0, b: 0 } })
-          .png()
-          .toBuffer();
-        logger.info(`🔧 Flattened transparent logo onto black background before saving`);
-      }
+      // PRESERVE TRANSPARENCY. Do NOT flatten onto black — Nano-Banana needs the
+      // real alpha silhouette to keep logo geometry. Flattening to black was the
+      // root cause of logos being redrawn/garbled. Just normalize to PNG; any
+      // existing alpha channel is kept intact.
+      fileBuffer = await sharp(fileBuffer).png().toBuffer();
       await fs.mkdir(path.join(__dirname, '../uploads/png-logos'), { recursive: true });
       await fs.writeFile(localPath, fileBuffer);
       logger.info(`📁 Saved logo locally: ${localPath}`);
