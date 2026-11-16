@@ -1405,6 +1405,89 @@ class StyleCatalogService {
    * the named style template) can still honor the user's color selectors.
    * Returns a sentence-fragment string, or '' if no overrides supplied.
    */
+  /**
+   * BACKDROP MODE: build a prompt for a background with NO logo, from any style.
+   *
+   * Every style template is written around a hero logo. Deleting a few logo
+   * phrases from it (the old background-only path) left a prompt that described
+   * an empty void around a missing subject, plus a wall of "the logo must..."
+   * rules, so backgrounds came out empty or confused. This keeps only the
+   * style's environment, material and lighting, then asks for a composed plate
+   * with calm space where a logo and headline get placed in the editor.
+   *
+   * copySpace: 'center' | 'left' | 'right' | 'bottom' | 'none'
+   */
+  getBackdropPrompt(styleId, colorOverrides = null, customSubject = null, patternOverrides = null, copySpace = 'center') {
+    const style = this.styles[styleId] || Object.values(this.styles)[0];
+    let raw = style.prompt('');
+
+    if (style.patternOptions?.enabled) {
+      const patternId = patternOverrides?.patternId || style.patternOptions.defaultPattern;
+      const patternColor = patternOverrides?.patternColor || style.patternOptions.defaultColor;
+      const pattern = style.patternOptions.patterns[patternId];
+      const patternText = pattern && pattern.prompt
+        ? (typeof pattern.prompt === 'function' ? pattern.prompt(patternColor) : pattern.prompt)
+        : '';
+      raw = raw.replace('{{PATTERN_PLACEHOLDER}}', patternText);
+    } else {
+      raw = raw.replace('{{PATTERN_PLACEHOLDER}}', '');
+    }
+
+    // Collage sentinels (CENTERED_LOGO|, CONCEPT|) mean nothing without a logo.
+    const cleanSubject = typeof customSubject === 'string'
+      ? customSubject.replace(/^(?:\s*[A-Z_]+\|)+/, '').trim()
+      : '';
+    const elements = cleanSubject || style.customSubject?.defaultSubject || '';
+    raw = raw.replace('{{3D_ELEMENTS}}', elements);
+
+    if (colorOverrides) {
+      const { bgColor, elementColor, accentLightColor } = colorOverrides;
+      if (bgColor) raw = this._replaceBackgroundColor(raw, bgColor);
+      if (elementColor) raw = this._replaceElementColor(raw, elementColor);
+      if (accentLightColor === 'none') raw = this._stripGlow(raw);
+      else if (accentLightColor) raw = this._replaceAccentLightColor(raw, accentLightColor);
+    }
+
+    // Keep environment / material / lighting clauses; drop anything about the
+    // logo, the hero subject, lettering, or boilerplate we restate ourselves.
+    const DROP = /\b(logo|logos|symbol|hero|wordmark|letters?|lettering|emblem|provided|subject|brand|cryptocurrency|typography|text|sticker|overlays?|characters?|8k|octane|cinema 4d|ultra-detailed|product render|product photography|resolution|rendered as a|resting on|behind it|kept crisp|floating in the composition|floats? freely|no frame|additional instructions|legible|misspelled|nameplate|duplicates)\b/i;
+    const scene = raw
+      .split(/,\s+|(?<=[.!])\s+|\s+[—–-]\s+/)
+      .map(c => c.trim().replace(/[.,;:]+$/, ''))
+      .filter(c => c.length > 2 && !DROP.test(c))
+      .join(', ');
+
+    const look = (style.description || '')
+      .replace(/\s+(behind|around|beneath|under|framing|for)\s+(a|an|the)\s+[^,.;:]*\blogo\b[^,.;:]*/gi, '')
+      .replace(/\b(the\s+)?logo(s)?\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const SPACE = {
+      center: 'Keep the central area of the frame (roughly the middle 45 percent of the width) calm and uncluttered: smooth, low-detail, evenly toned space where a logo will be placed later. Concentrate the forms and visual interest toward the left and right edges and the corners so they frame the center.',
+      left: 'Keep the LEFT half of the frame calm and uncluttered: smooth, low-detail, evenly toned space where a logo and headline will be placed later. Concentrate the forms and visual interest in the right third of the frame.',
+      right: 'Keep the RIGHT half of the frame calm and uncluttered: smooth, low-detail, evenly toned space where a logo and headline will be placed later. Concentrate the forms and visual interest in the left third of the frame.',
+      bottom: 'Keep the lower third of the frame calm, darker and low-detail so a headline placed there stays legible. Concentrate the forms and visual interest in the upper two thirds.',
+      none: 'Distribute the forms across the whole frame with balanced density, and keep overall contrast moderate so a logo and headline placed on top stay legible.'
+    };
+    const spaceText = SPACE[copySpace] || SPACE.center;
+
+    const ATMOSPHERIC_STYLES = new Set(['30_neon_smoke']);
+    const parts = [
+      'Abstract editorial BACKDROP plate for a financial news cover, wide 2:1 composition. This image is a background only: it contains NO logo, NO emblem, NO symbol, NO coin faces, NO letters, NO numbers, NO text and NO user interface of any kind.',
+      look ? `LOOK AND MATERIAL: ${look}.` : '',
+      scene ? `SCENE: ${scene}.` : '',
+      elements ? `FORMS: abstract ${elements} rendered in the same material and lighting, at varied sizes and depths.` : '',
+      `COMPOSITION: ${spaceText} Arrange everything as a deliberate, art-directed composition with layered depth (foreground, midground, background), a considered lighting falloff and a clear visual rhythm, so the frame reads as a finished premium backdrop and never as an empty void.`,
+      `QUALITY: restrained, sophisticated, institutional art direction with physically plausible materials and lighting. Never cartoonish, toy-like, plasticky or clip-art. No gears or cogs, no circuit boards, no wireframes, no flowing code, no server racks, no mascots or cartoon characters${ATMOSPHERIC_STYLES.has(styleId) ? '' : ', no fog, haze or smoke'}.`
+    ];
+    const colorText = this.buildColorDirectives(colorOverrides);
+    if (colorText) {
+      parts.push(`COLOR: ${colorText}. These hex codes are colour instructions only; never render them as visible text.`);
+    }
+    return parts.filter(Boolean).join(' ');
+  }
+
   buildColorDirectives(colorOverrides) {
     if (!colorOverrides) return '';
     const { bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, lightingColor, lightingColor2 } = colorOverrides;

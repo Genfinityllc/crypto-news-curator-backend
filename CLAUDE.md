@@ -6,7 +6,7 @@
 
 | Thing | Path / URL |
 |---|---|
-| **Backend repo (local)** | `/Users/valorkopeny/Desktop/crypto-news-curator-backend` |
+| **Backend repo (local)** | `/Users/valorkopeny/crypto-news-curator-backend` |
 | **Backend repo (GitHub)** | `https://github.com/Genfinityllc/crypto-news-curator-backend` branch `main` |
 | **Backend live URL** | `https://crypto-news-curator-backend-production.up.railway.app` |
 | **Backend deploy** | **Git auto** — `git push origin main` → Railway rebuilds in ~2 min (confirmed 2026-06-16, Settings → Source is connected to `main` with auto-deploy ON). Do NOT use `railway up` — the CLI hangs on "Indexing" indefinitely on this Mac. |
@@ -36,7 +36,7 @@
 
 | I want to… | Do this |
 |---|---|
-| Deploy backend code | `git push origin main` from `/Users/valorkopeny/Desktop/crypto-news-curator-backend` → Railway rebuilds in ~2 min |
+| Deploy backend code | `git push origin main` from `/Users/valorkopeny/crypto-news-curator-backend` → Railway rebuilds in ~2 min |
 | Deploy frontend code | `git push origin main` from `/Users/valorkopeny/crypto-news-frontend` → Vercel rebuilds in ~2 min |
 | Set/rotate a backend env var | `/Users/valorkopeny/.local/bin/railway variables --set "KEY=value"` (after `railway link --project intelligent-contentment` once per shell). Railway redeploys automatically. |
 | Set a frontend env var | Vercel dashboard → project `crypto-news-frontend` → Settings → Environment Variables (team `team_kYZ8yndpCmXg5hf3sDSUQ6tZ`). Then trigger a redeploy by pushing any commit (or use the Vercel UI "Redeploy"). |
@@ -50,13 +50,13 @@
 ## 🚨 Hard rules
 1. **GitHub `main` is source of truth.** Never deploy with `vercel --prod` directly — it desyncs main from live and creates the same mess we just cleaned up.
 2. **Frontend changes**: edit files in `/Users/valorkopeny/crypto-news-frontend`, `git add && commit && push`. Vercel auto-deploys. Done.
-3. **Backend changes**: edit files in `/Users/valorkopeny/Desktop/crypto-news-curator-backend`, `git add && commit && push`. Railway auto-deploys from `main`. Done. (Do NOT use `railway up` — see below.)
+3. **Backend changes**: edit files in `/Users/valorkopeny/crypto-news-curator-backend`, `git add && commit && push`. Railway auto-deploys from `main`. Done. (Do NOT use `railway up` — see below.)
 4. **Never touch any file listed under DEPRECATED below.** They are not in the live code path. Modifying them does nothing except create confusion.
 5. **Do not touch ValtronXRP-owned projects.** ValtronXRP is just the GitHub identity used to push to Genfinityllc-owned repos.
 
 ## 🟢 LIVE files — these are the ONLY ones that run in production
 
-### Backend (`/Users/valorkopeny/Desktop/crypto-news-curator-backend/`)
+### Backend (`/Users/valorkopeny/crypto-news-curator-backend/`)
 | File | Role |
 |---|---|
 | `src/server.js` `:1495-1680` | `POST /api/cover-generator/generate` — main entry |
@@ -181,6 +181,20 @@ To see deploy status: https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7e
 - [x] **OG color preservation under ref mode — Phase 4-ext2** (done 2026-06-17, commits `0f113cf` + `e1c200e` + `baaa6fb`). The ref-mode LOGO+REF branch now ALSO calls `logoPaletteService.extractPaletteForSymbol()` for any og_color logo (previously only the named-style branch did). The first input image is explicitly named as the "COLOR AUTHORITY" in the prompt, an "ABSOLUTE LOGO BASE-COLOR LOCK" directive is injected, and ref images are scoped to "BACKGROUND / SCENE / ENVIRONMENT ONLY". Wording allows scene-driven reflections/highlights/specular glints on the logo (3D rendering preserved) while forbidding hue-shift/tint of the underlying brand colors.
 - [x] **Full-logo variants** (done 2026-06-17). `SOLANA_FULL`, `HEDERA_FULL`, `RIPPLE_FULL` uploaded to Supabase + local — appear as separate dropdown entries from their mark-only counterparts. Convention: `<SYMBOL>_FULL` suffix. Use the in-app uploader to add more.
 - [x] **Multi-image references + drag-and-drop — Phase 4-ext3** (done 2026-06-17, commits `e5dd258` backend + `9677ce5` frontend). Reference section supports up to **14** ref images (Wavespeed Nano-Banana-Pro hard cap). Frontend has a drag-and-drop zone (`RefDropZone`) and a thumbnail grid (`RefThumbGrid`) with per-image remove + "remove all". Backend accepts `referenceImageUrls` array (and keeps legacy `referenceImageUrl` for back-compat). `controlNetService.generateWithNanoBananaPro` builds `images: [logoUrl, ...refs[..13]]` (LOGO+REF) or `images: [...refs[..14]]` (PURE REF). Prompt synthesis describes N images ("images 2 through N+1"). See `src/server.js` `:1533-1763` and `src/services/controlNetService.js` `:1117-1144`.
+
+## Logos must stay transparent (2026-10-05)
+- Logo PNGs are stored and sent to Nano-Banana WITH their alpha channel. Never flatten a logo onto black (or any background): that was the root cause of garbled, redrawn logo shapes. Both flatten steps (upload in `server.js`, generation in `controlNetService.js`) were removed and the whole library was converted to transparent.
+- Monochrome marks should be WHITE on transparent. Brand-coloured logos keep their real colours on transparent.
+- Fine line-art logos (example: the hatched Canton mark) cannot be reproduced faithfully by the model. Add a bold solid alternative as a second entry (example: `CANTONSIMPLE`).
+- `getPngLogo` prefers the committed files in `uploads/png-logos/` over Supabase, so fix a logo in BOTH places.
+- Deploys run on Node 24 (`package.json` engines + `nixpacks.toml`). Railway is the only live backend. Any Render or Vercel project pointed at this repo is stale.
+
+## Design Studio + background-only generation (2026-11-16)
+- **Design Studio** (frontend `src/components/coverStudio/`): a fabric.js canvas editor at a true 1800x900. Background + any number of logos + text, all draggable and scalable, exported in the browser. Backgrounds come from flat procedural templates (`backgrounds.js`, no AI, no credits), an AI backdrop, or an image.
+- **Backdrop mode**: a request with no `network` and a `styleId` now uses `styleCatalog.getBackdropPrompt()` (environment + material + composed negative space, zero logo language) instead of the logo prompt with phrases deleted. Optional body field `copySpace`: `center | left | right | bottom | none`.
+- Background-only with no reference images goes to the Nano-Banana-Pro **text-to-image** endpoint (`.../nano-banana-pro/text-to-image`), not `edit` with a black canvas. It falls back to the old edit path if the submit fails.
+- `POST /api/cover-generator/upload-composed` (multipart field `image`, optional `label`): stores a Studio export in the `cover-images` bucket and returns `{ imageUrl }`, which the frontend then passes to `/save`.
+- The Studio draws the watermark itself (asset copied to the frontend `public/genfinity-watermark.png`, same locked placement: centred, 5px low). It requests AI backdrops with `skipWatermark: true` so the watermark always sits above the logos.
 
 ## 🐛 Known Supabase quirk (2026-06-16)
 - This project's service-role key CANNOT create new buckets — `createBucket()` returns `StorageUnknownError`. Solution: reuse existing buckets and use folder prefixes. Phase 4 stores ref images in `logos/references/...` not in a separate bucket.

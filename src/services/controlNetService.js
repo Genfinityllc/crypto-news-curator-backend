@@ -1090,7 +1090,12 @@ class ControlNetService {
         logger.info(`📝 Using standard prompt generation`);
       }
     }
-    if (backgroundOnly) {
+    // A prompt from styleCatalog.getBackdropPrompt() is already a complete,
+    // logo-free backdrop brief; only legacy prompts need the logo scrubbed out.
+    const isBackdropBrief = backgroundOnly && /^Abstract editorial BACKDROP plate/.test(prompt || '');
+    if (isBackdropBrief) {
+      logger.info('Background-only mode: using dedicated backdrop brief');
+    } else if (backgroundOnly) {
       prompt = prompt.replace(/single prominent .+? cryptocurrency logo (symbol )?as the hero subject[^,]*/gi, '');
       prompt = prompt.replace(/the .+? symbol rendered in [^,]*/gi, '');
       prompt = prompt.replace(/the provided cryptocurrency logo symbol rendered in [^,]*/gi, '');
@@ -1173,26 +1178,46 @@ class ControlNetService {
       prompt += ` OFFICIAL SEAL REFERENCE: the LAST input image (image ${sealPos}) is an official government/regulatory seal. Reproduce THAT EXACT seal from the image — its real emblem, ring text, and layout — but render it as a faint, low-opacity, desaturated single-tone WHITE embossed watermark set into the FAR BACKGROUND, behind everything, partially obscured. Do NOT invent, redesign, or restyle the seal; copy the provided seal image faithfully. It must NOT be a focal element, must NOT be brightly coloured, and must stay well behind the logo and all scene elements.`;
       logger.info(`🏛️ Seal image added as faded background watermark (image ${sealPos})`);
     }
+    // Background with no reference images: use TEXT-TO-IMAGE. The old path sent
+    // a solid black canvas to the edit model as the image to edit, which pulled
+    // every background toward an empty black frame.
+    const useTextToImage = backgroundOnly && refList.length === 0;
     const payload = {
       enable_base64_output: false,
       enable_sync_mode: false,
-      images: imagesArray,
+      ...(useTextToImage ? {} : { images: imagesArray }),
       output_format: "png",
       prompt: prompt,
       resolution: "2k",  // 2K resolution - same cost as 1K but better quality!
       aspect_ratio: "16:9"  // Match our 1800x900 output to prevent stretching
     };
+    const wavespeedEndpoint = useTextToImage
+      ? 'https://api.wavespeed.ai/api/v3/google/nano-banana-pro/text-to-image'
+      : 'https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit';
     
     logger.info(`🚀 Submitting to Wavespeed Nano-Banana-Pro API...`);
     logger.info(`📦 Payload: ${JSON.stringify(payload).substring(0, 300)}...`);
     
-    const response = await axios.post('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', payload, {
+    const wavespeedRequest = (url, body) => axios.post(url, body, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${wavespeedApiKey}`
       },
       timeout: 240000
     });
+    let response;
+    try {
+      response = await wavespeedRequest(wavespeedEndpoint, payload);
+      if (useTextToImage && !((response.data && (response.data.data || response.data)) || {}).id) {
+        throw new Error(`no job id: ${JSON.stringify(response.data).substring(0, 160)}`);
+      }
+    } catch (submitErr) {
+      // Text-to-image is new here; if it is ever rejected, fall back to the
+      // previous edit-a-blank-canvas path so backgrounds never hard-fail.
+      if (!useTextToImage) throw submitErr;
+      logger.warn(`text-to-image submit failed (${submitErr.message}); falling back to the edit endpoint`);
+      response = await wavespeedRequest('https://api.wavespeed.ai/api/v3/google/nano-banana-pro/edit', { ...payload, images: imagesArray });
+    }
     
     logger.info(`📬 API Response: ${JSON.stringify(response.data).substring(0, 300)}`);
     

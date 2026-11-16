@@ -1268,6 +1268,43 @@ app.post('/api/cover-generator/upload-reference', logoUpload.single('reference')
   }
 });
 
+// POST /api/cover-generator/upload-composed - Design Studio export. The editor
+// composes the final cover in the browser (background + logos + text +
+// watermark) and uploads the finished PNG here for permanent hosting, so it can
+// be saved to the profile like any generated cover.
+const composedUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg') cb(null, true);
+    else cb(new Error('Only PNG and JPG files are allowed'));
+  }
+});
+app.post('/api/cover-generator/upload-composed', composedUpload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded (field name: image)' });
+    }
+    const sharp = require('sharp');
+    // Covers are locked to 1800x900; normalize whatever the browser sent.
+    const buffer = await sharp(req.file.buffer)
+      .resize(1800, 900, { fit: 'cover', position: 'center' })
+      .png({ palette: false, compressionLevel: 9 })
+      .toBuffer();
+    const label = String(req.body.label || 'studio').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'studio';
+    const filename = `${label}_studio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
+    const imageUrl = await uploadImageToStorage(buffer, filename);
+    if (!imageUrl) {
+      return res.status(500).json({ success: false, error: 'Upload to storage failed' });
+    }
+    logger.info(`Studio cover uploaded: ${imageUrl} (${(buffer.length / 1024).toFixed(0)}KB)`);
+    res.json({ success: true, imageUrl, sizeKb: Math.round(buffer.length / 1024) });
+  } catch (e) {
+    logger.error('Studio cover upload failed:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/cover-generator/logo-info/:symbol - Get logo info with source
 app.get('/api/cover-generator/logo-info/:symbol', async (req, res) => {
   try {
@@ -1556,7 +1593,7 @@ app.get('/api/cover-generator/networks', async (req, res) => {
 
 // Generate cover image for a network
 app.post('/api/cover-generator/generate', async (req, res) => {
-  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceImageUrls, referenceMode, customPrompt, sealImageUrl, subjectImageUrls } = req.body;
+  const { network, additionalNetworks, title, style, customKeyword, styleId, bgColor, elementColor, elementColor2, accentLightColor, accentLightColor2, accentColor, lightingColor, lightingColor2, customSubject, logoTextMode, logoMaterial, logoBaseColor, logoAccentLight, patternId, patternColor, skipWatermark, perLogoOverrides, referenceImageUrl, referenceImageUrls, referenceMode, customPrompt, sealImageUrl, subjectImageUrls, copySpace } = req.body;
 
   // Phase 4-ext3: normalize ref images to a single array (max 14 — Wavespeed
   // Nano-Banana-Pro cap). Accept both new `referenceImageUrls` array and
@@ -1821,7 +1858,11 @@ app.post('/api/cover-generator/generate', async (req, res) => {
         const patternOverrides = (patternId || patternColor)
           ? { patternId: patternId || null, patternColor: patternColor || null }
           : null;
-        stylePrompt = styleCatalog.getStylePrompt(styleId, isBackgroundOnly ? 'BACKGROUND' : network.toUpperCase(), sharedColorOverrides, customSubject || null, logoOverrides, patternOverrides, palettesBySymbol);
+        // Background-only: build a real backdrop brief (environment + material +
+        // composed negative space) instead of a logo prompt with the logo deleted.
+        stylePrompt = isBackgroundOnly
+          ? styleCatalog.getBackdropPrompt(styleId, sharedColorOverrides, customSubject || null, patternOverrides, ['center', 'left', 'right', 'bottom', 'none'].includes(copySpace) ? copySpace : 'center')
+          : styleCatalog.getStylePrompt(styleId, network.toUpperCase(), sharedColorOverrides, customSubject || null, logoOverrides, patternOverrides, palettesBySymbol);
         // Phase 4: customPrompt is also honored in style-template mode — appended last
         if (customPrompt && typeof customPrompt === 'string' && customPrompt.trim().length > 0) {
           stylePrompt += ` ADDITIONAL USER INSTRUCTIONS (apply these on top of the style, they take priority for any conflict): ${customPrompt.trim()}`;
