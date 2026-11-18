@@ -17,6 +17,8 @@
 
 const express = require('express');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs').promises;
 const logger = require('../utils/logger');
 const { getSupabaseClient } = require('../config/supabase');
 
@@ -218,10 +220,21 @@ function ownStoragePath(url) {
   return path;
 }
 
+// A generated image whose upload to storage failed is served from this
+// server's own temporary folder until the next deploy. Such an address can be
+// shared too: the file is read straight from that folder (name checked, never
+// fetched over the network).
+function ownTempFile(url) {
+  const m = /^https?:\/\/[^/]+\/temp\/controlnet-images\/([A-Za-z0-9_-]{6,80})\.png$/.exec(String(url || '').split('?')[0]);
+  return m ? path.join(__dirname, '../../temp/controlnet-images', `${m[1]}.png`) : null;
+}
+
 router.post('/backdrops', async (req, res) => {
   const user = await whoIs(req);
   if (!isOwner(user)) return res.status(403).json({ success: false, error: 'Only the owner account can add shared backgrounds.' });
-  const from = ownStoragePath(req.body && req.body.url);
+  const stored = ownStoragePath(req.body && req.body.url);
+  const tempFile = stored ? null : ownTempFile(req.body && req.body.url);
+  const from = stored || (tempFile ? `temp:${path.basename(tempFile)}` : null);
   if (!from) return res.status(400).json({ success: false, error: 'That image cannot be shared from here.' });
   try {
     const result = await inTurn(SHARED_DIR, async () => {
@@ -229,7 +242,7 @@ router.post('/backdrops', async (req, res) => {
       const had = list.find((b) => b.from === from);
       if (had) return { item: had, list, added: false };
       if (list.length >= MAX_SHARED) throw new Error('limit');
-      const original = await readFile(from);
+      const original = stored ? await readFile(stored) : await fs.readFile(tempFile).catch(() => null);
       if (!original) throw new Error('gone');
       const sharp = require('sharp');
       // a lighter copy for everyone to load, and a small one for the grid
@@ -245,7 +258,7 @@ router.post('/backdrops', async (req, res) => {
     });
     res.json({ success: true, added: result.added, backdrop: sharedView(result.item), backdrops: result.list.map(sharedView) });
   } catch (e) {
-    if (e.message === 'gone') return res.status(410).json({ success: false, error: 'That image is no longer stored (generated images are cleared after 7 days).' });
+    if (e.message === 'gone') return res.status(410).json({ success: false, error: 'That image is no longer stored on the server.' });
     if (e.message === 'limit') return res.status(400).json({ success: false, error: `The shared list is full (${MAX_SHARED}). Remove some first.` });
     fail(res, e, 'Adding the shared background');
   }

@@ -892,7 +892,10 @@ class ControlNetService {
         const { uploadImageToStorage } = require('../config/supabase');
         const imageBuffer = await fs.readFile(imagePath);
         const timestamp = Date.now();
-        const filename = `${logoSymbol.toLowerCase()}_${imageId}_${timestamp}.png`;
+        // A backdrop has no logo, so logoSymbol is null. This line used to throw for
+        // every backdrop, which silently left it on the temporary disk (lost on the
+        // next deploy) instead of in storage.
+        const filename = `${String(logoSymbol || 'backdrop').toLowerCase()}_${imageId}_${timestamp}.png`;
         
         const supabaseUrl = await uploadImageToStorage(imageBuffer, filename);
         if (supabaseUrl) {
