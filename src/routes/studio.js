@@ -86,9 +86,15 @@ async function whoIs(req) {
   return verifyIdToken(h.slice(7).trim());
 }
 
-// The owner account: the existing master-account settings, plus optional lists.
+// The owner accounts, named by the owner on 2026-11-18. They manage the shared
+// backgrounds and share ONE set of drafts between them (see homeOf).
+const OWNER_EMAILS = ['valor.kopeny@cc-ea.org', 'valor@genfinity.io'];
+
+// An owner account: one of the emails above, the existing master-account
+// settings, or the optional lists in the environment.
 function isOwner(user) {
   if (!user) return false;
+  if (user.email && OWNER_EMAILS.includes(user.email)) return true;
   try {
     const PromptRefinementService = require('../services/promptRefinementService');
     if (PromptRefinementService.isMasterAccount(user.uid, user.email)) return true;
@@ -292,14 +298,48 @@ const TYPE = { png: 'image/png', jpg: 'image/jpeg' };
 // The account's folder. Not the account id itself, so an id seen elsewhere
 // does not give the address away.
 const userDir = (uid) => `${DRAFTS_DIR}/${crypto.createHmac('sha256', 'genfinity-cover-studio-drafts-v1').update(String(uid)).digest('hex').slice(0, 40)}`;
+// Whose drafts a signed-in person works with: their own, except that every
+// owner account works in one shared space, so the owners see and edit the
+// same drafts whichever of their logins they use.
+const homeOf = (user) => (isOwner(user) ? 'space:owners' : user.uid);
 const cleanIndex = (list) => (Array.isArray(list) ? list.filter((d) => d && d.id) : []);
 const draftView = (d) => ({ id: d.id, name: d.name, profile: d.profile, created: d.created, updated: d.updated, thumb: d.thumb || '', width: d.width, height: d.height });
+
+// An owner account that saved drafts in its own folder (before it was named an
+// owner) gets them moved into the owners' shared space, once, the next time it
+// lists its drafts. Nothing is copied over a draft already there.
+async function adoptPersonalDrafts(user) {
+  if (!isOwner(user)) return;
+  const mine = userDir(user.uid);
+  const shared = userDir(homeOf(user));
+  if (mine === shared) return;
+  if (!versionsOf(await listFolder(mine), 'index').length) return;
+  const old = cleanIndex(await readVersioned(mine, 'index', []));
+  if (!old.length) return;
+  await inTurn(shared, async () => {
+    const list = cleanIndex(await readVersioned(shared, 'index', []));
+    const moved = [];
+    for (const d of old) {
+      if (list.some((x) => x.id === d.id)) continue;
+      const files = await listFolder(`${mine}/${d.id}`);
+      for (const n of files) {
+        const { error } = await store().move(`${mine}/${d.id}/${n}`, `${shared}/${d.id}/${n}`);
+        if (error) throw new Error(error.message || 'move failed');
+      }
+      moved.push(d);
+    }
+    if (moved.length) await writeVersioned(shared, 'index', [...moved, ...list]);
+    await writeVersioned(mine, 'index', old.filter((d) => !moved.includes(d)));
+    if (moved.length) logger.info(`studio: moved ${moved.length} draft(s) of an owner account into the owners' space`);
+  });
+}
 
 router.get('/drafts', async (req, res) => {
   const user = await needUser(req, res);
   if (!user) return;
   try {
-    const list = cleanIndex(await readVersioned(userDir(user.uid), 'index', []));
+    await adoptPersonalDrafts(user).catch((e) => logger.warn(`studio: could not move an owner's own drafts: ${e.message}`));
+    const list = cleanIndex(await readVersioned(userDir(homeOf(user)), 'index', []));
     const profile = req.query.profile ? String(req.query.profile) : null;
     res.json({ success: true, drafts: list.filter((d) => !profile || d.profile === profile).sort((a, b) => (b.updated || 0) - (a.updated || 0)).map(draftView) });
   } catch (e) {
@@ -312,7 +352,7 @@ router.get('/drafts/:id', async (req, res) => {
   if (!user) return;
   if (!ID_RE.test(req.params.id)) return res.status(400).json({ success: false, error: 'Bad draft id' });
   try {
-    const cover = await readVersioned(`${userDir(user.uid)}/${req.params.id}`, 'cover', null);
+    const cover = await readVersioned(`${userDir(homeOf(user))}/${req.params.id}`, 'cover', null);
     if (!cover) return res.status(404).json({ success: false, error: 'That draft was not found in your account.' });
     res.json({ success: true, cover });
   } catch (e) {
@@ -327,7 +367,7 @@ router.post('/drafts/:id/pictures/check', async (req, res) => {
   if (!ID_RE.test(req.params.id)) return res.status(400).json({ success: false, error: 'Bad draft id' });
   try {
     const want = (Array.isArray(req.body && req.body.hashes) ? req.body.hashes : []).filter((h) => HASH_RE.test(h)).slice(0, MAX_PICTURES);
-    const have = new Set((await listFolder(`${userDir(user.uid)}/${req.params.id}`)).filter((n) => n.startsWith('p_')).map((n) => n.slice(2).replace(/\.[a-z]+$/, '')));
+    const have = new Set((await listFolder(`${userDir(homeOf(user))}/${req.params.id}`)).filter((n) => n.startsWith('p_')).map((n) => n.slice(2).replace(/\.[a-z]+$/, '')));
     res.json({ success: true, missing: want.filter((h) => !have.has(h)) });
   } catch (e) {
     fail(res, e, 'Checking the pictures');
@@ -345,7 +385,7 @@ router.put('/drafts/:id/pictures/:hash', express.raw({ type: ['image/png', 'imag
     return res.status(400).json({ success: false, error: 'The picture did not arrive intact. Try again.' });
   }
   try {
-    await writeFile(`${userDir(user.uid)}/${req.params.id}/p_${req.params.hash}.${ext}`, req.body, TYPE[ext], '31536000');
+    await writeFile(`${userDir(homeOf(user))}/${req.params.id}/p_${req.params.hash}.${ext}`, req.body, TYPE[ext], '31536000');
     res.json({ success: true });
   } catch (e) {
     fail(res, e, 'Saving a picture');
@@ -357,7 +397,7 @@ router.get('/drafts/:id/pictures/:hash', async (req, res) => {
   if (!user) return;
   if (!ID_RE.test(req.params.id) || !HASH_RE.test(req.params.hash)) return res.status(400).json({ success: false, error: 'Bad picture id' });
   try {
-    const dir = `${userDir(user.uid)}/${req.params.id}`;
+    const dir = `${userDir(homeOf(user))}/${req.params.id}`;
     for (const ext of ['png', 'jpg']) {
       const buf = await readFile(`${dir}/p_${req.params.hash}.${ext}`);
       if (buf) {
@@ -387,10 +427,10 @@ router.put('/drafts/:id', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Bad draft pictures' });
   }
   try {
-    const dir = `${userDir(user.uid)}/${id}`;
+    const dir = `${userDir(homeOf(user))}/${id}`;
     const now = Date.now();
-    const entry = await inTurn(userDir(user.uid), async () => {
-      const list = cleanIndex(await readVersioned(userDir(user.uid), 'index', []));
+    const entry = await inTurn(userDir(homeOf(user)), async () => {
+      const list = cleanIndex(await readVersioned(userDir(homeOf(user)), 'index', []));
       const old = list.find((d) => d.id === id);
       if (!old && list.length >= MAX_DRAFTS) throw new Error('limit');
       const have = await listFolder(dir);
@@ -409,7 +449,7 @@ router.put('/drafts/:id', async (req, res) => {
         width: Number(m.width) || null,
         height: Number(m.height) || null,
       };
-      await writeVersioned(userDir(user.uid), 'index', [next, ...list.filter((d) => d.id !== id)]);
+      await writeVersioned(userDir(homeOf(user)), 'index', [next, ...list.filter((d) => d.id !== id)]);
       const stale = have.filter((n) => n.startsWith('p_') && !need.has(n)).map((n) => `${dir}/${n}`);
       if (stale.length) await removeFiles(stale).catch(() => null);
       return next;
@@ -428,10 +468,10 @@ router.delete('/drafts/:id', async (req, res) => {
   const id = req.params.id;
   if (!ID_RE.test(id)) return res.status(400).json({ success: false, error: 'Bad draft id' });
   try {
-    await inTurn(userDir(user.uid), async () => {
-      const dir = `${userDir(user.uid)}/${id}`;
-      const list = cleanIndex(await readVersioned(userDir(user.uid), 'index', []));
-      await writeVersioned(userDir(user.uid), 'index', list.filter((d) => d.id !== id));
+    await inTurn(userDir(homeOf(user)), async () => {
+      const dir = `${userDir(homeOf(user))}/${id}`;
+      const list = cleanIndex(await readVersioned(userDir(homeOf(user)), 'index', []));
+      await writeVersioned(userDir(homeOf(user)), 'index', list.filter((d) => d.id !== id));
       const files = await listFolder(dir);
       if (files.length) await removeFiles(files.map((n) => `${dir}/${n}`));
     });
