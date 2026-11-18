@@ -1182,8 +1182,9 @@ async function fetchRealCryptoNews() {
               return null; // Mark for filtering
             }
             
-            // Search results include price pages and "how to buy" pages: not articles.
-            if (feedUrl.includes('news.google.com') && isNotNews(title)) {
+            // Search results and client feeds include price pages, "how to buy"
+            // pages and price predictions: not articles.
+            if ((feedInfo || feedUrl.includes('news.google.com')) && isNotNews(title)) {
               console.log(`🚫 NOT AN ARTICLE: "${title.substring(0, 60)}"`);
               return null;
             }

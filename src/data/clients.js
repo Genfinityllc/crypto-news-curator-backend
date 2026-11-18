@@ -182,7 +182,15 @@ const NOT_NEWS = [
   /\bhow to buy\b/i, /\bbuy\b.{1,60}\bwith (a )?(credit|debit)/i, /\blive share prices?\b/i,
   /\bconverter\b/i, /\bto usd\b/i, /\bprice,? charts?\b/i,
   // paid token-sale promotion that names a client to get into searches
-  /\bpresale\b/i, /\btokens sold\b/i, /\b\d{2,}x (gains?|returns?|potential)\b/i, /\b\d{3,}% roi\b/i
+  /\bpresale\b/i, /\btokens sold\b/i, /\b\d{2,}x (gains?|returns?|potential)\b/i, /\b\d{3,}% roi\b/i,
+  // price-prediction pieces (owner, 2026-11-18: drop them). News about a price
+  // move, or about a named firm's published target, is still news and stays.
+  /\bprice[- ](predictions?|forecasts?)\b/i,
+  /\bpredicts?\b.{0,80}\b(price|worth)\b/i,
+  /\b(could|will|can|might)\b.{0,100}\bbe worth\b/i,
+  /\b(buy|sell) signal\b/i,
+  /\b(will|can|could)\b.{0,60}\b(hit|reach)\s+\$[\d.,]+.*\?/i,
+  /\$[\d.,]+.*\bby 20\d\d\?/i
 ];
 const isNotNews = (title) => NOT_NEWS.some((re) => re.test(String(title || '')));
 
