@@ -1,19 +1,16 @@
 const { getSupabaseClient } = require('../config/supabase');
 const logger = require('../utils/logger');
 const cacheCoordinator = require('./cacheCoordinator');
+const { CLIENT_NETWORK_NAMES, NOT_CLIENT_FILTER, CLIENT_RETENTION_DAYS, GENERAL_RETENTION_DAYS } = require('../data/clients');
 
 class ArticlePurgeService {
   constructor() {
-    this.PURGE_DAYS = 4; // 4 days as requested
+    this.PURGE_DAYS = GENERAL_RETENTION_DAYS;        // general news
+    this.CLIENT_PURGE_DAYS = CLIENT_RETENTION_DAYS;  // the clients' news is kept longer
     this.MAX_ARTICLES_PER_CATEGORY = {
-      'all': 500,         // Max 500 articles total for "All News" as requested
-      'breaking': 200,    // Breaking news limit  
-      'client': 500,      // Client articles limit (100 per client × 5 clients)
-      'hedera': 100,      // Individual client limits
-      'xdc': 100,
-      'algorand': 100,
-      'constellation': 100,
-      'hashpack': 100
+      'all': 500,       // general (non-client) articles
+      'breaking': 200,
+      'client': 750     // all client articles together
     };
   }
 
@@ -75,19 +72,35 @@ class ArticlePurgeService {
       // First, remove any WSJ articles that might have been stored before blocking
       await this.removeWSJArticles();
       
-      // Delete articles older than 4 days
-      const { data: deletedArticles, error: deleteError } = await supabase
+      // General news older than its limit
+      const { data: deletedGeneral, error: deleteError } = await supabase
         .from('articles')
         .delete()
         .lt('published_at', cutoffDate.toISOString())
+        .or(NOT_CLIENT_FILTER)
         .select('id, title, network, published_at');
 
       if (deleteError) {
         throw deleteError;
       }
 
+      // Client news older than its (longer) limit
+      const clientCutoff = new Date(Date.now() - this.CLIENT_PURGE_DAYS * 24 * 60 * 60 * 1000);
+      const { data: deletedClient, error: clientDeleteError } = await supabase
+        .from('articles')
+        .delete()
+        .lt('published_at', clientCutoff.toISOString())
+        .in('network', CLIENT_NETWORK_NAMES)
+        .select('id, title, network, published_at');
+
+      if (clientDeleteError) {
+        throw clientDeleteError;
+      }
+
+      const deletedArticles = [...(deletedGeneral || []), ...(deletedClient || [])];
+
       const deletedCount = deletedArticles?.length || 0;
-      logger.info(`🗑️ Purged ${deletedCount} articles older than ${this.PURGE_DAYS} days (4 days)`);
+      logger.info(`🗑️ Purged ${deletedCount} articles (general older than ${this.PURGE_DAYS} days, client older than ${this.CLIENT_PURGE_DAYS} days)`);
 
       // Enforce category limits
       await this.enforceCategoryLimits();
@@ -124,82 +137,33 @@ class ArticlePurgeService {
       
       for (const category of Object.keys(limits)) {
         const limit = limits[category];
-        
-        // Skip 'all' category for individual deletion - it's a total count, not a specific filter
-        if (category === 'all') {
-          continue;
-        }
-        
-        let whereClause = {};
-        
-        // Set up where clause based on category
-        if (category === 'breaking') {
-          whereClause.is_breaking = true;
-        } else if (category === 'client') {
-          // Client networks
-          whereClause.network = {
-            in: ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']
-          };
-        } else if (category !== 'all') {
-          // Specific network
-          const networkMap = {
-            'hedera': 'Hedera',
-            'xdc': 'XDC Network', 
-            'algorand': 'Algorand',
-            'constellation': 'Constellation',
-            'hashpack': 'HashPack'
-          };
-          whereClause.network = networkMap[category];
-        }
+        const only = (q) => {
+          if (category === 'breaking') return q.eq('is_breaking', true).or(NOT_CLIENT_FILTER);
+          if (category === 'client') return q.in('network', CLIENT_NETWORK_NAMES);
+          return q.or(NOT_CLIENT_FILTER); // 'all' = general news
+        };
 
-        // Get current count for this category
-        let query = supabase.from('articles').select('id', { count: 'exact' });
-        
-        if (category === 'breaking') {
-          query = query.eq('is_breaking', true);
-        } else if (category === 'client') {
-          query = query.in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']);
-        } else if (category !== 'all') {
-          const networkMap = {
-            'hedera': 'Hedera',
-            'xdc': 'XDC Network',
-            'algorand': 'Algorand', 
-            'constellation': 'Constellation',
-            'hashpack': 'HashPack'
-          };
-          query = query.eq('network', networkMap[category]);
-        }
-
-        const { count } = await query;
+        const { count } = await only(supabase.from('articles').select('id', { count: 'exact', head: true }));
 
         if (count > limit) {
           const excessCount = count - limit;
           logger.info(`⚠️ ${category}: ${count} articles (limit: ${limit}) - removing ${excessCount} oldest`);
 
-          // Delete oldest articles in this category
-          let deleteQuery = supabase
-            .from('articles')
-            .delete()
+          // A delete cannot be ordered or limited, so pick the oldest first.
+          const { data: oldest, error: pickError } = await only(supabase.from('articles').select('id'))
             .order('published_at', { ascending: true })
             .limit(excessCount);
 
-          if (category === 'breaking') {
-            deleteQuery = deleteQuery.eq('is_breaking', true);
-          } else if (category === 'client') {
-            deleteQuery = deleteQuery.in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']);
-          } else if (category !== 'all') {
-            const networkMap = {
-              'hedera': 'Hedera',
-              'xdc': 'XDC Network',
-              'algorand': 'Algorand',
-              'constellation': 'Constellation', 
-              'hashpack': 'HashPack'
-            };
-            deleteQuery = deleteQuery.eq('network', networkMap[category]);
+          if (pickError || !oldest || !oldest.length) {
+            logger.error(`❌ Error enforcing ${category} limit:`, pickError);
+            continue;
           }
 
-          const { error: limitError } = await deleteQuery;
-          
+          const { error: limitError } = await supabase
+            .from('articles')
+            .delete()
+            .in('id', oldest.map(a => a.id));
+
           if (limitError) {
             logger.error(`❌ Error enforcing ${category} limit:`, limitError);
           } else {
@@ -239,11 +203,11 @@ class ArticlePurgeService {
       const { count: clientCount } = await supabase
         .from('articles')  
         .select('id', { count: 'exact' })
-        .in('network', ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom']);
+        .in('network', CLIENT_NETWORK_NAMES);
       counts.client = clientCount;
 
       // Individual client networks
-      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
+      const clientNetworks = CLIENT_NETWORK_NAMES;
       for (const network of clientNetworks) {
         const { count } = await supabase
           .from('articles')

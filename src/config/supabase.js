@@ -109,6 +109,11 @@ async function transformArticleForSupabase(articleData) {
     content,
     summary: articleData.summary || content.substring(0, 200),
     ai_summary: aiSummary,
+    // The feed's own picture, when it has one. Left out when it has none so a
+    // later run never wipes a picture that was found some other way.
+    ...(articleData.cover_image && /^https?:\/\//.test(articleData.cover_image)
+      ? { cover_image: articleData.cover_image }
+      : {}),
     url: articleData.url,
     source: articleData.source || 'Unknown',
     author: articleData.author,
@@ -188,23 +193,15 @@ async function getArticles(options = {}) {
       .from('articles')
       .select('*', { count: 'exact' });
 
-    // CRITICAL: Time-based filtering - 2 weeks for client networks, 4 days for general news
-    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
-    const isClientNetwork = options.network && clientNetworks.includes(options.network);
-    const isClientQuery = options.clientNetworks || isClientNetwork;
-    
-    if (isClientQuery) {
-      // CLIENT NETWORKS: Allow 2 weeks of articles for better coverage
-      const twoWeeksAgo = new Date();
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-      query = query.gte('published_at', twoWeeksAgo.toISOString());
-      logger.info(`🗓️ Using 2-week timeframe for client networks`);
-    } else {
-      // GENERAL NEWS: Keep 4-day limit for main feed freshness
-      const fourDaysAgo = new Date();
-      fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
-      query = query.gte('published_at', fourDaysAgo.toISOString());
-      logger.info(`🗓️ Using 4-day timeframe for general news`);
+    // How far back to look: longer for the clients (../data/clients.js),
+    // 4 days for general news.
+    const { isClientNetwork, CLIENT_RETENTION_DAYS, GENERAL_RETENTION_DAYS } = require('../data/clients');
+    const isClientQuery = options.clientNetworks || isClientNetwork(options.network);
+    const days = isClientQuery ? CLIENT_RETENTION_DAYS : GENERAL_RETENTION_DAYS;
+    query = query.gte('published_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
+
+    if (Array.isArray(options.clientNetworks) && options.clientNetworks.length && !options.network) {
+      query = query.in('network', options.clientNetworks);
     }
 
     // Apply filters

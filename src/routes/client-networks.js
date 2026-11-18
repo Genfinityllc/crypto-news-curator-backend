@@ -9,151 +9,35 @@ const logger = require('../utils/logger');
  * Provides logos, descriptions, and other metadata for client network buttons
  */
 
-/**
- * Helper function to get logo URL (uploaded logo first, then external fallback)
- */
-function getLogoUrl(networkName, fallbackUrl) {
-  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'logos');
-  const safeName = networkName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  
-  // Check for various logo file extensions
-  const extensions = ['.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp'];
-  
-  for (const ext of extensions) {
-    const logoPath = path.join(uploadsDir, `${safeName}_logo${ext}`);
-    if (fs.existsSync(logoPath)) {
-      const logoUrl = `/uploads/logos/${safeName}_logo${ext}`;
-      logger.info(`📁 Using uploaded logo for ${networkName}: ${logoUrl}`);
-      return logoUrl;
-    }
-  }
-  
-  // Fall back to external URL
-  logger.info(`🌐 Using external logo for ${networkName}: ${fallbackUrl}`);
-  return fallbackUrl;
-}
+const { CLIENTS } = require('../data/clients');
 
-// Base client network metadata template (logos will be resolved dynamically)
-const CLIENT_NETWORK_BASE_METADATA = {
-  'Hedera': {
-    name: 'Hedera',
-    displayName: 'Hedera Hashgraph',
-    symbol: 'HBAR',
-    logo: '/logos/hedera_icon.png',
-    logoSquare: '/logos/hedera_icon.png',
-    color: '#000000',
-    secondaryColor: '#ffffff',
-    description: 'Enterprise-grade hashgraph consensus platform',
-    category: 'Enterprise Blockchain',
-    website: 'https://hedera.com',
-    founded: '2018',
-    consensus: 'Hashgraph',
-    features: ['Fast Transactions', 'Low Fees', 'Enterprise Grade', 'Carbon Negative'],
-    isClient: true,
-    priority: 1
-  },
-  'XDC Network': {
-    name: 'XDC Network',
-    displayName: 'XDC Network',
-    symbol: 'XDC',
-    logo: '/logos/xdc_icon.png',
-    logoSquare: '/logos/xdc_icon.png',
-    color: '#F7931A',
-    secondaryColor: '#ffffff',
-    description: 'Hybrid blockchain for trade finance and payments',
-    category: 'Trade Finance',
-    website: 'https://xdc.network',
-    founded: '2017',
-    consensus: 'XDPoS',
-    features: ['Trade Finance', 'ISO 20022', 'Enterprise Ready', 'Interoperable'],
-    isClient: true,
-    priority: 2
-  },
-  'Algorand': {
-    name: 'Algorand',
-    displayName: 'Algorand',
-    symbol: 'ALGO',
-    logo: '/logos/algorand_icon.png',
-    logoSquare: '/logos/algorand_icon.png',
-    color: '#000000',
-    secondaryColor: '#ffffff',
-    description: 'Pure proof-of-stake blockchain platform',
-    category: 'Smart Contracts',
-    website: 'https://algorand.foundation',
-    founded: '2019',
-    consensus: 'Pure Proof of Stake',
-    features: ['Instant Finality', 'Carbon Negative', 'Smart Contracts', 'DeFi Ready'],
-    isClient: true,
-    priority: 3
-  },
-  'Constellation': {
-    name: 'Constellation',
-    displayName: 'Constellation Network',
-    symbol: 'DAG',
-    logo: '/logos/constellation_icon.png',
-    logoSquare: '/logos/constellation_icon.png',
-    color: '#3C3C3C',
-    secondaryColor: '#ffffff',
-    description: 'DAG-based distributed ledger for data applications',
-    category: 'Data Layer',
-    website: 'https://constellationnetwork.io',
-    founded: '2017',
-    consensus: 'DAG Technology',
-    features: ['Scalable', 'Data Focus', 'Microservices', 'Enterprise'],
-    isClient: true,
-    priority: 4
-  },
-  'HashPack': {
-    name: 'HashPack',
-    displayName: 'HashPack Wallet',
-    symbol: 'PACK',
-    logo: '/logos/hashpack_icon.png',
-    logoSquare: '/logos/hashpack_icon.png',
-    color: '#654CFF',
-    secondaryColor: '#ffffff',
-    description: 'Leading Hedera ecosystem wallet and DeFi platform',
-    category: 'DeFi Wallet',
-    website: 'https://www.hashpack.app',
-    founded: '2021',
-    consensus: 'Built on Hedera',
-    features: ['Web3 Wallet', 'DeFi Integration', 'NFT Support', 'Hedera Native'],
-    isClient: true,
-    priority: 5,
-    parentNetwork: 'Hedera'
-  },
-  'Axiom': {
-    name: 'Axiom',
-    displayName: 'Axiom',
-    symbol: 'AXIOM',
-    logo: '/uploads/logos/axiom_logo.png',
-    logoSquare: '/uploads/logos/axiom_logo.png',
-    color: '#000000',
-    secondaryColor: '#ffffff',
-    description: 'Advanced trading and DeFi platform',
-    category: 'Trading Platform',
-    website: 'https://axiom.trade',
-    founded: '2024',
-    consensus: 'Multi-Chain',
-    features: ['Trading', 'DeFi', 'Multi-Chain', 'Advanced Tools'],
-    isClient: true,
-    priority: 6
-  }
-};
+// Where this server is reached from outside (the logos are served by it)
+const PUBLIC_BASE = (process.env.PUBLIC_BASE_URL || 'https://crypto-news-curator-backend-production.up.railway.app').replace(/\/$/, '');
 
 /**
- * Generate client network metadata with resolved logo URLs
+ * The clients' button details, built from the one list in ../data/clients.js
  */
 function getClientNetworkMetadata() {
   const metadata = {};
-  
-  for (const [networkName, baseData] of Object.entries(CLIENT_NETWORK_BASE_METADATA)) {
-    metadata[networkName] = {
-      ...baseData,
-      logo: getLogoUrl(networkName, baseData.logo),
-      logoSquare: getLogoUrl(networkName, baseData.logoSquare)
+
+  CLIENTS.forEach((client, index) => {
+    const logo = `${PUBLIC_BASE}/api/cover-generator/logo-preview/${client.logoSymbol}`;
+    metadata[client.name] = {
+      id: client.id,
+      name: client.name,
+      displayName: client.displayName,
+      symbol: client.symbol,
+      logo,
+      logoSquare: logo,
+      color: client.color,
+      secondaryColor: '#ffffff',
+      description: client.description,
+      website: client.website,
+      isClient: true,
+      priority: index + 1
     };
-  }
-  
+  });
+
   return metadata;
 }
 
@@ -299,8 +183,7 @@ router.get('/counts/with-metadata', async (req, res) => {
         const result = await getArticles({
           page: 1,
           limit: 1,
-          network: networkName,
-          onlyWithImages: true
+          network: networkName
         });
         
         networksWithCounts.push({
@@ -349,7 +232,7 @@ router.get('/buttons/config', async (req, res) => {
     const CLIENT_NETWORK_METADATA = getClientNetworkMetadata();
     
     const buttonConfigs = Object.values(CLIENT_NETWORK_METADATA).map(network => ({
-      id: network.name.toLowerCase(),
+      id: network.id || network.name.toLowerCase(),
       name: network.name,
       displayName: network.displayName,
       symbol: network.symbol,
@@ -370,22 +253,18 @@ router.get('/buttons/config', async (req, res) => {
     // Sort by priority
     buttonConfigs.sort((a, b) => a.priority - b.priority);
     
-    // Add article counts if requested
+    // Add article counts if requested (the same numbers the Client News feed shows)
     if (includeArticleCounts === 'true') {
-      const { getArticles } = require('../config/supabase');
-      
+      let counted = [];
+      try {
+        const { loadClientNews, clientList } = require('./client-news');
+        counted = clientList(await loadClientNews(), '');
+      } catch (error) {
+        counted = [];
+      }
       for (const config of buttonConfigs) {
-        try {
-          const result = await getArticles({
-            page: 1,
-            limit: 1,
-            network: config.name,
-            onlyWithImages: true
-          });
-          config.articleCount = result.count || 0;
-        } catch (error) {
-          config.articleCount = 0;
-        }
+        const match = counted.find(c => c.id === config.id);
+        config.articleCount = match ? match.count : 0;
       }
     }
     

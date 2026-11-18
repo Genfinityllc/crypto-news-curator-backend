@@ -283,7 +283,8 @@ app.use('/api/crypto', cryptoRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/crypto-market', require('./routes/cryptoMarket'));
 app.use('/api/enhanced-news', require('./routes/enhancedNews'));
-app.use('/api/enhanced-client-news', require('./routes/enhanced-client-news'));
+app.use('/api/client-news', require('./routes/client-news')); // Client News: one feed for the clients in data/clients.js
+app.use('/api/enhanced-client-news', require('./routes/client-news')); // old address, same feed (the old route answered 500)
 app.use('/api/article-management', require('./routes/article-management'));
 app.use('/api/cron-manual', require('./routes/cron-manual'));
 app.use('/api/auto-update', require('./routes/auto-update'));

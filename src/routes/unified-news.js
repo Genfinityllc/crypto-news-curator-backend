@@ -14,7 +14,7 @@ const logger = require('../utils/logger');
  * - /api/fast-news  
  * - /api/cached-news
  * - /api/enhanced-news
- * - /api/enhanced-client-news
+ * - /api/enhanced-client-news (now served by routes/client-news.js)
  * 
  * Standardized Parameters:
  * - network: 'all', 'clients', 'bitcoin', 'ethereum', 'hedera', etc.
@@ -34,7 +34,7 @@ const logger = require('../utils/logger');
  */
 
 // Client network definitions - single source of truth
-const CLIENT_NETWORKS = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
+const { CLIENT_NETWORK_NAMES: CLIENT_NETWORKS } = require('../data/clients');
 
 /**
  * Main unified news endpoint

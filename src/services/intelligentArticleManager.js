@@ -1,6 +1,7 @@
 const { getSupabaseClient } = require('../config/supabase');
 const logger = require('../utils/logger');
 const cacheCoordinator = require('./cacheCoordinator');
+const { CLIENT_NETWORK_NAMES, NOT_CLIENT_FILTER } = require('../data/clients');
 
 /**
  * Intelligent Article Management Service
@@ -8,18 +9,17 @@ const cacheCoordinator = require('./cacheCoordinator');
  */
 class IntelligentArticleManager {
   constructor() {
+    // General news and client news are counted apart, so a busy news day can
+    // never push a client's stories out (it used to: at 500 rows the 50 oldest
+    // of any kind were deleted, and a client's are usually the oldest).
     this.LIMITS = {
-      'all': 500,         // Max 500 articles total
-      'client': 500,      // Max 500 client articles total (100 each × 5 clients)
-      'breaking': 200,    // Breaking news limit
-      'hedera': 100,      // Individual client limits
-      'xdc': 100,
-      'algorand': 100,
-      'constellation': 100,
-      'hashpack': 100
+      'all': 500,         // general (non-client) articles
+      'client': 750,      // all client articles together
+      'perClient': 150,   // any one client
+      'breaking': 200
     };
-    
-    this.CLIENT_NETWORKS = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
+
+    this.CLIENT_NETWORKS = CLIENT_NETWORK_NAMES;
   }
 
   getSupabase() {
@@ -124,48 +124,36 @@ class IntelligentArticleManager {
     const isBreaking = articleData.is_breaking;
     const isClientNetwork = this.CLIENT_NETWORKS.includes(network);
 
-    // Check total articles and enforce 4-day retention + count limits
-    const { count: totalCount } = await supabase
-      .from('articles')
-      .select('id', { count: 'exact' });
+    if (!isClientNetwork) {
+      // General news: its own limit, and only general articles are removed
+      const { count: generalCount } = await supabase
+        .from('articles')
+        .select('id', { count: 'exact', head: true })
+        .or(NOT_CLIENT_FILTER);
 
-    logger.info(`📊 Current article count: ${totalCount}, network: ${network}`);
-
-    // Enforce total article limit (500 articles max)
-    if (totalCount >= this.LIMITS.all) {
-      logger.info(`🗑️ Total articles (${totalCount}) at limit (${this.LIMITS.all}), removing oldest articles`);
-      await this.removeOldestArticles(50, {}); // Remove 50 oldest articles
-    }
-
-    // Check client network limits
-    if (isClientNetwork) {
-      // Check total client articles limit
+      if (generalCount >= this.LIMITS.all) {
+        logger.info(`🗑️ General articles (${generalCount}) at limit (${this.LIMITS.all}), removing oldest general articles`);
+        await this.removeOldestArticles(50, { network: { notClient: true } });
+      }
+    } else {
       const { count: clientCount } = await supabase
         .from('articles')
-        .select('id', { count: 'exact' })
+        .select('id', { count: 'exact', head: true })
         .in('network', this.CLIENT_NETWORKS);
 
       if (clientCount >= this.LIMITS.client) {
         logger.info(`🗑️ Client articles (${clientCount}) at limit (${this.LIMITS.client}), removing oldest client articles`);
-        await this.removeOldestArticles(25, { 
-          network: { in: this.CLIENT_NETWORKS }
-        });
+        await this.removeOldestArticles(25, { network: { in: this.CLIENT_NETWORKS } });
       }
 
-      // Check individual network limit
-      const networkKey = network.toLowerCase().replace(' network', '').replace(' ', '_');
-      if (this.LIMITS[networkKey]) {
-        const { count: networkCount } = await supabase
-          .from('articles')
-          .select('id', { count: 'exact' })
-          .eq('network', network);
+      const { count: networkCount } = await supabase
+        .from('articles')
+        .select('id', { count: 'exact', head: true })
+        .eq('network', network);
 
-        if (networkCount >= this.LIMITS[networkKey]) {
-          logger.info(`🗑️ ${network} articles (${networkCount}) at limit (${this.LIMITS[networkKey]}), removing oldest for this network`);
-          await this.removeOldestArticles(10, { 
-            network: { eq: network }
-          });
-        }
+      if (networkCount >= this.LIMITS.perClient) {
+        logger.info(`🗑️ ${network} articles (${networkCount}) at limit (${this.LIMITS.perClient}), removing oldest for this client`);
+        await this.removeOldestArticles(10, { network: { eq: network } });
       }
     }
 
@@ -179,7 +167,8 @@ class IntelligentArticleManager {
       if (breakingCount >= this.LIMITS.breaking) {
         logger.info(`🗑️ Breaking articles (${breakingCount}) at limit (${this.LIMITS.breaking}), removing oldest breaking article`);
         await this.removeOldestArticles(1, { 
-          is_breaking: { eq: true }
+          is_breaking: { eq: true },
+          network: { notClient: true } // never a client's article
         });
       }
     }
@@ -206,7 +195,9 @@ class IntelligentArticleManager {
       }
 
       // Apply filters
-      if (filters.network?.in) {
+      if (filters.network?.notClient) {
+        query = query.or(NOT_CLIENT_FILTER);
+      } else if (filters.network?.in) {
         query = query.in('network', filters.network.in);
       } else if (filters.network?.eq) {
         query = query.eq('network', filters.network.eq);

@@ -5,6 +5,7 @@ const { enhanceArticlesWithImages } = require('../services/newsService');
 const simpleCache = require('../services/simpleCacheService');
 const logger = require('../utils/logger');
 const { generateCryptoPlaceholder } = require('../services/imageService');
+const { CLIENT_NETWORK_NAMES } = require('../data/clients');
 
 // Ultra-fast cached news endpoint with live RSS fallback
 router.get('/', async (req, res) => {
@@ -111,7 +112,7 @@ router.get('/', async (req, res) => {
     
     if (network === 'clients') {
       // Special filter for client networks - prioritize your specific clients
-      const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
+      const clientNetworks = CLIENT_NETWORK_NAMES;
       filteredNews = filteredNews.filter(article => 
         article.network && clientNetworks.some(client => 
           article.network === client
@@ -225,33 +226,15 @@ router.post('/cache/clear', (req, res) => {
   });
 });
 
-// Get counts for client networks (matching frontend filter logic)
+// Counts for the clients, from the same list the Client News feed shows
 router.get('/client-counts', async (req, res) => {
   try {
-    const clientNetworks = ['Hedera', 'XDC Network', 'Algorand', 'Constellation', 'HashPack', 'Axiom'];
+    const { loadClientNews, clientList } = require('./client-news');
+    const articles = await loadClientNews();
     const counts = {};
-    let totalClientCount = 0;
-    
-    for (const network of clientNetworks) {
-      try {
-        const articleResult = await getArticles({ 
-          page: 1, 
-          limit: 1000,
-          network: network,
-          onlyWithImages: true // Match frontend filtering
-        });
-        const networkCount = articleResult.data ? articleResult.data.length : 0;
-        counts[network] = networkCount;
-        totalClientCount += networkCount;
-      } catch (error) {
-        logger.error(`Error getting count for ${network}:`, error.message);
-        counts[network] = 0;
-      }
-    }
-    
-    // Add total client count
-    counts['total'] = totalClientCount;
-    
+    clientList(articles, '').forEach(c => { counts[c.name] = c.count; });
+    counts['total'] = articles.length;
+
     res.json({
       success: true,
       data: counts,

@@ -28,6 +28,28 @@ const logger = require('../utils/logger');
 const { calculateViralScore, rewriteArticle, calculateReadabilityScore } = require('./aiService');
 const { generateCardCoverImage, extractArticleImages, isGenericGoogleImage, secondaryImageExtraction, extractGoogleNewsImages, resolveGoogleNewsUrl } = require('./imageService');
 const { detectCryptocurrency, getDisplayName } = require('./cryptoDetectionService');
+const {
+  CLIENT_FEEDS, CLIENT_HEADLINE_SIGNALS, CLIENT_RETENTION_DAYS, GENERAL_RETENTION_DAYS,
+  matchClients, isNotNews, isClientNetwork, clientById, clientByName, clientFeed
+} = require('../data/clients');
+
+// A Google News address is turned into the publisher's own address by a web
+// request. The same items come back on every run, so remember the answers.
+const resolvedGoogleUrls = new Map();
+async function resolveGoogleNewsUrlOnce(url) {
+  if (resolvedGoogleUrls.has(url)) return resolvedGoogleUrls.get(url);
+  let out = await resolveGoogleNewsUrl(url);
+  try {
+    // The resolver sometimes returns the thumbnail's address instead of the article's.
+    const host = new URL(out).hostname;
+    if (/(^|\.)(googleusercontent\.com|gstatic\.com|google\.com|ggpht\.com)$/.test(host)) out = url;
+  } catch (e) {
+    out = url;
+  }
+  if (resolvedGoogleUrls.size > 3000) resolvedGoogleUrls.clear();
+  resolvedGoogleUrls.set(url, out);
+  return out;
+}
 
 // Initialize RSS parser
 const parser = new Parser({
@@ -50,105 +72,9 @@ const parser = new Parser({
  * Prevents false positives like "algorithmic" matching Algorand
  */
 function validateClientNetworkContent(title, content, source = '') {
-  const searchText = `${title} ${content}`.toLowerCase();
-  
-  // CLIENT NETWORK AND TOKEN DEFINITIONS
-  const clientValidation = {
-    'Hedera': {
-      networkNames: ['hedera', 'hedera hashgraph', 'hedera network'],
-      tokenNames: ['hbar', '$hbar', 'ℏ'],
-      companyNames: ['swirlds', 'hashgraph'],
-      positiveIndicators: ['consensus service', 'hashgraph consensus', 'governing council'],
-      falsePositives: [] // Hedera doesn't have common false positives
-    },
-    'XDC Network': {
-      networkNames: ['xdc network', 'xinfin', 'xdc'],
-      tokenNames: ['xdc', '$xdc', 'xinfin'],
-      companyNames: ['xinfin fintech', 'xdc foundation'],
-      positiveIndicators: ['trade finance', 'hybrid blockchain', 'iso 20022'],
-      falsePositives: [] // XDC doesn't have common false positives
-    },
-    'Algorand': {
-      networkNames: ['algorand', 'algorand blockchain', 'algorand network', 'algorand foundation'],
-      tokenNames: ['algo', '$algo', 'algorand token'],
-      companyNames: ['algorand foundation', 'algorand inc', 'silvio micali'],
-      positiveIndicators: ['pure proof of stake', 'ppos', 'silvio micali', 'algorand protocol', 'algorand ecosystem', 'algorand defi'],
-      falsePositives: ['algorithmic', 'algorithm', 'algo trading', 'algorithm trading', 'algo strategies', 'algorithmic trading', 'algorithmic stablecoin'],
-      requireContext: true // Require network name or strong positive indicators for validation
-    },
-    'Constellation': {
-      networkNames: ['constellation network', 'constellation dag', 'constellation blockchain', 'constellation labs'],
-      tokenNames: ['dag', '$dag', 'constellation dag'],
-      companyNames: ['constellation labs', 'constellation network'],
-      positiveIndicators: ['dag technology', 'metagraph', 'hypergraph', 'constellation protocol'],
-      falsePositives: ['directed acyclic graph', 'dag algorithm'],
-      requireContext: true // Require constellation context for DAG mentions
-    },
-    'HashPack': {
-      networkNames: ['hashpack', 'hashpack wallet', 'hashpack app'],
-      tokenNames: ['pack', '$pack', 'pack token', 'hashpack token'],
-      companyNames: ['hashpack', 'hashpack team'],
-      positiveIndicators: ['hedera wallet', 'hbar wallet', 'web3 wallet', 'hedera ecosystem'],
-      falsePositives: ['pack trading', 'pack deal', 'value pack', 'software pack'],
-      requireContext: true // Require Hedera/HashPack context for PACK mentions
-    }
-  };
-  
-  // For each client network, check if the article is genuinely about that network
-  for (const [networkName, validation] of Object.entries(clientValidation)) {
-    const hasFalsePositive = validation.falsePositives.some(falsePos => 
-      searchText.includes(falsePos.toLowerCase())
-    );
-    
-    const hasNetworkMention = validation.networkNames.some(name => 
-      searchText.includes(name.toLowerCase())
-    );
-    const hasTokenMention = validation.tokenNames.some(token => {
-      // Use word boundaries for better token matching
-      const wordBoundaryPattern = new RegExp(`\\b${token.replace(/\$/g, '\\$')}\\b`, 'i');
-      return wordBoundaryPattern.test(searchText);
-    });
-    const hasCompanyMention = validation.companyNames.some(company => 
-      searchText.includes(company.toLowerCase())
-    );
-    const hasPositiveIndicator = validation.positiveIndicators.some(indicator => 
-      searchText.includes(indicator.toLowerCase())
-    );
-    
-    // Enhanced validation logic for networks that require context
-    if (validation.requireContext) {
-      // For context-requiring networks, need network context to avoid false positives
-      if (hasTokenMention && !hasFalsePositive) {
-        if (hasNetworkMention || hasCompanyMention || hasPositiveIndicator) {
-          return networkName;
-        } else {
-          continue; // Token without proper context
-        }
-      }
-      
-      // Check if false positive blocks this match
-      if (hasFalsePositive) {
-        if (hasNetworkMention || hasCompanyMention) {
-          // Allow network/company mentions even with false positives if they're the main subject
-          return networkName;
-        } else {
-          continue; // False positive without sufficient context
-        }
-      }
-      
-      // Standard validation - need network/company mention for context-required networks
-      if (hasNetworkMention || hasCompanyMention) {
-        return networkName;
-      }
-    } else {
-      // For networks that don't require context (like Hedera, XDC)
-      if (hasNetworkMention || hasTokenMention || hasCompanyMention) {
-        return networkName;
-      }
-    }
-  }
-  
-  return null; // No valid client network detected
+  // The clients and the words that name them live in ../data/clients.js.
+  const found = matchClients(title, content);
+  return found.tag ? clientById(found.tag).name : null;
 }
 
 /**
@@ -183,12 +109,24 @@ function titleHasCryptoSignal(title) {
   // Explicit crypto terms only. We deliberately do NOT use the general crypto
   // detector here, because it also matches crypto-adjacent companies (for
   // example NVIDIA), which would let non-crypto headlines through.
-  return TITLE_CRYPTO_SIGNALS.some(term => t.includes(term));
+  return TITLE_CRYPTO_SIGNALS.some(term => t.includes(term)) ||
+    CLIENT_HEADLINE_SIGNALS.some(term => t.includes(term));
 }
 
 function validateCryptoContent(title, content, source = '') {
   const searchText = `${title} ${content}`.toLowerCase();
   const fullText = `${title} ${content} ${source}`.toLowerCase();
+
+  // A headline that names one of our clients is client news. It does not go
+  // through the general filters below, which would drop, for example, a
+  // Canton story for mentioning treasuries or a dividend.
+  if (matchClients(title, content).inHeadline) {
+    return {
+      isValid: true,
+      reason: 'Names a client in the headline',
+      confidence: 0.95
+    };
+  }
 
   // LEVEL 2 gate: require the crypto topic in the headline for every article,
   // including trusted sources. This is what stops non-crypto pieces from crypto
@@ -284,6 +222,7 @@ function validateCryptoContent(title, content, source = '') {
   const networkTerms = [
     'hedera', 'hbar', 'hashgraph', 'xdc network', 'xinfin', 'algorand', 'algo',
     'constellation network', 'dag', 'hashpack', 'swap token',
+    'xdc', 'canton network', 'canton coin',
     'bitcoin', 'ethereum', 'binance coin', 'cardano', 'solana', 'polkadot',
     'chainlink', 'litecoin', 'dogecoin', 'shiba inu', 'polygon', 'avalanche',
     'xrp', 'ripple', 'bnb', 'matic', 'avax', 'dot', 'cosmos', 'atom', 'near',
@@ -1169,30 +1108,8 @@ async function fetchRealCryptoNews() {
       'https://cryptopotato.com/feed/',              // CryptoPotato - market coverage
       'https://news.bitcoin.com/feed/',              // Bitcoin.com News - established source
       
-      // CLIENT-SPECIFIC OFFICIAL RSS FEEDS: Maximum coverage with 100% image guarantee
-      'https://hedera.com/blog/feed/',               // Hedera official blog - enterprise content with professional images ✅
-      'https://medium.com/feed/xdcnetworknews',      // XDC Network News Medium - exclusive updates with featured images ✅
-      'https://medium.com/feed/xdcnetwork',          // XDC Network official Medium - featured images guaranteed ✅
-      'https://algorand.co/blog/feed/',              // Algorand Foundation blog - monthly reports with charts ✅
-      'https://constellationnetwork.io/blog/feed/',  // Constellation official blog - technical updates with diagrams ✅
-      'https://www.hashpack.app/blog/feed/',         // HashPack official blog - wallet updates with screenshots ✅
-      
-      // CLIENT-SPECIFIC MAJOR CRYPTO SITE COVERAGE: Enhanced targeting for better client visibility
-      'https://cointelegraph.com/tags/hedera/rss',   // CoinTelegraph Hedera tag - enterprise blockchain journalism ✅
-      'https://cointelegraph.com/tags/algorand/rss', // CoinTelegraph Algorand tag - DeFi and staking coverage ✅
-      'https://crypto.news/hedera/feed/',            // Crypto.news Hedera section - dedicated HBAR coverage ✅
-      'https://crypto.news/xdc-network/feed/',       // Crypto.news XDC section - trade finance focus ✅
-      'https://decrypt.co/tag/hedera/feed',          // Decrypt Hedera - enterprise blockchain focus ✅
-      'https://decrypt.co/tag/algorand/feed',        // Decrypt Algorand - DeFi ecosystem coverage ✅
-      'https://beincrypto.com/tag/hedera/feed/',     // BeInCrypto Hedera - technical analysis with charts ✅
-      'https://beincrypto.com/tag/xdc-network/feed/', // BeInCrypto XDC - trade finance blockchain coverage ✅
-      
-      // Enhanced client network searches with press release keywords
-      'https://news.google.com/rss/search?q=Hedera+Hashgraph+OR+HBAR+OR+"Hedera+press+release"+OR+"HashPack"&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="XDC+Network"+OR+"XinFin"+OR+"XDC+token"+OR+"trade+finance+blockchain"&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=Algorand+OR+ALGO+OR+"Algorand+Foundation"+OR+"Pure+Proof+of+Stake"&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q="Constellation+Network"+OR+"DAG+crypto"+OR+"$DAG"+OR+"Constellation+DAG"&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=HashPack+OR+"PACK+token"+OR+"Hedera+wallet"+OR+"HashPack+Hedera"&hl=en-US&gl=US&ceid=US:en'
+      // The clients' own feeds and searches come from ../data/clients.js
+      ...CLIENT_FEEDS.map(f => f.url)
     ];
 
     const allArticles = [];
@@ -1207,7 +1124,8 @@ async function fetchRealCryptoNews() {
         // once. That burst is what pushed the container to OOM ("Killed").
         // All items are still processed, just a few at a time, not all 30.
         const articles = [];
-        const itemsToProcess = feed.items.slice(0, 30);
+        const feedInfo = clientFeed(feedUrl); // set when this is one of a client's feeds
+        const itemsToProcess = feed.items.slice(0, feedInfo ? 50 : 30);
         const ITEM_CONCURRENCY = 6;
         for (let batchStart = 0; batchStart < itemsToProcess.length; batchStart += ITEM_CONCURRENCY) {
         const batchResults = await Promise.all(itemsToProcess.slice(batchStart, batchStart + ITEM_CONCURRENCY).map(async (item) => {
@@ -1226,7 +1144,7 @@ async function fetchRealCryptoNews() {
             if (articleUrl.includes('news.google.com')) {
               try {
                 console.log(`🔗 Resolving Google News URL: ${articleUrl.substring(0, 80)}...`);
-                originalUrl = await resolveGoogleNewsUrl(articleUrl);
+                originalUrl = await resolveGoogleNewsUrlOnce(articleUrl);
                 
                 if (originalUrl !== articleUrl) {
                   console.log(`✅ Resolved to source: ${new URL(originalUrl).hostname}`);
@@ -1264,8 +1182,17 @@ async function fetchRealCryptoNews() {
               return null; // Mark for filtering
             }
             
-            // Use the comprehensive validation function
-            const validation = validateCryptoContent(title, content, resolvedSource);
+            // Search results include price pages and "how to buy" pages: not articles.
+            if (feedUrl.includes('news.google.com') && isNotNews(title)) {
+              console.log(`🚫 NOT AN ARTICLE: "${title.substring(0, 60)}"`);
+              return null;
+            }
+
+            // A client's own blog or press feed is client news whatever the
+            // headline says ("One Giant Leap"), so it skips the crypto check.
+            const validation = (feedInfo && feedInfo.official)
+              ? { isValid: true, reason: `Official ${feedInfo.client} feed`, confidence: 1 }
+              : validateCryptoContent(title, content, resolvedSource);
           
           if (!validation.isValid) {
             // Log rejected article with detailed reason
@@ -1347,7 +1274,10 @@ async function fetchRealCryptoNews() {
 
       // Filter out null results and map to final article format
       console.log(`🔍 DEBUG: Feed ${feedUrl} - Raw articles: ${articles.length}, Non-null: ${articles.filter(item => item !== null).length}`);
-      const validArticles = articles.filter(item => item !== null).map(item => {
+      // Rejected items come back as false, failed ones as null. Both must go:
+      // letting false through used to throw on the first rejected item of a
+      // Google News feed, which dropped that whole feed.
+      const validArticles = articles.filter(Boolean).map(item => {
           // Extract network from title/content using PRECISE CLIENT VALIDATION
           const title = item.title || '';
           const content = item.content || item.summary || item.description || '';
@@ -1355,20 +1285,24 @@ async function fetchRealCryptoNews() {
           
           let network = 'General';
           
-          // 🎯 STEP 1: PRECISE CLIENT NETWORK VALIDATION (prevents false positives)
-          const validatedClientNetwork = validateClientNetworkContent(title, content, source);
-          if (validatedClientNetwork) {
-            network = validatedClientNetwork;
-          } else {
-            // 🌟 STEP 2: UNIFIED CRYPTO DETECTION SERVICE (priority-based, accurate)
-            // Uses centralized detection with proper priority scoring
-            const detectionResult = detectCryptocurrency(title, content);
-            
-            if (detectionResult && detectionResult.confidence > 20) {
-              network = detectionResult.displayName;
-              console.log(`✅ Network detected: ${network} (${detectionResult.crypto}) - Confidence: ${detectionResult.confidence}%, Pattern: "${detectionResult.matchedPattern}"`);
+          // Step 1: is it about a client? (../data/clients.js)
+          const clientMatch = matchClients(title, content);
+          const detectionResult = detectCryptocurrency(title, content);
+          const detected = detectionResult && detectionResult.confidence > 20 ? detectionResult.displayName : null;
+
+          if (feedInfo && feedInfo.official) {
+            network = clientById(feedInfo.client).name;
+          } else if (clientMatch.tag && clientMatch.inHeadline) {
+            network = clientById(clientMatch.tag).name;
+          } else if (detected) {
+            // Step 2: the general detector. It may not hand out a client's
+            // name on its own (it reads "Sol" as Solana): the client list decides.
+            const asClient = clientByName(detected);
+            network = asClient && !clientMatch.ids.includes(asClient.id) ? 'General' : detected;
+          } else if (clientMatch.tag) {
+            // named only in the opening lines, and nothing else claimed it
+            network = clientById(clientMatch.tag).name;
           }
-          } // Close the else block for general network detection
 
           // Determine category
           let category = 'general';
@@ -1574,13 +1508,14 @@ async function fetchRealCryptoNews() {
             needs_rewrite: viralScore < 70 // Flag articles that could benefit from AI rewriting
           };
           
-          // CRITICAL: Filter out articles older than 4 days BEFORE storing
+          // Too old to store: 4 days for general news, longer for a client's
+          // (their stories are far rarer, and the Client News feed keeps them).
           const articleDate = new Date(enhancedArticle.published_at);
-          const fourDaysAgo = new Date();
-          fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
-          
-          if (articleDate < fourDaysAgo) {
-            console.log(`🚫 REJECTED OLD ARTICLE: "${enhancedArticle.title.substring(0, 50)}..." - Published ${articleDate.toISOString()} (older than 4 days)`);
+          const keepDays = isClientNetwork(network) ? CLIENT_RETENTION_DAYS : GENERAL_RETENTION_DAYS;
+          const oldest = new Date(Date.now() - keepDays * 24 * 60 * 60 * 1000);
+
+          if (articleDate < oldest) {
+            console.log(`🚫 REJECTED OLD ARTICLE: "${enhancedArticle.title.substring(0, 50)}..." - Published ${articleDate.toISOString()} (older than ${keepDays} days)`);
             return null; // Filter out old articles
           }
           
@@ -1594,7 +1529,7 @@ async function fetchRealCryptoNews() {
         logger.info(`Parsed ${filteredValidArticles.length} articles from ${feed.title || feedUrl}`);
         
       } catch (feedError) {
-        logger.error(`Error parsing RSS feed ${feedUrl}:`, feedError.message);
+        logger.error(`Error parsing RSS feed ${feedUrl}: ${feedError && (feedError.stack || feedError.message || feedError)}`);
       }
     }
 
@@ -1684,8 +1619,13 @@ async function fetchRealCryptoNews() {
     // Sort by publication date
     uniqueArticles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     
-    // Get top 200 newest articles for expanded feed while maintaining 100% image guarantee
-    const topArticles = uniqueArticles.slice(0, 200);
+    // The 200 newest general articles, plus every client article. Client
+    // stories are older and rarer, so a plain "newest 200" used to push them
+    // out before they were ever stored.
+    const newestGeneral = uniqueArticles.filter(a => !isClientNetwork(a.network)).slice(0, 200);
+    const clientArticles = uniqueArticles.filter(a => isClientNetwork(a.network));
+    const topArticles = [...newestGeneral, ...clientArticles]
+      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     
     logger.info(`Successfully fetched ${topArticles.length} real crypto news articles (images will be enhanced separately)`);
     
@@ -1693,7 +1633,7 @@ async function fetchRealCryptoNews() {
     setTimeout(async () => {
       try {
         logger.info('Starting background image enhancement...');
-        await enhanceArticlesWithImages(topArticles);
+        await enhanceArticlesWithImages(newestGeneral);
         logger.info('Background image enhancement completed');
       } catch (error) {
         logger.warn('Background image enhancement failed:', error.message);
