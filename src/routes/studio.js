@@ -574,5 +574,111 @@ router.delete('/drafts/:id', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------- bookmarks
+// The news pages' bookmarks. The older routes in routes/firebase-auth.js need
+// Firebase Admin with a service account, which this server has never had on
+// Railway, so they answered 401 to everyone and the Bookmarks page bounced
+// people to the login screen. These take over the same addresses
+// (/api/firebase-auth/bookmarks) with the verified sign-in above and keep each
+// account's bookmarks, article included, in storage.
+const bookmarks = express.Router();
+const MAX_BOOKMARKS = 500;
+const marksDir = (uid) => `studio/bookmarks/${crypto.createHmac('sha256', 'genfinity-news-bookmarks-v1').update(String(uid)).digest('hex').slice(0, 40)}`;
+const cleanMarks = (list) => (Array.isArray(list) ? list.filter((b) => b && b.id && b.articleId) : []);
+const text = (v, max) => (v == null ? undefined : String(v).slice(0, max));
+// only what a news card shows, so a bookmark stays small
+function trimArticle(a, articleId) {
+  const src = a && typeof a === 'object' ? a : {};
+  return {
+    id: text(src.id, 200) || articleId,
+    title: text(src.title, 400) || 'Untitled article',
+    url: text(src.url, 2000),
+    source: text(src.source, 200),
+    network: text(src.network, 100),
+    category: text(src.category, 100),
+    published_at: text(src.published_at || src.publishedAt, 60),
+    image_url: text(src.image_url || src.cover_image || src.imageUrl, 2000),
+    cover_image: text(src.cover_image || src.image_url, 2000),
+    summary: text(src.summary || src.description || src.content, 800),
+    description: text(src.description || src.summary, 800),
+  };
+}
+// the page reads the article from `articles`; the card matches on `articleId`
+const markView = (b) => ({ id: b.id, bookmarkId: b.id, articleId: b.articleId, createdAt: b.createdAt, url: b.article && b.article.url, articles: b.article });
+const needMarkUser = async (req, res) => {
+  const user = await whoIs(req);
+  if (!user) res.status(401).json({ success: false, message: 'Sign in to use bookmarks.' });
+  return user;
+};
+
+bookmarks.get('/bookmarks', async (req, res) => {
+  const user = await needMarkUser(req, res);
+  if (!user) return;
+  try {
+    const list = cleanMarks(await readVersioned(marksDir(user.uid), 'index', []));
+    res.json({ success: true, bookmarks: list.map(markView) });
+  } catch (e) {
+    logger.error(`bookmarks: list: ${e.message}`);
+    res.status(500).json({ success: false, message: 'Failed to get bookmarks' });
+  }
+});
+
+bookmarks.post('/bookmarks', async (req, res) => {
+  const user = await needMarkUser(req, res);
+  if (!user) return;
+  const body = req.body || {};
+  const articleId = text(body.articleId || (body.article && (body.article.id || body.article.url)), 2000);
+  if (!articleId) return res.status(400).json({ success: false, message: 'Article ID is required' });
+  try {
+    const dir = marksDir(user.uid);
+    const mark = await inTurn(dir, async () => {
+      const list = cleanMarks(await readVersioned(dir, 'index', []));
+      const had = list.find((b) => b.articleId === articleId);
+      if (had) return had;
+      if (list.length >= MAX_BOOKMARKS) throw new Error('limit');
+      let article = body.article;
+      if (!article || !article.title) {
+        // an article from the database can be looked up by its id
+        try {
+          const client = getSupabaseClient();
+          const found = client ? await client.from('articles').select('*').eq('id', articleId).maybeSingle() : null;
+          if (found && found.data) article = found.data;
+        } catch (lookupError) {
+          /* kept with what was sent */
+        }
+      }
+      const next = { id: `m-${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`, articleId, createdAt: new Date().toISOString(), article: trimArticle(article, articleId) };
+      await writeVersioned(dir, 'index', [next, ...list]);
+      return next;
+    });
+    res.status(201).json({ success: true, message: 'Article bookmarked successfully', bookmark: markView(mark) });
+  } catch (e) {
+    if (e.message === 'limit') return res.status(400).json({ success: false, message: `You already have ${MAX_BOOKMARKS} bookmarks. Remove some first.` });
+    logger.error(`bookmarks: add: ${e.message}`);
+    res.status(500).json({ success: false, message: 'Failed to add bookmark' });
+  }
+});
+
+bookmarks.delete('/bookmarks/:bookmarkId', async (req, res) => {
+  const user = await needMarkUser(req, res);
+  if (!user) return;
+  try {
+    const dir = marksDir(user.uid);
+    const removed = await inTurn(dir, async () => {
+      const list = cleanMarks(await readVersioned(dir, 'index', []));
+      const next = list.filter((b) => b.id !== req.params.bookmarkId);
+      if (next.length === list.length) return false;
+      await writeVersioned(dir, 'index', next);
+      return true;
+    });
+    if (!removed) return res.status(404).json({ success: false, message: 'Bookmark not found' });
+    res.json({ success: true, message: 'Bookmark removed successfully' });
+  } catch (e) {
+    logger.error(`bookmarks: remove: ${e.message}`);
+    res.status(500).json({ success: false, message: 'Failed to remove bookmark' });
+  }
+});
+
 module.exports = router;
 module.exports.verifyIdToken = verifyIdToken;
+module.exports.bookmarks = bookmarks;

@@ -289,6 +289,7 @@ app.use('/api/cron-manual', require('./routes/cron-manual'));
 app.use('/api/auto-update', require('./routes/auto-update'));
 app.use('/api/temp-cleanup', require('./routes/temp-cleanup')); // Temp file management for Railway
 app.use('/api/press-releases', require('./routes/press-releases')); // Legal PRNewswire workaround - keyword extraction
+app.use('/api/firebase-auth', require('./routes/studio').bookmarks); // Bookmarks that work without Firebase Admin (must stay ABOVE the older firebase-auth router)
 app.use('/api/cover-generator/studio', require('./routes/studio')); // Cover Studio: shared backdrops + account drafts (verified Firebase sign-in)
 app.use('/api/cover-generator', require('./routes/cover-for-article')); // Additive: /for-article wrapper around the live /generate (does NOT touch /generate)
 app.use('/api/rewrite-pipeline', require('./routes/rewrite-pipeline')); // Additive (Phase 2): async fact-checked rewrite pipeline with fallback
