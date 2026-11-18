@@ -289,6 +289,99 @@ router.delete('/backdrops/:id', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------- recovery
+// Backdrops generated before 2026-11-18 were never put in storage (see the
+// CLAUDE.md note) and were lost from this server. The image service keeps its
+// own history for about 7 days, so they are fetched back from there and added
+// to the shared backgrounds. Runs by itself once after a deploy; what it found
+// is written next to the shared list as `recovery-<run>_<time>.json`.
+const RECOVERY_RUN = 'recovery-v1';
+const RECOVERY_DAYS = 8;
+const RECOVERY_MAX = 80;
+
+async function serviceHistory(sinceMs) {
+  const key = process.env.WAVESPEED_API_KEY;
+  if (!key) return { error: 'no image service key on this server' };
+  const items = [];
+  for (let page = 1; page <= 10; page += 1) {
+    const res = await fetch('https://api.wavespeed.ai/api/v3/predictions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page, page_size: 100, status: 'completed', created_after: new Date(sinceMs).toISOString() }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body || !body.data) return { error: `history answered ${res.status}`, sample: JSON.stringify(body).slice(0, 300) };
+    const got = Array.isArray(body.data.items) ? body.data.items : [];
+    items.push(...got);
+    if (got.length < 100) break;
+  }
+  return { items };
+}
+
+async function recoverBackdrops() {
+  const report = { run: RECOVERY_RUN, at: new Date().toISOString(), total: 0, byModel: {}, candidates: 0, imported: 0, already: 0, failed: [] };
+  const history = await serviceHistory(Date.now() - RECOVERY_DAYS * 86400000);
+  if (history.error) return { ...report, error: history.error, sample: history.sample };
+  report.total = history.items.length;
+  history.items.forEach((it) => {
+    const m = String(it.model || 'unknown');
+    report.byModel[m] = (report.byModel[m] || 0) + 1;
+  });
+  if (history.items[0]) report.fields = Object.keys(history.items[0]);
+  // a backdrop is a picture made from words alone (covers with a logo use the "edit" model)
+  const wanted = history.items
+    .filter((it) => /text-to-image/i.test(String(it.model || '')) && Array.isArray(it.outputs) && typeof it.outputs[0] === 'string' && /^https:\/\//.test(it.outputs[0]))
+    .slice(0, RECOVERY_MAX);
+  report.candidates = wanted.length;
+  if (wanted[0]) report.outputHost = new URL(wanted[0].outputs[0]).host;
+  if (!wanted.length) return report;
+  const sharp = require('sharp');
+  await inTurn(SHARED_DIR, async () => {
+    let list = cleanShared(await readVersioned(SHARED_DIR, 'index', []));
+    // oldest first, so the newest ends up at the front of the list
+    for (const it of [...wanted].reverse()) {
+      const from = `service:${it.id}`;
+      if (list.some((b) => b.from === from)) {
+        report.already += 1;
+        continue;
+      }
+      if (list.length >= MAX_SHARED) break;
+      try {
+        const res = await fetch(it.outputs[0]);
+        if (!res.ok) throw new Error(`file answered ${res.status}`);
+        const original = Buffer.from(await res.arrayBuffer());
+        if (original.length > 40 * 1024 * 1024) throw new Error('too large');
+        const full = await sharp(original).flatten({ background: '#000000' }).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+        const thumb = await sharp(original).flatten({ background: '#000000' }).resize(480, null, { withoutEnlargement: true }).jpeg({ quality: 80, mozjpeg: true }).toBuffer();
+        const id = `b-${Date.now().toString(36)}-${crypto.randomBytes(5).toString('hex')}`;
+        const item = { id, path: `${SHARED_DIR}/${id}.jpg`, thumbPath: `${SHARED_DIR}/${id}_t.jpg`, from, added: Date.parse(it.created_at) || Date.now() };
+        await writeFile(item.path, full, 'image/jpeg', '31536000');
+        await writeFile(item.thumbPath, thumb, 'image/jpeg', '31536000');
+        list = [item, ...list];
+        report.imported += 1;
+      } catch (e) {
+        report.failed.push(`${String(it.id).slice(0, 12)}: ${e.message}`);
+      }
+    }
+    if (report.imported) await writeVersioned(SHARED_DIR, 'index', list);
+  });
+  return report;
+}
+
+// Once per RECOVERY_RUN: a short while after the server starts.
+setTimeout(async () => {
+  try {
+    // only on the live server (it alone has the image service key); a local run must not mark the job as done
+    if (!process.env.WAVESPEED_API_KEY || !getSupabaseClient()) return;
+    if (versionsOf(await listFolder(SHARED_DIR), RECOVERY_RUN).length) return;
+    const report = await recoverBackdrops();
+    await writeVersioned(SHARED_DIR, RECOVERY_RUN, report);
+    logger.info(`studio: backdrop recovery ${RECOVERY_RUN}: ${report.imported} brought back of ${report.candidates} found${report.error ? ` (${report.error})` : ''}`);
+  } catch (e) {
+    logger.warn(`studio: backdrop recovery did not run: ${e.message}`);
+  }
+}, 25000).unref();
+
 // ---------------------------------------------------------------- drafts
 const ID_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
 const HASH_RE = /^[a-f0-9]{64}$/;
