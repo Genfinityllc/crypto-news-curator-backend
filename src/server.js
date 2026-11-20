@@ -757,6 +757,8 @@ const COMPANIES_LIST = [
   { symbol: 'PAXOS', name: 'Paxos', type: 'company' },
   { symbol: 'ROBINHOOD', name: 'Robinhood', type: 'company' },
   { symbol: 'HASHPACK', name: 'HashPack (PACK)', type: 'company' },
+  // the colour version from hashpack.app's own header: lavender mark, white wordmark (owner 2026-11-19)
+  { symbol: 'HASHPACK_COLOR', name: 'HashPack (colour mark)', type: 'company' },
   { symbol: 'KRAKEN', name: 'Kraken', type: 'company' },
   { symbol: 'KUCOIN', name: 'KuCoin', type: 'company' },
   { symbol: 'BINANCE', name: 'Binance Exchange', type: 'company' },

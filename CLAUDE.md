@@ -187,6 +187,7 @@ To see deploy status: https://railway.com/project/8979a89d-75ee-40f7-a47f-7a5d7e
 - Monochrome marks should be WHITE on transparent. Brand-coloured logos keep their real colours on transparent.
 - Fine line-art logos (example: the hatched Canton mark) cannot be reproduced faithfully by the model. Add a bold solid alternative as a second entry (example: `CANTONSIMPLE`).
 - `getPngLogo` prefers the committed files in `uploads/png-logos/` over Supabase, so fix a logo in BOTH places.
+- **`HASHPACK_COLOR`** (added 2026-11-19 at the owner's request): HashPack's colour logo, lavender mark `#7A7AB8` with the white wordmark, taken from hashpack.app's own header (`logo-colour-white.svg` on their site's file host) and drawn at 2400x469 on transparent. It is a committed file in `uploads/png-logos/` with a `COMPANIES_LIST` entry in `src/server.js`; it is NOT in Supabase (the committed file is what the preview route and `getPngLogo` read first).
 - Deploys run on Node 24 (`package.json` engines + `nixpacks.toml`). Railway is the only live backend. Any Render or Vercel project pointed at this repo is stale.
 
 ## Design Studio + background-only generation (2026-11-16)
