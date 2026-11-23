@@ -759,6 +759,9 @@ const COMPANIES_LIST = [
   { symbol: 'HASHPACK', name: 'HashPack (PACK)', type: 'company' },
   // the colour version from hashpack.app's own header: lavender mark, white wordmark (owner 2026-11-19)
   { symbol: 'HASHPACK_COLOR', name: 'HashPack (colour mark)', type: 'company' },
+  // from crowdbrain.ai's own header (owner 2026-11-23): violet mark with the white wordmark, and all white
+  { symbol: 'CROWDBRAIN', name: 'CrowdBrain', type: 'company' },
+  { symbol: 'CROWDBRAIN_WHITE', name: 'CrowdBrain (all white)', type: 'company' },
   { symbol: 'KRAKEN', name: 'Kraken', type: 'company' },
   { symbol: 'KUCOIN', name: 'KuCoin', type: 'company' },
   { symbol: 'BINANCE', name: 'Binance Exchange', type: 'company' },
