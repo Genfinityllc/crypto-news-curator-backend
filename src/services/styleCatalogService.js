@@ -654,40 +654,9 @@ class StyleCatalogService {
       // backdrop tab only. No logo, always a pure black base, two accent
       // colours ({{A1}}, {{A2}}: the style's defaults, or the Studio palette).
       // internal: never in the Cover Generator picker or the article rotation.
-      // backdropOnly: the Studio lists them. pending: hidden there too until
-      // the owner approves the sample.
-      'bd01_black_silk': {
-        id: 'bd01_black_silk',
-        name: 'Black Silk',
-        description: 'Black silk satin in deep slow folds, shown only by thin glossy highlights',
-        filename: 'bd01_black_silk.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#b9a4ff', lightingColor: '#6a4cf5' },
-        backdrop: {
-          look: 'heavy black silk satin draped in deep, slow folds, photographed in a dark studio',
-          scene: 'Liquid-smooth black satin fills the frame in broad sweeping folds and soft creases. The cloth itself is pure black; its shape is revealed only by narrow glossy highlights running along the crests of the folds, lit by a soft {{A1}} light from one side with a fainter {{A2}} sheen on the opposite ridges. The valleys between the folds fall away to pure black. A fine weave is just visible inside the highlights, with shallow depth of field and a trace of film grain.'
-        }
-      },
-      'bd02_black_marble': {
-        id: 'bd02_black_marble',
-        name: 'Black Marble',
-        description: 'Polished black marble with sparse fine veins and hairline metallic threads',
-        filename: 'bd02_black_marble.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#e3e8f0', accentLightColor: '#c9a45c', lightingColor: '#e3e8f0' },
-        backdrop: {
-          look: 'a polished slab of black Nero Marquina marble, photographed straight on under soft studio light',
-          scene: 'Deep pure-black stone fills the frame, crossed by a few sparse, thin, branching veins in {{A1}} that wander diagonally and fade out, with occasional hairline metallic threads of {{A2}} running beside them. The veins are delicate and irregular like real stone, never thick, never busy. A very soft, broad reflection sweeps across part of the polished surface so it reads as glossy stone; most of the slab stays pure black.'
-        }
-      },
+      // backdropOnly: the Studio lists them. pending: true on an entry hides it
+      // there too, for a new style still waiting for the owner's approval.
+      // Of the first ten samples (2026-11-23) the owner kept only Particle Wave.
       'bd03_particle_wave': {
         id: 'bd03_particle_wave',
         name: 'Particle Wave',
@@ -696,124 +665,11 @@ class StyleCatalogService {
         category: 'backdrop',
         internal: true,
         backdropOnly: true,
-        pending: true,
         customSubject: { enabled: false },
         defaultColors: { bgColor: '#000000', elementColor: '#00fdb1', accentLightColor: '#6a4cf5', lightingColor: '#00fdb1' },
         backdrop: {
           look: 'a rolling wave surface made only of thousands of tiny separate points of light floating in a black void',
           scene: 'Small luminous dots sit in an even lattice that bends into long, slow swells, receding in perspective toward the distance. The dots on the crests glow {{A1}}, shift toward {{A2}} down the slopes, and dim to nothing in the troughs and in the far distance, so the surface dissolves into pure black. The dots are separate points with no lines joining them. The nearest and farthest dots soften into gentle out-of-focus blur.'
-        }
-      },
-      'bd04_paper_cut': {
-        id: 'bd04_paper_cut',
-        name: 'Paper Cut Layers',
-        description: 'Stacked sheets of matte black paper with curved cut-outs and light glowing between the layers',
-        filename: 'bd04_paper_cut.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#d9577a', accentLightColor: '#5b4bd6', lightingColor: '#d9577a' },
-        backdrop: {
-          look: 'a layered paper sculpture of matte black paper sheets with large curved cut-outs, stacked in depth',
-          scene: 'Many sheets of matte black paper lie one behind another, each with a large, smooth, organic curved opening, so the layers step back like the contours of a canyon. The paper is pure black with a fine fibre texture. A soft {{A1}} light glows from between the deeper layers and deepens to {{A2}} in the lowest one, catching each cut edge as a thin soft rim and leaving the front sheets black. Soft realistic shadows fall between the layers.'
-        }
-      },
-      'bd05_black_dunes': {
-        id: 'bd05_black_dunes',
-        name: 'Black Dunes',
-        description: 'Dunes of fine black sand with crisp wind ripples under low raking light',
-        filename: 'bd05_black_dunes.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#b8c7d6', accentLightColor: '#4a6a8a', lightingColor: '#b8c7d6' },
-        backdrop: {
-          look: 'a landscape of fine black volcanic sand dunes under a pure black sky at night',
-          scene: 'Sweeping dunes of black sand with long, clean ridge lines and crisp wind ripples across their slopes. A low raking {{A1}} light skims the ridges and the tops of the ripples, drawing them as fine bright lines, while every shaded slope falls to pure black. A faint, narrow {{A2}} glow sits low on the horizon; the sky above is pure black with nothing in it.'
-        }
-      },
-      'bd06_city_bokeh': {
-        id: 'bd06_city_bokeh',
-        name: 'City Bokeh',
-        description: 'Far-off night lights thrown completely out of focus into soft circles on black',
-        filename: 'bd06_city_bokeh.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#1f6fd1', accentLightColor: '#2bb8a6', lightingColor: '#1f6fd1' },
-        backdrop: {
-          look: 'distant city lights at night photographed completely out of focus with a fast lens',
-          scene: 'Soft round bokeh circles of light in {{A1}} and {{A2}}, with a few small neutral white ones, float in a loose scattered band against pure black. The circles vary in size and brightness, some overlapping softly, most of them dim. Nothing is in focus and nothing is recognisable: no buildings, no streets, no vehicles, no signs. Large areas of the frame stay pure black.'
-        }
-      },
-      'bd07_blind_emboss': {
-        id: 'bd07_blind_emboss',
-        name: 'Blind Emboss',
-        description: 'Black-on-black embossed linework on matte black paper, visible only in raking light',
-        filename: 'bd07_blind_emboss.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#9aa0a8', accentLightColor: '#ffffff', lightingColor: '#9aa0a8' },
-        backdrop: {
-          look: 'thick matte black cotton paper with a tone-on-tone blind-embossed pattern, photographed close under low raking light',
-          scene: 'A large-scale pattern of fine interlocking arcs and parallel curved lines is pressed into matte black paper, black on black, with no ink at all. The pattern shows only where a low raking {{A1}} light catches the raised edges as thin soft highlights with faint {{A2}} glints, and it sinks into pure black wherever the light does not reach. Soft paper grain, with the light falling off toward the edges of the frame.'
-        }
-      },
-      'bd08_oil_ripple': {
-        id: 'bd08_oil_ripple',
-        name: 'Oil Ripple',
-        description: 'Glossy black liquid with slow ripples and a thin sheen of colour where the light lands',
-        filename: 'bd08_oil_ripple.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#8a3fb0', accentLightColor: '#e07ab0', lightingColor: '#8a3fb0' },
-        backdrop: {
-          look: 'the surface of a pool of glossy black liquid, seen close and low',
-          scene: 'A mirror-smooth surface of pure black liquid carries slow concentric ripples and gentle swells. Where a soft light lands on the ripple crests, a thin band of colour appears, {{A1}} sliding into {{A2}}, like the sheen on oil; everywhere else the liquid is pure, deep, glossy black. The ripples become finer and fade into darkness toward the edges, with shallow depth of field.'
-        }
-      },
-      'bd09_machined_fins': {
-        id: 'bd09_machined_fins',
-        name: 'Machined Fins',
-        description: 'Rows of black anodised metal fins with a narrow glow grazing their edges',
-        filename: 'bd09_machined_fins.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#2bb8a6', accentLightColor: '#1f6fd1', lightingColor: '#2bb8a6' },
-        backdrop: {
-          look: 'rows of precisely machined black anodised aluminium fins, an architectural detail photographed close',
-          scene: 'Thin parallel metal fins run across the frame and recede in perspective, matte black with satin-smooth edges and deep black gaps between them. A narrow soft {{A1}} glow grazes across the fin edges in one zone, picking out each edge as a fine line that fades along its length, with small {{A2}} reflections deeper between the fins. Outside that zone the fins fall into pure black.'
-        }
-      },
-      'bd10_obsidian': {
-        id: 'bd10_obsidian',
-        name: 'Obsidian',
-        description: 'Fractured black volcanic glass with curved mirror faces and a few edges catching colour',
-        filename: 'bd10_obsidian.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#d9577a', lightingColor: '#6a4cf5' },
-        backdrop: {
-          look: 'a close view of fractured black obsidian, natural volcanic glass',
-          scene: 'Broad, curved fracture faces of pure black volcanic glass meet at razor-fine ridges. The faces are glossy black mirrors with soft dark reflections; only a few ridges and curved edges catch the light, as thin glints of {{A1}} and {{A2}}. Fine concentric fracture ripples show faintly inside the highlights. Most of the stone stays pure black.'
         }
       }
     };
