@@ -681,93 +681,9 @@ class StyleCatalogService {
         }
       },
       // second batch (2026-11-23): the owner found the first nine a stock
-      // wallpaper look and chose three directions: abstract 3D forms (kind
-      // 'render'), graphic print textures ('print'), a dark studio set ('set')
-      'bd11_folded_planes': {
-        id: 'bd11_folded_planes',
-        name: 'Folded Planes',
-        description: 'Matte black sheets creased into sharp facets, with razor-fine light along the folds',
-        filename: 'bd11_folded_planes.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'render',
-          look: 'large sheets of matte black material folded into crisp angular facets, a clean stylised CGI illustration',
-          scene: 'Broad matte black sheets, creased into long straight folds like precisely folded heavy card or bent metal, rise from the edges of the frame at different depths. Each facet is a slightly different shade of black and charcoal. A razor-fine {{A1}} light runs along a few of the fold lines and outer edges, and a faint {{A2}} glow spills softly onto the facets nearest to it. Soft contact shadows where the sheets overlap. The space between the forms is empty pure black.'
-        }
-      },
-      'bd12_edge_lit_slabs': {
-        id: 'bd12_edge_lit_slabs',
-        name: 'Edge-lit Slabs',
-        description: 'Thick slabs of smoked black glass that show only as fine glowing edges',
-        filename: 'bd12_edge_lit_slabs.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'render',
-          look: 'thick slabs of smoked black glass lit only through their edges, a clean stylised CGI illustration',
-          scene: 'Several thick rectangular slabs of near-black smoked glass stand and lean at slightly different angles toward the edges of the frame, overlapping in depth. Their broad faces are dark and almost invisible, with only dim soft reflections; their polished edges carry the light, glowing as fine straight lines of {{A1}}, a few of them {{A2}}, as if lit from inside. Where two slabs overlap, the edge light of one shows dimly through the other. They stand on a black floor that mirrors the glowing edges faintly.'
-        }
-      },
-      'bd13_column_field': {
-        id: 'bd13_column_field',
-        name: 'Column Field',
-        description: 'A grid of slim black columns rising and falling in waves, light skimming their tops',
-        filename: 'bd13_column_field.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'render',
-          look: 'a field of slim matte black square columns of different heights seen from a high angle, a clean stylised CGI illustration',
-          scene: 'Hundreds of slim matte black square columns stand in a tight even grid, their heights rising and falling in long smooth waves like a landscape, seen from a high three-quarter angle and receding into darkness. A low {{A1}} light skims across the tops of the tallest columns, and a soft {{A2}} glow rises from deep between them near the left and right edges only; the sides of the columns and the far field sink to pure black.'
-        }
-      },
-      'bd14_sliced_forms': {
-        id: 'bd14_sliced_forms',
-        name: 'Sliced Forms',
-        description: 'Black spheres and cylinders cut into thin slices, glowing only in the gaps',
-        filename: 'bd14_sliced_forms.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'render',
-          look: 'matte black geometric solids cut into even parallel slices, a clean stylised CGI illustration',
-          scene: 'Large matte black spheres and cylinders, each cut into many thin parallel slices that are slid slightly apart and out of line, sit partly cropped by the edges of the frame at different depths. Light shows only in the narrow gaps between the slices: a {{A1}} glow from inside some forms and {{A2}} from inside others, grading along the gaps. The outer surfaces are soft matte black with the faintest rim light, floating in pure black space with no floor.'
-        }
-      },
-      'bd15_halftone_fade': {
-        id: 'bd15_halftone_fade',
-        name: 'Halftone Fade',
-        description: 'Screen-printed halftone dots that shrink from the corners to nothing',
-        filename: 'bd15_halftone_fade.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'print',
-          look: 'a flat screen-printed halftone graphic on matte black paper, pure two-dimensional print design',
-          scene: 'A field of crisp round halftone dots printed in {{A1}} ink on black. The dots are large and close together toward two opposite corners and shrink steadily to pinpoints, then to nothing, toward the middle, so the gradient is made only of dot size. A second halftone layer in {{A2}}, at a different screen angle and slightly out of register, overlaps the first near one corner and makes a subtle rosette pattern. The ink is flat and matte with slight print texture, on paper with a fine grain.'
-        }
-      },
+      // wallpaper look. Of ten more (3D forms, print textures, studio sets)
+      // the owner kept the two print textures below on 2026-11-24 and turned
+      // down the rest: no floor or plane that reflects the scene.
       'bd16_dither_bloom': {
         id: 'bd16_dither_bloom',
         name: 'Dither Bloom',
@@ -776,7 +692,6 @@ class StyleCatalogService {
         category: 'backdrop',
         internal: true,
         backdropOnly: true,
-        pending: true,
         customSubject: { enabled: false },
         defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
         backdrop: {
@@ -788,69 +703,17 @@ class StyleCatalogService {
       'bd17_photocopy_grain': {
         id: 'bd17_photocopy_grain',
         name: 'Photocopy Grain',
-        description: 'Gritty photocopier toner with scan streaks and rough sprayed ink at the edges',
+        description: 'Solid black photocopier toner with fine grain and rough sprayed ink at the edges',
         filename: 'bd17_photocopy_grain.png',
         category: 'backdrop',
         internal: true,
         backdropOnly: true,
-        pending: true,
         customSubject: { enabled: false },
         defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
         backdrop: {
           kind: 'print',
           look: 'a gritty photocopied print texture on black, like an enlarged page from a design zine, flat and two-dimensional',
-          scene: 'Dense black photocopier toner with speckled grain, fine horizontal scan streaks, dust specks and soft uneven patches of charcoal where the toner thins. Along two edges a rough sprayed band of {{A1}} ink bleeds in with a grainy stippled edge, and a smaller, rougher patch of {{A2}} overprints it in one corner, slightly out of register. Everything else is deep textured black. Tactile, imperfect and deliberate.'
-        }
-      },
-      'bd18_slat_wall': {
-        id: 'bd18_slat_wall',
-        name: 'Slat Wall',
-        description: 'A studio wall of black timber slats with a concealed wash of light from above',
-        filename: 'bd18_slat_wall.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'set',
-          look: 'a dark interview studio with a wall of black vertical timber slats, seen straight on, drawn as a clean minimal render',
-          scene: 'A wall of slim, evenly spaced matte black timber slats runs the full width of the frame, with black acoustic felt in the gaps. Concealed {{A1}} light grazes the slats only at the far left and far right ends of the wall, drawing each slat there as a fine vertical line and fading to nothing well before the middle, with a softer {{A2}} wash low down at one end. The slats across the middle of the wall are unlit black. A black floor along the bottom reflects the lit ends faintly.'
-        }
-      },
-      'bd19_lit_alcoves': {
-        id: 'bd19_lit_alcoves',
-        name: 'Lit Alcoves',
-        description: 'A black plaster wall with arched niches glowing softly from inside',
-        filename: 'bd19_lit_alcoves.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'set',
-          look: 'a minimal black plaster studio wall with recessed arched niches lit from inside, seen straight on, drawn as a clean minimal render',
-          scene: 'A smooth matte black plaster wall with tall recessed niches with rounded arch tops, set toward the left and right sides. Hidden light inside each niche glows softly on its curved inner surface, {{A1}} in some and {{A2}} in others, brightest at the top and falling off to black toward the floor. The wall between the niches is unlit black with only the faintest spill of light. A dark polished floor carries soft reflections.'
-        }
-      },
-      'bd20_stepped_frame': {
-        id: 'bd20_stepped_frame',
-        name: 'Stepped Frame',
-        description: 'Nested black frames stepping back into the dark, with thin light in the outer steps',
-        filename: 'bd20_stepped_frame.png',
-        category: 'backdrop',
-        internal: true,
-        backdropOnly: true,
-        pending: true,
-        customSubject: { enabled: false },
-        defaultColors: { bgColor: '#000000', elementColor: '#6a4cf5', accentLightColor: '#00fdb1', lightingColor: '#6a4cf5' },
-        backdrop: {
-          kind: 'set',
-          look: 'a black studio set built as a series of nested rectangular frames stepping back into the dark, seen straight on, drawn as a clean minimal render',
-          scene: 'Wide matte black rectangular frames with softly rounded corners sit one inside the other, each set a little farther back than the one before, like a stepped portal seen from the front. Thin concealed lines of {{A1}} light sit in the gaps behind the two or three outermost frames, with a touch of {{A2}} in one of them, and the light dims with every step inward until the inner frames are black on black. The opening in the middle is a flat, unlit pure black.'
+          scene: 'Solid, dense black photocopier toner covering the whole sheet evenly, with a very fine dark speckle and a few faint hairline scan streaks that stay close to black. Along two edges a rough sprayed band of {{A1}} ink bleeds in with a grainy stippled edge, and a smaller, rougher patch of {{A2}} overprints it in one corner, slightly out of register. Everything else is the same even, deep black from edge to edge: no grey patches, no pale or cloudy areas, no faded or thin toner, no smudges, no white dust and no light blotches anywhere. The only texture away from the ink is fine grain that never rises above near-black. Tactile and deliberate.'
         }
       }
     };
@@ -1729,12 +1592,14 @@ class StyleCatalogService {
       `LOOK AND MATERIAL: ${style.backdrop.look}.`,
       `SCENE: ${fill(style.backdrop.scene)}`,
       'BLACK BASE: the whole image is built on pure black (#000000). At least two thirds of the frame is pure black or very close to it, and the darkest areas are true black: never grey, navy, brown or tinted, and never a light or mid-tone background. Light and colour appear only where the scene describes them, stay restrained, and fall off smoothly into black.',
-      `COLOR: the only colours in the image are ${a1} and ${a2}, used sparingly as light and accent; everything else is black, charcoal and neutral grey. These hex codes are colour instructions only; never render them as visible text.`,
+      `COLOR: the only colours in the image are ${a1} and ${a2}, used sparingly as light and accent; everything else is black and near-black charcoal, with no light grey or mid grey areas, patches or clouds. These hex codes are colour instructions only; never render them as visible text.`,
       `COMPOSITION: ${spaceText} Arrange everything as a deliberate, art-directed composition with a clear visual rhythm, so the frame reads as a finished premium backdrop.`,
       // owner 2026-11-23: no light in the middle, a spotlight look is bad
       copySpace === 'none'
         ? 'NO SPOTLIGHT: there is no spotlight, no light pool, no central glow and no vignette of light anywhere; light and colour stay small and local.'
         : 'NO LIGHT IN THE CALM AREA: that calm area is flat, unlit pure black, the darkest part of the image. No spotlight, no glow, no lit patch, no light pool, no haze and no brighter tone there, and no bright middle with dark corners. All light and colour stay out at the edges and corners.',
+      // owner 2026-11-24: no floor or plane that reflects the things in the scene
+      'NO FLOOR AND NO REFLECTIONS: nothing stands or rests on a floor, ground, tabletop or any other surface plane, and there is no horizon line. Nothing in the image is reflected or mirrored: no glossy floor, no polished or wet ground, no water, no glass or mirror surface showing a reflection of anything.',
       `QUALITY: ${BACKDROP_QUALITY[style.backdrop.kind] || BACKDROP_QUALITY.photo} Never a generic stock wallpaper, never cartoonish, toy-like, plasticky or clip-art. No gears or cogs, no circuit boards, no wireframes, no flowing code, no server racks, no mascots or characters, no people, no fog, haze or smoke.`
     ].join(' ');
   }
