@@ -915,6 +915,8 @@ class StyleCatalogService {
   getCategories() {
     const categoryCounts = {};
     for (const style of Object.values(this.styles)) {
+      // hidden styles must not put an empty category chip in the picker
+      if (style.internal) continue;
       categoryCounts[style.category] = (categoryCounts[style.category] || 0) + 1;
     }
     return Object.entries(categoryCounts).map(([id, count]) => ({
