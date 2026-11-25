@@ -1,0 +1,29 @@
+// node render.js <symbol> <file> <long side px> <out dir> [white:<colour>,<colour>]
+// Draws a logo file on a clear background at a large size, trims the empty
+// margin, and reports how solid it is. An SVG is drawn by sharp (librsvg),
+// which runs nothing in the file.
+const sharp = require('sharp');
+const fs = require('fs');
+(async () => {
+  const [,, sym, file, longArg, outDir, mode] = process.argv;
+  const long = Number(longArg);
+  const isSvg = /\.svg$/i.test(file);
+  let img;
+  if (isSvg) {
+    let text = fs.readFileSync(file, 'utf8');
+    if (mode && mode.startsWith('white:')) {
+      // the named colours (a wordmark drawn dark, for light pages) become white for dark covers; other colours stay
+      for (const col of mode.slice(6).split(',')) text = text.split(col).join('#ffffff').split(col.toUpperCase()).join('#ffffff');
+    }
+    const probe = await sharp(Buffer.from(text)).metadata();
+    const density = Math.min(2400, Math.max(72, Math.ceil((72 * long * 1.3) / Math.max(probe.width, probe.height))));
+    img = sharp(Buffer.from(text), { density });
+  } else img = sharp(file);
+  const trimmed = await img.ensureAlpha().trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 1 }).png().toBuffer();
+  const out = `${outDir}/${sym}.png`;
+  await sharp(trimmed).resize({ width: long, height: long, fit: 'inside', withoutEnlargement: true }).png({ compressionLevel: 9 }).toFile(out);
+  const { data, info } = await sharp(out).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let vis = 0, part = 0;
+  for (let i = 0; i < info.width * info.height; i += 1) { const a = data[i * 4 + 3]; if (a > 0) vis += 1; if (a > 12 && a < 243) part += 1; }
+  console.log(sym.padEnd(24), `${info.width}x${info.height}`, 'partly see-through', (100 * part / Math.max(1, vis)).toFixed(1) + '%', Math.round(fs.statSync(out).size / 1024) + ' KB');
+})().catch((e) => { console.error(process.argv[2], 'FAILED', String(e).slice(0, 200)); process.exit(1); });
